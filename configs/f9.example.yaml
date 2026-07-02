@@ -1,0 +1,25 @@
+# f9 example configuration (~/.config/f9/f9.yaml)
+store:
+  path: ~/.config/f9/sessions      # YAML folder tree; .meta/ sidecars live inside
+
+scrollback:
+  max_lines: 5000000
+  max_bytes: 536870912             # 512 MiB compressed
+  chunk_size: 1048576
+  spill_to_disk: false
+
+audit:
+  scope: "off"                     # off|events|events+input|full-io (inheritable per folder/session)
+  dir: ~/.config/f9/audit
+  fsync_interval: 1s
+  queue_size: 65536
+  on_full: block                   # block|drop-and-count — see ADR-0004
+
+ui:
+  theme: default-dark
+  launcher_hotkey: F9              # obviously
+  filter_debounce_ms: 30
+
+multisend:
+  confirm_above: 10
+  default_mode: parallel           # parallel|sequential

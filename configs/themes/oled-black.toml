@@ -1,0 +1,28 @@
+# f9 theme — one file covers GUI, session tree and terminal (phase 03).
+name = "oled-black"
+
+[gui]
+bg          = "#000000"
+bg-raised   = "#0a0a0c"
+fg          = "#d6d6d6"
+accent      = "#33b1ff"
+border      = "#1b1b1f"
+
+[tree]
+folder-fg   = "#8a8f98"
+session-fg  = "#d6d6d6"
+match-fg    = "#33b1ff"
+selected-bg = "#0b2d45"
+
+[terminal]
+background  = "#000000"
+foreground  = "#c8c8c8"
+cursor      = "#33b1ff"
+selection   = "#264f78"
+font-family = "Cascadia Mono"
+font-size   = 13
+# ansi 0-15
+palette = [
+  "#000000","#e06c75","#98c379","#e5c07b","#61afef","#c678dd","#56b6c2","#abb2bf",
+  "#5c6370","#ff7a85","#a9d47f","#f0ca85","#74bcff","#d78ce6","#65c8d4","#ffffff",
+]
