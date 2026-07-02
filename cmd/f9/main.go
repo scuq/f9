@@ -4,21 +4,25 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
 	"golang.org/x/term"
 
 	"github.com/scuq/f9/internal/osdetect"
+	"github.com/scuq/f9/internal/scrollback"
 	"github.com/scuq/f9/internal/sshx"
 	"github.com/scuq/f9/internal/store"
 )
 
-const version = "0.0.3-phase00d"
+const version = "0.0.4-phase00e"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -34,17 +38,15 @@ func main() {
 			os.Exit(1)
 		}
 	case "connect":
-		if len(os.Args) < 3 {
-			fmt.Fprintln(os.Stderr, "usage: f9 connect <session-name | folder/name>")
-			os.Exit(2)
-		}
-		if err := cmdConnect(os.Args[2]); err != nil {
+		if err := cmdConnect(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "f9 connect:", err)
 			os.Exit(1)
 		}
 	case "grep":
-		fmt.Fprintln(os.Stderr, "f9 grep: recorded-buffer grep arrives with phase 00e")
-		os.Exit(1)
+		if err := cmdGrep(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "f9 grep:", err)
+			os.Exit(1)
+		}
 	default:
 		usage()
 		os.Exit(2)
@@ -62,17 +64,22 @@ func storeRoot() (string, error) {
 	return filepath.Join(home, ".config", "f9", "sessions"), nil
 }
 
-func cmdList() error {
+func openStore() (*store.YAMLStore, error) {
 	root, err := storeRoot()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	st, err := store.Open(root)
+	return store.Open(root)
+}
+
+func cmdList() error {
+	st, err := openStore()
 	if err != nil {
 		return err
 	}
 	sessions := st.Sessions()
 	if len(sessions) == 0 {
+		root, _ := storeRoot()
 		fmt.Printf("no sessions in %s (set F9_STORE to use another store)\n", root)
 		return nil
 	}
@@ -119,16 +126,21 @@ func findSession(st *store.YAMLStore, arg string) (store.Session, error) {
 	}
 }
 
-func cmdConnect(arg string) error {
-	root, err := storeRoot()
+func cmdConnect(args []string) error {
+	fs := flag.NewFlagSet("connect", flag.ContinueOnError)
+	record := fs.Bool("record", false, "record session output for f9 grep")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("usage: f9 connect [-record] <session | folder/name>")
+	}
+
+	st, err := openStore()
 	if err != nil {
 		return err
 	}
-	st, err := store.Open(root)
-	if err != nil {
-		return err
-	}
-	sess, err := findSession(st, arg)
+	sess, err := findSession(st, fs.Arg(0))
 	if err != nil {
 		return err
 	}
@@ -155,6 +167,19 @@ func cmdConnect(arg string) error {
 		keepalive = *eff.KeepaliveInterval
 	}
 
+	var rec *recorder
+	if *record {
+		rdir, err := recordingsDir()
+		if err != nil {
+			return err
+		}
+		path := filepath.Join(rdir, sess.ID+".zst")
+		if rec, err = newRecorder(path); err != nil {
+			return err
+		}
+		fmt.Fprintf(os.Stderr, "recording to %s\n", path)
+	}
+
 	det := osdetect.New()
 	p := newCLIPrompter()
 	fmt.Fprintf(os.Stderr, "connecting to %s (%s)...\n", sess.Name, sess.Host)
@@ -168,6 +193,9 @@ func cmdConnect(arg string) error {
 		},
 	})
 	if err != nil {
+		if rec != nil {
+			rec.Close()
+		}
 		return err
 	}
 	defer client.Close()
@@ -187,6 +215,9 @@ func cmdConnect(arg string) error {
 	}
 	sshSess, err := client.NewSession(context.Background(), termType, cols, rows)
 	if err != nil {
+		if rec != nil {
+			rec.Close()
+		}
 		return err
 	}
 	defer sshSess.Close()
@@ -201,11 +232,14 @@ func cmdConnect(arg string) error {
 	}
 
 	// One combined handler: the pre-registration pending buffer is replayed
-	// to the first handler only, and the detector must see those first bytes
-	// (banner + motd are prime evidence).
+	// to the first handler only, and both the detector and the recorder must
+	// see those first bytes.
 	sshSess.OnData(func(b []byte) {
 		_, _ = os.Stdout.Write(b)
 		det.ObserveOutput(b)
+		if rec != nil {
+			_ = rec.Write(b)
+		}
 	})
 	go func() { _, _ = io.Copy(sshSess.Stdin(), os.Stdin) }()
 	go watchResize(fd, sshSess)
@@ -216,9 +250,15 @@ func cmdConnect(arg string) error {
 	}
 	fmt.Fprintln(os.Stderr, "\nconnection closed")
 
+	if rec != nil {
+		if err := rec.Close(); err != nil {
+			fmt.Fprintln(os.Stderr, "recording close:", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "recorded %d bytes (uncompressed)\n", rec.Bytes())
+		}
+	}
+
 	// Persist the OS guess passively gathered during the session (00d).
-	// Shell-hop caveat: evidence past the hop belongs to the target, but the
-	// server version is the hop's — the version rules just carry less weight.
 	if g := det.Guess(); g.Family != osdetect.FamilyUnknown && g.Confidence >= osdetect.DefaultThreshold {
 		if m, err := st.Meta(sess.ID); err == nil && !m.OSPinned {
 			m.DetectedOS = string(g.Family)
@@ -230,12 +270,131 @@ func cmdConnect(arg string) error {
 	return nil
 }
 
+// cmdGrep replays a recorded session through the scrollback buffer (the real
+// 00b hot path on real data) and streams matches grep-style.
+func cmdGrep(args []string) error {
+	fs := flag.NewFlagSet("grep", flag.ContinueOnError)
+	invert := fs.Bool("v", false, "invert match")
+	icase := fs.Bool("i", false, "ignore case")
+	after := fs.Int("A", 0, "lines of after-context")
+	before := fs.Int("B", 0, "lines of before-context")
+	maxM := fs.Int("m", 0, "stop after N matches (0 = unlimited)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 2 {
+		return fmt.Errorf("usage: f9 grep [-v -i -A n -B n -m n] <session | folder/name> <pattern>")
+	}
+
+	st, err := openStore()
+	if err != nil {
+		return err
+	}
+	sess, err := findSession(st, fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	re, err := regexp.Compile(fs.Arg(1))
+	if err != nil {
+		return fmt.Errorf("pattern: %w", err)
+	}
+
+	rdir, err := recordingsDir()
+	if err != nil {
+		return err
+	}
+	path := filepath.Join(rdir, sess.ID+".zst")
+	f, err := os.Open(path)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("no recording for %q — run: f9 connect -record %s", sess.Name, sess.Name)
+	}
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	zr, err := zstd.NewReader(f)
+	if err != nil {
+		return fmt.Errorf("open recording: %w", err)
+	}
+	defer zr.Close()
+
+	buf := scrollback.New(scrollback.Config{})
+	defer buf.Close()
+	chunk := make([]byte, 64<<10)
+	for {
+		n, rerr := zr.Read(chunk)
+		if n > 0 {
+			buf.Append(chunk[:n])
+		}
+		if rerr == io.EOF {
+			break
+		}
+		if rerr != nil {
+			return fmt.Errorf("read recording: %w", rerr)
+		}
+	}
+
+	it, err := buf.Grep(re, scrollback.GrepOpts{
+		Invert:     *invert,
+		IgnoreCase: *icase,
+		After:      *after,
+		Before:     *before,
+		MaxMatches: *maxM,
+	})
+	if err != nil {
+		return err
+	}
+	defer it.Close()
+
+	withContext := *after > 0 || *before > 0
+	last := -1 // highest 0-based line number printed
+	printedAny := false
+	count := 0
+	for {
+		m, ok := it.Next()
+		if !ok {
+			break
+		}
+		count++
+		start := m.LineNo - len(m.Before)
+		if withContext && printedAny && start > last+1 {
+			fmt.Println("--")
+		}
+		for idx, ln := range m.Before {
+			no := start + idx
+			if no <= last {
+				continue
+			}
+			fmt.Printf("%d-%s\n", no+1, ln)
+			last = no
+		}
+		if m.LineNo > last {
+			fmt.Printf("%d:%s\n", m.LineNo+1, m.Line)
+			last = m.LineNo
+		}
+		for idx, ln := range m.After {
+			no := m.LineNo + 1 + idx
+			if no <= last {
+				continue
+			}
+			fmt.Printf("%d-%s\n", no+1, ln)
+			last = no
+		}
+		printedAny = true
+	}
+	if err := it.Close(); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "%d matches\n", count)
+	return nil
+}
+
 func usage() {
 	fmt.Fprintln(os.Stderr, `usage: f9 <command>
 
 commands:
-  list                              list sessions (F9_STORE overrides path)
-  connect <session | folder/name>   interactive attach (exit via remote logout)
-  grep <session> <re>               grep a recorded scrollback buffer (00e)
-  version                           print version`)
+  list                                          list sessions (F9_STORE overrides path)
+  connect [-record] <session | folder/name>     interactive attach (exit via remote logout)
+  grep [-v -i -A n -B n -m n] <session> <re>    grep a recorded session (see connect -record)
+  version                                       print version`)
 }
