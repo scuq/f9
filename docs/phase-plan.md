@@ -23,6 +23,7 @@ Dependency budget (add only when the phase needs it):
 | Dep | Phase | Purpose |
 |---|---|---|
 | `golang.org/x/crypto/ssh` (+ `agent`, `knownhosts`) | 00 | transport, auth, host keys |
+| `golang.org/x/term` | 00 | CLI raw mode + hidden prompts |
 | `gopkg.in/yaml.v3` | 00 | YAML persistence for the session store |
 | `github.com/klauspost/compress/zstd` | 00 | scrollback + audit segment compression |
 | `github.com/wailsapp/wails/v2` | 01 | app shell |
