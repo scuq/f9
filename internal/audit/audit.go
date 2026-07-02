@@ -13,8 +13,8 @@ const (
 	EvConnect    EventType = "connect"
 	EvAuth       EventType = "auth"
 	EvDisconnect EventType = "disconnect"
-	EvSend       EventType = "send"      // user input (events+input scope)
-	EvChunk      EventType = "io-chunk"  // sealed scrollback chunk by reference (full-io scope)
+	EvSend       EventType = "send"     // user input (events+input scope)
+	EvChunk      EventType = "io-chunk" // sealed scrollback chunk by reference (full-io scope)
 )
 
 type Event struct {

@@ -25,10 +25,10 @@ type GrepOpts struct {
 
 // Match is one grep hit with its context window.
 type Match struct {
-	LineNo  int
-	Line    []byte
-	Before  [][]byte
-	After   [][]byte
+	LineNo int
+	Line   []byte
+	Before [][]byte
+	After  [][]byte
 }
 
 // Iterator streams matches without materializing the result set.
@@ -38,7 +38,7 @@ type Iterator interface {
 }
 
 type Buffer interface {
-	Append(p []byte)                    // HOT PATH — see package doc
+	Append(p []byte) // HOT PATH — see package doc
 	Lines(from, to int) ([][]byte, error)
 	Grep(re *regexp.Regexp, opts GrepOpts) (Iterator, error)
 	Len() (lines int, bytes int64)
