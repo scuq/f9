@@ -1,31 +1,41 @@
 // Package scrollback implements the per-session chunked ring buffer that backs
 // terminal history, search, virtual grep, multi-send feedback and audit full-io
-// capture. Hot-path contract: Append is memcpy-only — no locks shared with
-// readers, no allocation beyond chunk growth, no compression, no crypto.
-// See docs/phase-plan.md 00b and ADR-0002.
+// capture (ADR-0002).
+//
+// Hot-path contract: Append performs a memcpy plus newline indexing under a
+// briefly-held mutex — no compression, no crypto, no disk I/O, no allocation
+// beyond chunk growth. Compression of sealed chunks happens on a background
+// goroutine; readers snapshot immutable chunk views and decompress outside the
+// append path. The contract is enforced by BenchmarkAppend (target: >= 500 MB/s
+// single-core).
 package scrollback
 
 import "regexp"
 
 type Config struct {
-	ChunkSize   int   // sealed-chunk target size, default 1 MiB
-	MaxLines    int   // default 5_000_000
-	MaxBytes    int64 // compressed cap, default 512 MiB
-	SpillToDisk bool  // overflow spills instead of dropping oldest
+	ChunkSize int   // sealed-chunk target size; default 1 MiB
+	MaxLines  int   // retained-line cap; default 5_000_000
+	MaxBytes  int64 // retained-byte cap (compressed + active); default 512 MiB
+
+	// SpillToDisk/SpillDir: overflow spills to disk instead of dropping the
+	// oldest chunk. TODO(phase 00b follow-up): not implemented yet; fields
+	// reserved so configs stay stable.
+	SpillToDisk bool
 	SpillDir    string
 }
 
 type GrepOpts struct {
 	Invert     bool // -v
-	IgnoreCase bool // -i (compile pattern accordingly)
-	After      int  // -A
-	Before     int  // -B
+	IgnoreCase bool // -i: best-effort (?i) recompile; prefer compiling the pattern case-insensitively
+	After      int  // -A n
+	Before     int  // -B n
 	MaxMatches int  // 0 = unlimited
 }
 
-// Match is one grep hit with its context window.
+// Match is one grep hit with its context window. All byte slices are copies
+// owned by the caller.
 type Match struct {
-	LineNo int
+	LineNo int // absolute line number since buffer creation
 	Line   []byte
 	Before [][]byte
 	After  [][]byte
@@ -37,16 +47,22 @@ type Iterator interface {
 	Close() error
 }
 
+// Buffer line numbers are absolute since creation: the retained window is
+// [FirstLine(), FirstLine()+lines) with lines from Len(). A trailing partial
+// line (no newline yet — e.g. a prompt) counts as a line; returned lines never
+// include their trailing newline.
 type Buffer interface {
-	Append(p []byte) // HOT PATH — see package doc
-	Lines(from, to int) ([][]byte, error)
+	Append(p []byte)                      // HOT PATH — see package doc
+	Lines(from, to int) ([][]byte, error) // [from, to)
 	Grep(re *regexp.Regexp, opts GrepOpts) (Iterator, error)
 	Len() (lines int, bytes int64)
-	// SealedChunks lets the audit writer consume compressed chunks by
-	// reference (zero copy). Registered callback runs off the hot path.
+	FirstLine() int
+	// OnSeal registers a callback fired (off the hot path) whenever a chunk is
+	// compressed: the audit writer consumes compressed chunks by reference
+	// (zero copy). chunk must be treated as immutable.
 	OnSeal(func(chunk []byte, firstLine, lastLine int))
 	Close() error
 }
 
-// New returns the chunked ring buffer implementation (phase 00b).
-func New(cfg Config) Buffer { panic("phase 00b: not implemented") }
+// New returns the chunked ring buffer implementation.
+func New(cfg Config) Buffer { return newRing(cfg) }
