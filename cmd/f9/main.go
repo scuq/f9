@@ -13,11 +13,12 @@ import (
 
 	"golang.org/x/term"
 
+	"github.com/scuq/f9/internal/osdetect"
 	"github.com/scuq/f9/internal/sshx"
 	"github.com/scuq/f9/internal/store"
 )
 
-const version = "0.0.2-phase00c"
+const version = "0.0.3-phase00d"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -83,7 +84,14 @@ func cmdList() error {
 		if s.Port != 0 && s.Port != 22 {
 			target = fmt.Sprintf("%s:%d", target, s.Port)
 		}
-		fmt.Printf("%-44s %-32s %s\n", st.FolderPath(s.FolderID)+"/"+s.Name, target, s.Proto)
+		osTag := ""
+		if m, err := st.Meta(s.ID); err == nil && m.DetectedOS != "" {
+			osTag = m.DetectedOS
+			if m.OSPinned {
+				osTag += " (pinned)"
+			}
+		}
+		fmt.Printf("%-44s %-32s %-4s %s\n", st.FolderPath(s.FolderID)+"/"+s.Name, target, s.Proto, osTag)
 	}
 	return nil
 }
@@ -147,17 +155,23 @@ func cmdConnect(arg string) error {
 		keepalive = *eff.KeepaliveInterval
 	}
 
+	det := osdetect.New()
 	p := newCLIPrompter()
 	fmt.Fprintf(os.Stderr, "connecting to %s (%s)...\n", sess.Name, sess.Host)
 	client, err := sshx.Dial(context.Background(), sess.Host, sess.Port, targetUser, p, sshx.DialOpts{
 		Timeout:           10 * time.Second,
 		KeepaliveInterval: keepalive,
 		JumpChain:         hops,
+		OnBanner: func(b string) {
+			det.ObserveOutput([]byte(b))
+			fmt.Fprint(os.Stderr, b)
+		},
 	})
 	if err != nil {
 		return err
 	}
 	defer client.Close()
+	det.ObserveServerVersion(client.ServerVersion())
 
 	if m, err := st.Meta(sess.ID); err == nil {
 		m.LastConnect = time.Now().UTC()
@@ -186,7 +200,13 @@ func cmdConnect(arg string) error {
 		}
 	}
 
-	sshSess.OnData(func(b []byte) { _, _ = os.Stdout.Write(b) })
+	// One combined handler: the pre-registration pending buffer is replayed
+	// to the first handler only, and the detector must see those first bytes
+	// (banner + motd are prime evidence).
+	sshSess.OnData(func(b []byte) {
+		_, _ = os.Stdout.Write(b)
+		det.ObserveOutput(b)
+	})
 	go func() { _, _ = io.Copy(sshSess.Stdin(), os.Stdin) }()
 	go watchResize(fd, sshSess)
 
@@ -195,6 +215,18 @@ func cmdConnect(arg string) error {
 		restore()
 	}
 	fmt.Fprintln(os.Stderr, "\nconnection closed")
+
+	// Persist the OS guess passively gathered during the session (00d).
+	// Shell-hop caveat: evidence past the hop belongs to the target, but the
+	// server version is the hop's — the version rules just carry less weight.
+	if g := det.Guess(); g.Family != osdetect.FamilyUnknown && g.Confidence >= osdetect.DefaultThreshold {
+		if m, err := st.Meta(sess.ID); err == nil && !m.OSPinned {
+			m.DetectedOS = string(g.Family)
+			m.OSConfidence = g.Confidence
+			_ = st.PutMeta(m)
+		}
+		fmt.Fprintf(os.Stderr, "detected OS: %s (confidence %.2f)\n", g.Family, g.Confidence)
+	}
 	return nil
 }
 
