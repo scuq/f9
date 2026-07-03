@@ -19,10 +19,14 @@ declare global {
           Disconnect(id: string): Promise<void>;
           DisconnectAll(): Promise<void>;
           ResolvePrompt(id: string, reply: PromptReply): Promise<void>;
-          OpenTerminal(sessionId: string, cols: number, rows: number): Promise<void>;
-          TermInput(sessionId: string, data: string): Promise<void>;
-          TermResize(sessionId: string, cols: number, rows: number): Promise<void>;
-          CloseTerminal(sessionId: string): Promise<void>;
+          OpenTerminal(termId: string, sessionId: string, cols: number, rows: number): Promise<void>;
+          TermInput(termId: string, data: string): Promise<void>;
+          TermResize(termId: string, cols: number, rows: number): Promise<void>;
+          CloseTerminal(termId: string): Promise<void>;
+          SetTerminalWatch(termId: string, pattern: string): Promise<void>;
+          PinSession(id: string): Promise<void>;
+          UnpinSession(id: string): Promise<void>;
+          PinnedSessions(): Promise<SessionNode[]>;
         };
       };
     };
@@ -34,7 +38,7 @@ declare global {
 
   interface SessionNode {
     id: string; name: string; host: string; port: number;
-    user: string; proto: string; detectedOs: string; osPinned: boolean;
+    user: string; proto: string; detectedOs: string; osPinned: boolean; pinned: boolean;
   }
   interface FolderNode {
     id: string; name: string; path: string;
@@ -53,7 +57,6 @@ declare global {
     port: number; user: string; proto: string; options: Record<string, string>;
   }
   interface FolderInput { id: string; parentId: string; name: string; }
-
   interface Conn {
     sessionId: string; name: string; host: string;
     state: "dialing" | "connected" | "error"; err: string; since: string;

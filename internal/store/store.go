@@ -56,6 +56,7 @@ type SessionMeta struct {
 	OSConfidence float64   `yaml:"os_confidence,omitempty"`
 	OSPinned     bool      `yaml:"os_pinned,omitempty"`
 	LastConnect  time.Time `yaml:"last_connect,omitempty"`
+	Pinned       bool      `yaml:"pinned,omitempty"`
 }
 
 // Store is the persistence boundary; the YAML-tree implementation is phase 00a,

@@ -42,8 +42,16 @@ export function GetVersion() {
   return window['go']['app']['App']['GetVersion']();
 }
 
-export function OpenTerminal(arg1, arg2, arg3) {
-  return window['go']['app']['App']['OpenTerminal'](arg1, arg2, arg3);
+export function OpenTerminal(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['OpenTerminal'](arg1, arg2, arg3, arg4);
+}
+
+export function PinSession(arg1) {
+  return window['go']['app']['App']['PinSession'](arg1);
+}
+
+export function PinnedSessions() {
+  return window['go']['app']['App']['PinnedSessions']();
 }
 
 export function ResolvePrompt(arg1, arg2) {
@@ -62,6 +70,10 @@ export function SessionDetail(arg1) {
   return window['go']['app']['App']['SessionDetail'](arg1);
 }
 
+export function SetTerminalWatch(arg1, arg2) {
+  return window['go']['app']['App']['SetTerminalWatch'](arg1, arg2);
+}
+
 export function TermInput(arg1, arg2) {
   return window['go']['app']['App']['TermInput'](arg1, arg2);
 }
@@ -72,4 +84,8 @@ export function TermResize(arg1, arg2, arg3) {
 
 export function Tree() {
   return window['go']['app']['App']['Tree']();
+}
+
+export function UnpinSession(arg1) {
+  return window['go']['app']['App']['UnpinSession'](arg1);
 }

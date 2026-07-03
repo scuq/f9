@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"io"
+	"regexp"
 	"sync"
 	"testing"
 	"time"
@@ -60,7 +61,8 @@ func (c *fakeTermClient) NewSession(context.Context, string, int, int) (sshx.Ses
 func (c *fakeTermClient) ServerVersion() string { return "SSH-2.0-fake" }
 func (c *fakeTermClient) Close() error          { return nil }
 
-func TestTerminalLifecycle(t *testing.T) {
+func setupConnectedTerminal(t *testing.T) (*App, string, *fakeSession) {
+	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("F9_STORE", dir)
 	st, err := store.Open(dir)
@@ -78,12 +80,10 @@ func TestTerminalLifecycle(t *testing.T) {
 	for _, s := range st.Sessions() {
 		id = s.ID
 	}
-
 	a, err := New()
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	fs := newFakeSession()
 	dial := func(context.Context, string, int, string, sshx.Prompter, sshx.DialOpts) (sshx.Client, error) {
 		return &fakeTermClient{sess: fs}, nil
@@ -92,7 +92,6 @@ func TestTerminalLifecycle(t *testing.T) {
 	if err := a.ConnectSessions([]string{id}); err != nil {
 		t.Fatal(err)
 	}
-
 	deadline := time.Now().Add(2 * time.Second)
 	for {
 		if _, ok := a.mgr.Client(id); ok {
@@ -103,18 +102,26 @@ func TestTerminalLifecycle(t *testing.T) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
+	return a, id, fs
+}
+
+func TestTerminalLifecycle(t *testing.T) {
+	a, id, fs := setupConnectedTerminal(t)
 
 	var mu sync.Mutex
 	var emitted []string
+	var closed int
 	a.onEmit = func(ev string, data interface{}) {
-		if ev == "f9:term:"+id {
-			mu.Lock()
+		mu.Lock()
+		defer mu.Unlock()
+		if ev == "f9:term:T1" {
 			emitted = append(emitted, data.(string))
-			mu.Unlock()
+		}
+		if ev == "f9:termclosed" && data.(string) == "T1" {
+			closed++
 		}
 	}
-
-	if err := a.OpenTerminal(id, 80, 24); err != nil {
+	if err := a.OpenTerminal("T1", id, 80, 24); err != nil {
 		t.Fatal(err)
 	}
 	fs.onData([]byte("hello\r\n"))
@@ -125,21 +132,81 @@ func TestTerminalLifecycle(t *testing.T) {
 	if len(got) != 1 || got[0] != want {
 		t.Fatalf("emitted = %v, want [%q]", got, want)
 	}
-
-	a.TermInput(id, "show version\n")
+	a.TermInput("T1", "show version\n")
 	if fs.stdin.String() != "show version\n" {
 		t.Fatalf("stdin = %q", fs.stdin.String())
 	}
+	a.CloseTerminal("T1")
+	deadline := time.Now().Add(time.Second)
+	for {
+		mu.Lock()
+		c := closed
+		mu.Unlock()
+		if c == 1 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no f9:termclosed emitted")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
 
-	if err := a.OpenTerminal(id, 80, 24); err != nil { // idempotent
+func TestTerminalActivityMatch(t *testing.T) {
+	a, id, fs := setupConnectedTerminal(t)
+	if err := a.OpenTerminal("T1", id, 80, 24); err != nil {
 		t.Fatal(err)
 	}
+	var mu sync.Mutex
+	kinds := map[string]int{}
+	a.onEmit = func(ev string, data interface{}) {
+		if ev == "f9:termactivity" {
+			m := data.(map[string]string)
+			mu.Lock()
+			kinds[m["kind"]]++
+			mu.Unlock()
+		}
+	}
+	if err := a.SetTerminalWatch("T1", "ERROR"); err != nil {
+		t.Fatal(err)
+	}
+	fs.onData([]byte("all good\r\n"))
+	fs.onData([]byte("ERROR: disk full\r\n"))
+	mu.Lock()
+	m, o := kinds["match"], kinds["output"]
+	mu.Unlock()
+	if m < 1 {
+		t.Fatalf("match not emitted: %v", kinds)
+	}
+	if o < 1 {
+		t.Fatalf("output not emitted: %v", kinds)
+	}
+}
 
-	a.CloseTerminal(id)
+func TestTerminalActivityPrompt(t *testing.T) {
+	a, id, fs := setupConnectedTerminal(t)
+	if err := a.OpenTerminal("T1", id, 80, 24); err != nil {
+		t.Fatal(err)
+	}
 	a.tmu.Lock()
-	_, stillOpen := a.terms[id]
+	a.terms["T1"].promptRe = regexp.MustCompile(`\$ $`)
 	a.tmu.Unlock()
-	if stillOpen {
-		t.Fatal("terminal not removed on close")
+
+	var mu sync.Mutex
+	prompt := 0
+	a.onEmit = func(ev string, data interface{}) {
+		if ev == "f9:termactivity" && data.(map[string]string)["kind"] == "prompt" {
+			mu.Lock()
+			prompt++
+			mu.Unlock()
+		}
+	}
+	a.TermInput("T1", "sleep 1\n") // marks running
+	fs.onData([]byte("scuq@lyrael:~$ "))
+	mu.Lock()
+	p := prompt
+	mu.Unlock()
+	if p < 1 {
+		t.Fatal("prompt activity not emitted after command completion")
 	}
 }

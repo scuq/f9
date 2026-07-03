@@ -16,12 +16,13 @@ import (
 
 	"github.com/scuq/f9/internal/connmgr"
 	"github.com/scuq/f9/internal/filter"
+	"github.com/scuq/f9/internal/osdetect"
 	"github.com/scuq/f9/internal/sshx"
 	"github.com/scuq/f9/internal/store"
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.2.0-phase02a"
+const Version = "0.2.2-phase02c"
 
 // ---- tree ----
 
@@ -34,6 +35,7 @@ type SessionNode struct {
 	Proto      string `json:"proto"`
 	DetectedOS string `json:"detectedOs"`
 	OSPinned   bool   `json:"osPinned"`
+	Pinned     bool   `json:"pinned"`
 }
 
 type FolderNode struct {
@@ -115,8 +117,9 @@ type App struct {
 	prompts map[string]chan PromptReply
 	reqSeq  int64
 
-	tmu   sync.Mutex
-	terms map[string]*terminal
+	tmu     sync.Mutex
+	terms   map[string]*terminal
+	tunings map[osdetect.Family]osdetect.Tuning
 
 	// onEmit is a test hook used only by the non-gui emitEvent stub.
 	onEmit func(event string, data interface{})
@@ -135,6 +138,7 @@ func New() (*App, error) {
 		st:      st,
 		prompts: map[string]chan PromptReply{},
 		terms:   map[string]*terminal{},
+		tunings: loadTunings(),
 	}
 	a.mgr = connmgr.New(64, sshx.Dial, a.emitConns)
 	return a, nil
@@ -330,6 +334,7 @@ func (a *App) sessionNode(s store.Session) SessionNode {
 	if m, err := a.st.Meta(s.ID); err == nil {
 		sn.DetectedOS = m.DetectedOS
 		sn.OSPinned = m.OSPinned
+		sn.Pinned = m.Pinned
 	}
 	return sn
 }

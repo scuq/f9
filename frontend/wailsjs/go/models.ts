@@ -9,6 +9,7 @@ export namespace app {
 	    proto: string;
 	    detectedOs: string;
 	    osPinned: boolean;
+	    pinned: boolean;
 	    path: string;
 	    score: number;
 	
@@ -26,6 +27,7 @@ export namespace app {
 	        this.proto = source["proto"];
 	        this.detectedOs = source["detectedOs"];
 	        this.osPinned = source["osPinned"];
+	        this.pinned = source["pinned"];
 	        this.path = source["path"];
 	        this.score = source["score"];
 	    }
@@ -55,6 +57,7 @@ export namespace app {
 	    proto: string;
 	    detectedOs: string;
 	    osPinned: boolean;
+	    pinned: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SessionNode(source);
@@ -70,6 +73,7 @@ export namespace app {
 	        this.proto = source["proto"];
 	        this.detectedOs = source["detectedOs"];
 	        this.osPinned = source["osPinned"];
+	        this.pinned = source["pinned"];
 	    }
 	}
 	export class FolderNode {

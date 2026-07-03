@@ -23,7 +23,11 @@ export function Filter(arg1:string):Promise<Array<app.FilterHit>>;
 
 export function GetVersion():Promise<string>;
 
-export function OpenTerminal(arg1:string,arg2:number,arg3:number):Promise<void>;
+export function OpenTerminal(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
+
+export function PinSession(arg1:string):Promise<void>;
+
+export function PinnedSessions():Promise<Array<app.SessionNode>>;
 
 export function ResolvePrompt(arg1:string,arg2:app.PromptReply):Promise<void>;
 
@@ -33,8 +37,12 @@ export function SaveSession(arg1:app.SessionInput):Promise<string>;
 
 export function SessionDetail(arg1:string):Promise<app.SessionDetail>;
 
+export function SetTerminalWatch(arg1:string,arg2:string):Promise<void>;
+
 export function TermInput(arg1:string,arg2:string):Promise<void>;
 
 export function TermResize(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function Tree():Promise<app.FolderNode>;
+
+export function UnpinSession(arg1:string):Promise<void>;
