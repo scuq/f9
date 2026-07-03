@@ -106,9 +106,14 @@ body {
   font-size: 11px;
 }
 
-.mainpane { flex: 1; display: flex; align-items: center; justify-content: center; overflow-y: auto; }
-.empty { color: var(--folder-fg); }
-.details { min-width: 420px; max-width: 640px; padding: 24px; }
+.mainpane { flex: 1; position: relative; overflow: hidden; background: #000; }
+.termhost { position: absolute; inset: 0; padding: 6px 8px 4px; background: #000; }
+.termhost .xterm { height: 100%; }
+.mainpane .empty {
+  position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center; color: var(--folder-fg);
+}
+.mainpane .details { position: absolute; inset: 0; overflow-y: auto; padding: 32px; max-width: 760px; }
 .details h1 { font-size: 18px; color: var(--accent); margin: 0 0 12px; }
 .details table { border-collapse: collapse; }
 .details td { padding: 3px 14px 3px 0; vertical-align: top; }

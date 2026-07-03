@@ -5,6 +5,8 @@ import {app} from '../models';
 
 export function ActiveConnections():Promise<Array<connmgr.Conn>>;
 
+export function CloseTerminal(arg1:string):Promise<void>;
+
 export function ConnectFolder(arg1:string):Promise<void>;
 
 export function ConnectSessions(arg1:Array<string>):Promise<void>;
@@ -21,6 +23,8 @@ export function Filter(arg1:string):Promise<Array<app.FilterHit>>;
 
 export function GetVersion():Promise<string>;
 
+export function OpenTerminal(arg1:string,arg2:number,arg3:number):Promise<void>;
+
 export function ResolvePrompt(arg1:string,arg2:app.PromptReply):Promise<void>;
 
 export function SaveFolder(arg1:app.FolderInput):Promise<string>;
@@ -28,5 +32,9 @@ export function SaveFolder(arg1:app.FolderInput):Promise<string>;
 export function SaveSession(arg1:app.SessionInput):Promise<string>;
 
 export function SessionDetail(arg1:string):Promise<app.SessionDetail>;
+
+export function TermInput(arg1:string,arg2:string):Promise<void>;
+
+export function TermResize(arg1:string,arg2:number,arg3:number):Promise<void>;
 
 export function Tree():Promise<app.FolderNode>;

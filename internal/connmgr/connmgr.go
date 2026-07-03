@@ -33,12 +33,12 @@ type Target struct {
 
 // Conn is the UI-facing snapshot of one connection.
 type Conn struct {
-	SessionID string    `json:"sessionId"`
-	Name      string    `json:"name"`
-	Host      string    `json:"host"`
-	State     State     `json:"state"`
-	Err       string    `json:"err"`
-	Since     time.Time `json:"since"`
+	SessionID string `json:"sessionId"`
+	Name      string `json:"name"`
+	Host      string `json:"host"`
+	State     State  `json:"state"`
+	Err       string `json:"err"`
+	Since     string `json:"since"` // RFC3339; wire-friendly for Wails bindings
 }
 
 // DialFunc matches sshx.Dial; injectable so the manager is testable without
@@ -48,6 +48,7 @@ type DialFunc func(ctx context.Context, host string, port int, user string, p ss
 type entry struct {
 	conn   Conn
 	client sshx.Client
+	since  time.Time
 }
 
 type Manager struct {
@@ -90,10 +91,14 @@ func (m *Manager) ConnectBatch(ctx context.Context, targets []Target, p sshx.Pro
 			m.mu.Unlock()
 			continue
 		}
-		m.conns[t.SessionID] = &entry{conn: Conn{
-			SessionID: t.SessionID, Name: t.Name, Host: t.Host,
-			State: StateDialing, Since: time.Now(),
-		}}
+		now := time.Now()
+		m.conns[t.SessionID] = &entry{
+			conn: Conn{
+				SessionID: t.SessionID, Name: t.Name, Host: t.Host,
+				State: StateDialing, Since: now.Format(time.RFC3339),
+			},
+			since: now,
+		}
 		m.mu.Unlock()
 		m.onChange()
 
@@ -146,16 +151,20 @@ func (m *Manager) settle(id string, client sshx.Client, err error) {
 func (m *Manager) Active() []Conn {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	out := make([]Conn, 0, len(m.conns))
+	ents := make([]*entry, 0, len(m.conns))
 	for _, e := range m.conns {
-		out = append(out, e.conn)
+		ents = append(ents, e)
 	}
-	sort.Slice(out, func(i, j int) bool {
-		if !out[i].Since.Equal(out[j].Since) {
-			return out[i].Since.Before(out[j].Since)
+	sort.Slice(ents, func(i, j int) bool {
+		if !ents[i].since.Equal(ents[j].since) {
+			return ents[i].since.Before(ents[j].since)
 		}
-		return out[i].Name < out[j].Name
+		return ents[i].conn.Name < ents[j].conn.Name
 	})
+	out := make([]Conn, len(ents))
+	for i, e := range ents {
+		out[i] = e.conn
+	}
 	return out
 }
 

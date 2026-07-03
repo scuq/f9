@@ -6,6 +6,10 @@ export function ActiveConnections() {
   return window['go']['app']['App']['ActiveConnections']();
 }
 
+export function CloseTerminal(arg1) {
+  return window['go']['app']['App']['CloseTerminal'](arg1);
+}
+
 export function ConnectFolder(arg1) {
   return window['go']['app']['App']['ConnectFolder'](arg1);
 }
@@ -38,6 +42,10 @@ export function GetVersion() {
   return window['go']['app']['App']['GetVersion']();
 }
 
+export function OpenTerminal(arg1, arg2, arg3) {
+  return window['go']['app']['App']['OpenTerminal'](arg1, arg2, arg3);
+}
+
 export function ResolvePrompt(arg1, arg2) {
   return window['go']['app']['App']['ResolvePrompt'](arg1, arg2);
 }
@@ -52,6 +60,14 @@ export function SaveSession(arg1) {
 
 export function SessionDetail(arg1) {
   return window['go']['app']['App']['SessionDetail'](arg1);
+}
+
+export function TermInput(arg1, arg2) {
+  return window['go']['app']['App']['TermInput'](arg1, arg2);
+}
+
+export function TermResize(arg1, arg2, arg3) {
+  return window['go']['app']['App']['TermResize'](arg1, arg2, arg3);
 }
 
 export function Tree() {

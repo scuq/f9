@@ -21,7 +21,7 @@ import (
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.1.1-phase01b"
+const Version = "0.2.0-phase02a"
 
 // ---- tree ----
 
@@ -115,6 +115,9 @@ type App struct {
 	prompts map[string]chan PromptReply
 	reqSeq  int64
 
+	tmu   sync.Mutex
+	terms map[string]*terminal
+
 	// onEmit is a test hook used only by the non-gui emitEvent stub.
 	onEmit func(event string, data interface{})
 }
@@ -128,7 +131,11 @@ func New() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	a := &App{st: st, prompts: map[string]chan PromptReply{}}
+	a := &App{
+		st:      st,
+		prompts: map[string]chan PromptReply{},
+		terms:   map[string]*terminal{},
+	}
 	a.mgr = connmgr.New(64, sshx.Dial, a.emitConns)
 	return a, nil
 }

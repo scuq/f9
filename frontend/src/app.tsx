@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
+import { TerminalView } from "./terminal";
 
 // Phase 01c: multi-select + multisession connect. Marks accumulate across the
 // tree; "connect marked" / "connect folder" dial via connmgr (cap 64). The
@@ -223,6 +224,7 @@ export function App() {
   const [selFolder, setSelFolder] = useState<{ id: string; path: string } | null>(null);
   const [marked, setMarked] = useState<Record<string, true>>({});
   const [conns, setConns] = useState<Conn[]>([]);
+  const [openTerms, setOpenTerms] = useState<string[]>([]);
   const [promptQ, setPromptQ] = useState<PromptRequest[]>([]);
   const [ver, setVer] = useState("");
   const [modal, setModal] = useState<"" | "session-new" | "session-edit" | "folder">("");
@@ -257,6 +259,15 @@ export function App() {
     setSel(s);
     api().SessionDetail(s.id).then(setDetail).catch((e) => setErr(String(e)));
   };
+  const isConnected = (id: string) => conns.some((c) => c.sessionId === id && c.state === "connected");
+  useEffect(() => {
+    if (sel && isConnected(sel.id) && !openTerms.includes(sel.id)) {
+      setOpenTerms((t) => [...t, sel.id]);
+    }
+  }, [conns, sel]);
+  useEffect(() => {
+    setOpenTerms((t) => t.filter((id) => conns.some((c) => c.sessionId === id)));
+  }, [conns]);
   const toggleMark = (id: string) =>
     setMarked((m) => { const n = { ...m }; if (n[id]) delete n[id]; else n[id] = true; return n; });
   const markedIds = Object.keys(marked);
@@ -332,7 +343,10 @@ export function App() {
       </div>
 
       <div class="mainpane">
-        {sel && detail ? (
+        {openTerms.map((id) => (
+          <TerminalView key={id} sessionId={id} active={!!sel && sel.id === id && isConnected(id)} />
+        ))}
+        {sel && isConnected(sel.id) ? null : sel && detail ? (
           <div class="details">
             <h1>{detail.name}</h1>
             <table>

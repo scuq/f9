@@ -19,6 +19,10 @@ declare global {
           Disconnect(id: string): Promise<void>;
           DisconnectAll(): Promise<void>;
           ResolvePrompt(id: string, reply: PromptReply): Promise<void>;
+          OpenTerminal(sessionId: string, cols: number, rows: number): Promise<void>;
+          TermInput(sessionId: string, data: string): Promise<void>;
+          TermResize(sessionId: string, cols: number, rows: number): Promise<void>;
+          CloseTerminal(sessionId: string): Promise<void>;
         };
       };
     };
