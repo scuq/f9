@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { TerminalView } from "./terminal";
+import { applyTheme } from "./theme";
 
 const api = () => window.go.app.App;
 
@@ -216,6 +217,8 @@ export function App() {
   const [defInd, setDefInd] = useState({ output: true, prompt: true, match: true });
   const [ctxMenu, setCtxMenu] = useState<{ termId: string; x: number; y: number } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [themeList, setThemeList] = useState<string[]>([]);
+  const [themeName, setThemeName] = useState("");
   const debounce = useRef<number | undefined>(undefined);
 
   // refs so the event handler (registered once) reads current state
@@ -235,6 +238,8 @@ export function App() {
     api().GetVersion().then(setVer).catch(() => {});
     refreshConns();
     refreshPinned();
+    api().Themes().then((ts) => setThemeList(ts ?? [])).catch(() => {});
+    api().CurrentTheme().then((n) => { setThemeName(n); return api().Theme(n); }).then((t) => applyTheme(t)).catch(() => {});
     const offC = window.runtime.EventsOn("f9:conns", () => refreshConns());
     const offP = window.runtime.EventsOn("f9:prompt", (req: PromptRequest) => setPromptQ((qs) => [...qs, req]));
     const offT = window.runtime.EventsOn("f9:termclosed", (termId: string) => {
@@ -302,6 +307,10 @@ export function App() {
   const togglePin = (sessionId: string, currentlyPinned: boolean) => {
     const p = currentlyPinned ? api().UnpinSession(sessionId) : api().PinSession(sessionId);
     p.then(() => { refreshPinned(); load(); if (sel && sel.id === sessionId) api().SessionDetail(sessionId).then(setDetail).catch(() => {}); }).catch((e) => setErr(String(e)));
+  };
+  const changeTheme = (name: string) => {
+    setThemeName(name);
+    api().SetTheme(name).then(() => api().Theme(name)).then((t) => applyTheme(t)).catch((e) => setErr(String(e)));
   };
   const closeTab = (termId: string) => {
     api().CloseTerminal(termId).catch(() => {});
@@ -416,6 +425,12 @@ export function App() {
             <span class="gear" title="indicator defaults" onClick={(e) => { e.stopPropagation(); setSettingsOpen((s) => !s); }}>{"\u2699"}</span>
             {settingsOpen && (
               <div class="settings-pop" onClick={(e) => e.stopPropagation()}>
+                <div class="mhead">theme</div>
+                <div class="mrow">
+                  <select class="themesel" value={themeName} onChange={(e) => changeTheme((e.target as HTMLSelectElement).value)}>
+                    {themeList.map((n) => <option value={n} key={n}>{n}</option>)}
+                  </select>
+                </div>
                 <div class="mhead">default indicators (new tabs)</div>
                 <label class="mrow"><input type="checkbox" checked={defInd.output} onChange={(e) => setDefInd({ ...defInd, output: (e.target as HTMLInputElement).checked })} /> <span class="swatch output" /> output</label>
                 <label class="mrow"><input type="checkbox" checked={defInd.prompt} onChange={(e) => setDefInd({ ...defInd, prompt: (e.target as HTMLInputElement).checked })} /> <span class="swatch prompt" /> command done</label>

@@ -19,10 +19,11 @@ import (
 	"github.com/scuq/f9/internal/osdetect"
 	"github.com/scuq/f9/internal/sshx"
 	"github.com/scuq/f9/internal/store"
+	"github.com/scuq/f9/internal/theme"
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.2.2-phase02c"
+const Version = "0.3.0-phase03a"
 
 // ---- tree ----
 
@@ -121,6 +122,9 @@ type App struct {
 	terms   map[string]*terminal
 	tunings map[osdetect.Family]osdetect.Tuning
 
+	themes    map[string]*theme.Theme
+	themeName string
+
 	// onEmit is a test hook used only by the non-gui emitEvent stub.
 	onEmit func(event string, data interface{})
 }
@@ -139,7 +143,9 @@ func New() (*App, error) {
 		prompts: map[string]chan PromptReply{},
 		terms:   map[string]*terminal{},
 		tunings: loadTunings(),
+		themes:  theme.LoadAll(),
 	}
+	a.themeName = initialThemeName(a.themes)
 	a.mgr = connmgr.New(64, sshx.Dial, a.emitConns)
 	return a, nil
 }

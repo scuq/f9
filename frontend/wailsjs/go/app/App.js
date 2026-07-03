@@ -18,6 +18,10 @@ export function ConnectSessions(arg1) {
   return window['go']['app']['App']['ConnectSessions'](arg1);
 }
 
+export function CurrentTheme() {
+  return window['go']['app']['App']['CurrentTheme']();
+}
+
 export function DeleteFolder(arg1) {
   return window['go']['app']['App']['DeleteFolder'](arg1);
 }
@@ -74,12 +78,24 @@ export function SetTerminalWatch(arg1, arg2) {
   return window['go']['app']['App']['SetTerminalWatch'](arg1, arg2);
 }
 
+export function SetTheme(arg1) {
+  return window['go']['app']['App']['SetTheme'](arg1);
+}
+
 export function TermInput(arg1, arg2) {
   return window['go']['app']['App']['TermInput'](arg1, arg2);
 }
 
 export function TermResize(arg1, arg2, arg3) {
   return window['go']['app']['App']['TermResize'](arg1, arg2, arg3);
+}
+
+export function Theme(arg1) {
+  return window['go']['app']['App']['Theme'](arg1);
+}
+
+export function Themes() {
+  return window['go']['app']['App']['Themes']();
 }
 
 export function Tree() {

@@ -1,0 +1,41 @@
+name = "gruvbox-dark"
+
+[ui]
+bg = "#1d2021"
+bg_raised = "#282828"
+fg = "#ebdbb2"
+accent = "#fabd2f"
+border = "#3c3836"
+folder_fg = "#a89984"
+selected_bg = "#504945"
+danger = "#fb4934"
+
+[font]
+ui = "Inter"
+mono = "JetBrains Mono"
+size = 13
+
+[terminal]
+background = "#282828"
+foreground = "#ebdbb2"
+cursor = "#fabd2f"
+cursor_accent = "#282828"
+selection = "#504945"
+
+[terminal.ansi]
+black = "#282828"
+red = "#cc241d"
+green = "#98971a"
+yellow = "#d79921"
+blue = "#458588"
+magenta = "#b16286"
+cyan = "#689d6a"
+white = "#a89984"
+bright_black = "#928374"
+bright_red = "#fb4934"
+bright_green = "#b8bb26"
+bright_yellow = "#fabd2f"
+bright_blue = "#83a598"
+bright_magenta = "#d3869b"
+bright_cyan = "#8ec07c"
+bright_white = "#ebdbb2"

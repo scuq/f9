@@ -274,3 +274,168 @@ export namespace connmgr {
 
 }
 
+export namespace theme {
+	
+	export class ANSI {
+	    black: string;
+	    red: string;
+	    green: string;
+	    yellow: string;
+	    blue: string;
+	    magenta: string;
+	    cyan: string;
+	    white: string;
+	    brightBlack: string;
+	    brightRed: string;
+	    brightGreen: string;
+	    brightYellow: string;
+	    brightBlue: string;
+	    brightMagenta: string;
+	    brightCyan: string;
+	    brightWhite: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ANSI(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.black = source["black"];
+	        this.red = source["red"];
+	        this.green = source["green"];
+	        this.yellow = source["yellow"];
+	        this.blue = source["blue"];
+	        this.magenta = source["magenta"];
+	        this.cyan = source["cyan"];
+	        this.white = source["white"];
+	        this.brightBlack = source["brightBlack"];
+	        this.brightRed = source["brightRed"];
+	        this.brightGreen = source["brightGreen"];
+	        this.brightYellow = source["brightYellow"];
+	        this.brightBlue = source["brightBlue"];
+	        this.brightMagenta = source["brightMagenta"];
+	        this.brightCyan = source["brightCyan"];
+	        this.brightWhite = source["brightWhite"];
+	    }
+	}
+	export class Font {
+	    ui: string;
+	    mono: string;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Font(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ui = source["ui"];
+	        this.mono = source["mono"];
+	        this.size = source["size"];
+	    }
+	}
+	export class Terminal {
+	    background: string;
+	    foreground: string;
+	    cursor: string;
+	    cursorAccent: string;
+	    selection: string;
+	    ansi: ANSI;
+	
+	    static createFrom(source: any = {}) {
+	        return new Terminal(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.background = source["background"];
+	        this.foreground = source["foreground"];
+	        this.cursor = source["cursor"];
+	        this.cursorAccent = source["cursorAccent"];
+	        this.selection = source["selection"];
+	        this.ansi = this.convertValues(source["ansi"], ANSI);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class UI {
+	    bg: string;
+	    bgRaised: string;
+	    fg: string;
+	    accent: string;
+	    border: string;
+	    folderFg: string;
+	    selectedBg: string;
+	    danger: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UI(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.bg = source["bg"];
+	        this.bgRaised = source["bgRaised"];
+	        this.fg = source["fg"];
+	        this.accent = source["accent"];
+	        this.border = source["border"];
+	        this.folderFg = source["folderFg"];
+	        this.selectedBg = source["selectedBg"];
+	        this.danger = source["danger"];
+	    }
+	}
+	export class Theme {
+	    name: string;
+	    ui: UI;
+	    font: Font;
+	    terminal: Terminal;
+	
+	    static createFrom(source: any = {}) {
+	        return new Theme(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.ui = this.convertValues(source["ui"], UI);
+	        this.font = this.convertValues(source["font"], Font);
+	        this.terminal = this.convertValues(source["terminal"], Terminal);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+

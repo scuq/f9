@@ -18,7 +18,7 @@ html, body, #root { height: 100%; margin: 0; }
 body {
   background: var(--bg);
   color: var(--fg);
-  font: 13px/1.5 var(--font-ui);
+  font: var(--font-size, 13px)/1.5 var(--font-ui);
   user-select: none;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
@@ -276,3 +276,10 @@ code { font-family: var(--font-mono); }
 .swatch.output { background: #33b1ff; }
 .swatch.prompt { background: #3fbf6a; }
 .swatch.match  { background: #c678dd; }
+
+/* --- 03a: theme selector --- */
+.themesel {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  color: var(--fg); border-radius: 4px; padding: 4px 6px; outline: none;
+}
+.themesel:focus { border-color: var(--accent); }

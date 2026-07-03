@@ -24,6 +24,10 @@ declare global {
           TermResize(termId: string, cols: number, rows: number): Promise<void>;
           CloseTerminal(termId: string): Promise<void>;
           SetTerminalWatch(termId: string, pattern: string): Promise<void>;
+          Themes(): Promise<string[]>;
+          Theme(name: string): Promise<ThemeData>;
+          CurrentTheme(): Promise<string>;
+          SetTheme(name: string): Promise<void>;
           PinSession(id: string): Promise<void>;
           UnpinSession(id: string): Promise<void>;
           PinnedSessions(): Promise<SessionNode[]>;
@@ -67,4 +71,16 @@ declare global {
     prompt: string; echo: boolean;
   }
   interface PromptReply { value: string; useForAll: boolean; accept: boolean; cancel: boolean; }
+  interface ThemeData {
+    name: string;
+    ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };
+    font: { ui: string; mono: string; size: number };
+    terminal: {
+      background: string; foreground: string; cursor: string; cursorAccent: string; selection: string;
+      ansi: {
+        black: string; red: string; green: string; yellow: string; blue: string; magenta: string; cyan: string; white: string;
+        brightBlack: string; brightRed: string; brightGreen: string; brightYellow: string; brightBlue: string; brightMagenta: string; brightCyan: string; brightWhite: string;
+      };
+    };
+  }
 }
