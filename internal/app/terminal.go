@@ -13,29 +13,28 @@ import (
 	"time"
 
 	"github.com/scuq/f9/internal/osdetect"
+	"github.com/scuq/f9/internal/scrollback"
 	"github.com/scuq/f9/internal/sshx"
 )
 
-// terminal wraps one interactive SSH channel and runs read-only activity
-// detection on its output: throttled output, prompt-return (a running command
-// finished), and an optional per-tab watch regex. Results are emitted as
-// f9:termactivity {termId, kind} — never injecting bytes.
+// terminal wraps one interactive SSH channel. Output feeds three consumers:
+// the frontend stream, read-only activity detection, and the scrollback buffer
+// that backs search / virtual grep (ANSI-stripped so grep sees clean lines).
 type terminal struct {
 	sessionID string
 	session   sshx.Session
+	sb        scrollback.Buffer
 
 	mu       sync.Mutex
-	promptRe *regexp.Regexp // from os-tunings for the session's detected family
-	watchRe  *regexp.Regexp // per-tab, set via SetTerminalWatch
-	running  bool           // a command is in flight (set on Enter)
-	tail     []byte         // recent output, for prompt matching at line end
-	lastOut  time.Time      // output-activity throttle
+	promptRe *regexp.Regexp
+	watchRe  *regexp.Regexp
+	running  bool
+	tail     []byte
+	lastOut  time.Time
 }
 
 const outputThrottle = 250 * time.Millisecond
 
-// loadTunings loads os-tunings.yaml best-effort (dev: repo configs/; installed:
-// ~/.config/f9/). Missing file -> empty map -> prompt detection simply off.
 func loadTunings() map[osdetect.Family]osdetect.Tuning {
 	paths := []string{"configs/os-tunings.yaml"}
 	if home, err := os.UserHomeDir(); err == nil {
@@ -54,6 +53,15 @@ func (a *App) sessionFamily(sessionID string) osdetect.Family {
 		return osdetect.Family(m.DetectedOS)
 	}
 	return ""
+}
+
+// scrollbackLines returns the resolved per-session scrollback cap (0 -> the
+// scrollback package default of 5,000,000).
+func (a *App) scrollbackLines(sessionID string) int {
+	if _, eff, err := a.st.Resolve(sessionID); err == nil && eff.ScrollbackLines != nil {
+		return *eff.ScrollbackLines
+	}
+	return 0
 }
 
 func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
@@ -77,6 +85,7 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 	}
 
 	t := &terminal{sessionID: sessionID, session: sess}
+	t.sb = scrollback.New(scrollback.Config{MaxLines: a.scrollbackLines(sessionID)})
 	if fam := a.sessionFamily(sessionID); fam != "" {
 		if tun, ok := a.tunings[fam]; ok && tun.PromptRegex != "" {
 			if re, err := regexp.Compile(tun.PromptRegex); err == nil {
@@ -92,6 +101,7 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 	dataEvent := "f9:term:" + termID
 	sess.OnData(func(p []byte) {
 		a.emitEvent(dataEvent, base64.StdEncoding.EncodeToString(p))
+		t.sb.Append(stripANSI(p))
 		a.detectActivity(termID, t, p)
 	})
 	go func() {
@@ -99,6 +109,7 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 		a.tmu.Lock()
 		delete(a.terms, termID)
 		a.tmu.Unlock()
+		t.sb.Close()
 		a.emitEvent("f9:termclosed", termID)
 	}()
 	return nil
@@ -172,6 +183,7 @@ func (a *App) CloseTerminal(termID string) {
 	a.tmu.Unlock()
 	if ok {
 		_ = t.session.Close()
+		t.sb.Close()
 	}
 }
 
@@ -204,8 +216,8 @@ func lastLine(b []byte) []byte {
 	return b
 }
 
-// stripANSI removes CSI escape sequences and carriage returns so colored
-// prompts still match.
+// stripANSI removes CSI escape sequences and carriage returns so prompt
+// detection and scrollback grep operate on clean text.
 func stripANSI(b []byte) []byte {
 	out := make([]byte, 0, len(b))
 	for i := 0; i < len(b); i++ {

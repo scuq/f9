@@ -46,6 +46,10 @@ export function GetVersion() {
   return window['go']['app']['App']['GetVersion']();
 }
 
+export function GrepTerminal(arg1, arg2, arg3) {
+  return window['go']['app']['App']['GrepTerminal'](arg1, arg2, arg3);
+}
+
 export function ImportITermTheme() {
   return window['go']['app']['App']['ImportITermTheme']();
 }
@@ -96,6 +100,14 @@ export function TermInput(arg1, arg2) {
 
 export function TermResize(arg1, arg2, arg3) {
   return window['go']['app']['App']['TermResize'](arg1, arg2, arg3);
+}
+
+export function TerminalPeek(arg1, arg2, arg3) {
+  return window['go']['app']['App']['TerminalPeek'](arg1, arg2, arg3);
+}
+
+export function TerminalStats(arg1) {
+  return window['go']['app']['App']['TerminalStats'](arg1);
 }
 
 export function Theme(arg1) {

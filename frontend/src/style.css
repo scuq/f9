@@ -331,3 +331,40 @@ select, input, textarea, option { color-scheme: dark; }
   font-size: 10px; line-height: 16px; font-variant-numeric: tabular-nums;
   background: var(--selected-bg); color: var(--accent);
 }
+
+/* --- 04a: scrollback search panel --- */
+.tabsearch { display: flex; align-items: center; padding: 0 10px; color: var(--folder-fg); cursor: pointer; font-size: 15px; }
+.tabsearch:hover { color: var(--accent); }
+
+.paneview { position: relative; }
+.searchpanel {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 30;
+  display: flex; flex-direction: column; max-height: 60%;
+  background: var(--bg-raised); border-bottom: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+.searchbar { display: flex; align-items: center; gap: 8px; padding: 8px; }
+.searchinput {
+  flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--fg);
+  border-radius: 4px; padding: 5px 8px; outline: none; font-family: var(--font-mono);
+}
+.searchinput:focus { border-color: var(--accent); }
+.sopt { display: flex; align-items: center; gap: 3px; color: var(--folder-fg); font-size: 12px; }
+.sopt input[type="number"] { width: 46px; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 3px 4px; }
+.searchgo { background: var(--bg); border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+.searchgo:disabled { opacity: 0.5; cursor: default; }
+.searchx { background: none; border: none; color: var(--folder-fg); cursor: pointer; font-size: 13px; }
+.searchx:hover { color: var(--fg); }
+.searchmeta { display: flex; gap: 16px; padding: 0 10px 6px; color: var(--folder-fg); font-size: 11px; }
+.searchresults { overflow-y: auto; padding: 4px 0 8px; font-family: var(--font-mono); font-size: 12px; }
+.snohits { color: var(--folder-fg); padding: 6px 12px; }
+.sresult { padding: 2px 0; }
+.sline { padding: 0 12px; white-space: pre-wrap; word-break: break-all; }
+.sline.sctx { color: var(--folder-fg); }
+.sline.shit { color: var(--fg); }
+.sno { display: inline-block; min-width: 60px; color: var(--accent); user-select: none; }
+
+/* --- 04a2: click-to-peek context --- */
+.sline.clickable { cursor: pointer; }
+.sline.shit.clickable:hover { background: var(--bg); }
+.speek { margin: 2px 0 6px 12px; padding-left: 8px; border-left: 2px solid var(--accent); }

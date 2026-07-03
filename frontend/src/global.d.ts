@@ -30,6 +30,9 @@ declare global {
           Settings(): Promise<UISettings>;
           SaveSettings(s: UISettings): Promise<void>;
           ImportITermTheme(): Promise<string>;
+          GrepTerminal(termId: string, pattern: string, opts: GrepOptsInput): Promise<GrepResult>;
+          TerminalStats(termId: string): Promise<number>;
+          TerminalPeek(termId: string, lineNo0: number, context: number): Promise<PeekResult>;
           PinSession(id: string): Promise<void>;
           UnpinSession(id: string): Promise<void>;
           PinnedSessions(): Promise<SessionNode[]>;
@@ -80,6 +83,10 @@ declare global {
     theme: string; zoom: number;
     fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
   }
+  interface GrepOptsInput { invert: boolean; ignoreCase: boolean; before: number; after: number; maxMatches: number; }
+  interface GrepMatch { lineNo: number; line: string; before: string[] | null; after: string[] | null; }
+  interface GrepResult { matches: GrepMatch[] | null; count: number; truncated: boolean; lines: number; }
+  interface PeekResult { start: number; lines: string[] | null; }
   interface ThemeData {
     name: string;
     ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };

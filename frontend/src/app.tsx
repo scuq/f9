@@ -249,6 +249,55 @@ function SettingsModal(props: {
   );
 }
 
+function SearchPanel(props: {
+  stats: number | null; res: GrepResult | null; busy: boolean;
+  q: string; ic: boolean; inv: boolean; ctx: number;
+  peek: Record<number, PeekResult | null>;
+  onQ: (v: string) => void; onIC: (v: boolean) => void; onInv: (v: boolean) => void; onCtx: (v: number) => void;
+  onRun: () => void; onClose: () => void; onRow: (i: number, lineNo: number) => void;
+}) {
+  const { stats, res, busy, q, ic, inv, ctx, peek, onQ, onIC, onInv, onCtx, onRun, onClose, onRow } = props;
+  const matches = res?.matches ?? [];
+  return (
+    <div class="searchpanel">
+      <div class="searchbar">
+        <input class="searchinput" autoFocus placeholder="regex over full scrollback…" value={q}
+          onInput={(e) => onQ((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => { if (e.key === "Enter") onRun(); if (e.key === "Escape") onClose(); }} />
+        <label class="sopt" title="ignore case"><input type="checkbox" checked={ic} onChange={(e) => onIC((e.target as HTMLInputElement).checked)} /> i</label>
+        <label class="sopt" title="invert match"><input type="checkbox" checked={inv} onChange={(e) => onInv((e.target as HTMLInputElement).checked)} /> v</label>
+        <label class="sopt" title="context lines">ctx <input type="number" min="0" max="10" value={ctx} onInput={(e) => onCtx(parseInt((e.target as HTMLInputElement).value, 10) || 0)} /></label>
+        <button class="searchgo" onClick={onRun} disabled={busy}>{busy ? "…" : "search"}</button>
+        <button class="searchx" title="close (Esc)" onClick={onClose}>{"\u2715"}</button>
+      </div>
+      <div class="searchmeta">
+        {stats != null && <span>{stats.toLocaleString()} lines in scrollback</span>}
+        {res && <span>{res.count.toLocaleString()} match{res.count === 1 ? "" : "es"}{res.truncated ? " (truncated)" : ""}</span>}
+      </div>
+      <div class="searchresults">
+        {res && res.count === 0 && <div class="snohits">no matches</div>}
+        {matches.map((m, i) => (
+          <div class="sresult" key={i}>
+            {(m.before ?? []).map((b, j) => <div class="sline sctx" key={"b" + j}>{b}</div>)}
+            <div class="sline shit clickable" title="click for context" onClick={() => onRow(i, m.lineNo)}>
+              <span class="sno">{m.lineNo}</span>{m.line}
+            </div>
+            {(m.after ?? []).map((af, j) => <div class="sline sctx" key={"a" + j}>{af}</div>)}
+            {peek[i] && (
+              <div class="speek">
+                {(peek[i]!.lines ?? []).map((ln, j) => {
+                  const no = peek[i]!.start + j;
+                  return <div class={"sline " + (no === m.lineNo ? "shit" : "sctx")} key={j}><span class="sno">{no}</span>{ln}</div>;
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
 const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0 };
 
@@ -276,6 +325,15 @@ export function App() {
   const [themeList, setThemeList] = useState<string[]>([]);
   const [settings, setSettings] = useState<UISettings>(EMPTY_SETTINGS);
   const [settingsModal, setSettingsModal] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchIC, setSearchIC] = useState(false);
+  const [searchInv, setSearchInv] = useState(false);
+  const [searchCtx, setSearchCtx] = useState(0);
+  const [searchRes, setSearchRes] = useState<GrepResult | null>(null);
+  const [searchStats, setSearchStats] = useState<number | null>(null);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [peek, setPeek] = useState<Record<number, PeekResult | null>>({});
   const debounce = useRef<number | undefined>(undefined);
 
   const activeTermRef = useRef<string | null>(null);
@@ -326,6 +384,27 @@ export function App() {
   }, []);
 
   const isConnected = (id: string) => conns.some((c) => c.sessionId === id && c.state === "connected");
+
+  useEffect(() => { setSearchRes(null); setSearchStats(null); setPeek({}); }, [view.kind === "term" ? view.id : ""]);
+  const openSearch = () => {
+    if (view.kind !== "term") return;
+    setSearchOpen(true);
+    api().TerminalStats(view.id).then(setSearchStats).catch(() => setSearchStats(null));
+  };
+  const runSearch = () => {
+    if (view.kind !== "term" || searchQ.trim() === "") return;
+    setSearchBusy(true);
+    setPeek({});
+    api().GrepTerminal(view.id, searchQ, { invert: searchInv, ignoreCase: searchIC, before: searchCtx, after: searchCtx, maxMatches: 0 })
+      .then((r) => { setSearchRes(r); setSearchStats(r.lines); })
+      .catch((e) => setErr(String(e)))
+      .finally(() => setSearchBusy(false));
+  };
+  const togglePeek = (i: number, lineNo: number) => {
+    if (view.kind !== "term") return;
+    if (peek[i]) { setPeek((p) => { const n = { ...p }; delete n[i]; return n; }); return; }
+    api().TerminalPeek(view.id, lineNo - 1, 6).then((r) => setPeek((p) => ({ ...p, [i]: r }))).catch((e) => setErr(String(e)));
+  };
 
   const activateTerm = (termId: string) => {
     setView({ kind: "term", id: termId });
@@ -529,12 +608,23 @@ export function App() {
             {activeTab && (
               <span class="tabnew" title="new terminal for this session" onClick={() => openTerminalFor(activeTab.sessionId, activeTab.name)}>+</span>
             )}
+            {activeTab && (
+              <span class="tabsearch" title="search scrollback" onClick={openSearch}>{"\u2315"}</span>
+            )}
           </div>
         )}
         <div class="paneview">
           {tabs.map((t) => (
             <TerminalView key={t.termId} termId={t.termId} sessionId={t.sessionId} active={view.kind === "term" && view.id === t.termId} />
           ))}
+          {searchOpen && view.kind === "term" && (
+            <SearchPanel
+              stats={searchStats} res={searchRes} busy={searchBusy} peek={peek}
+              q={searchQ} ic={searchIC} inv={searchInv} ctx={searchCtx}
+              onQ={setSearchQ} onIC={setSearchIC} onInv={setSearchInv} onCtx={setSearchCtx}
+              onRun={runSearch} onClose={() => setSearchOpen(false)} onRow={togglePeek}
+            />
+          )}
           {view.kind === "term" ? null : sel && view.kind === "details" && detail ? (
             <div class="details">
               <h1>{detail.name}{selPinned && <span class="pinbadge big">{"\u2605"}</span>}</h1>

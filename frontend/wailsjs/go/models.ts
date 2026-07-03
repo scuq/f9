@@ -114,6 +114,80 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class GrepMatchDTO {
+	    lineNo: number;
+	    line: string;
+	    before: string[];
+	    after: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new GrepMatchDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.lineNo = source["lineNo"];
+	        this.line = source["line"];
+	        this.before = source["before"];
+	        this.after = source["after"];
+	    }
+	}
+	export class GrepOptsDTO {
+	    invert: boolean;
+	    ignoreCase: boolean;
+	    before: number;
+	    after: number;
+	    maxMatches: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GrepOptsDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.invert = source["invert"];
+	        this.ignoreCase = source["ignoreCase"];
+	        this.before = source["before"];
+	        this.after = source["after"];
+	        this.maxMatches = source["maxMatches"];
+	    }
+	}
+	export class GrepResultDTO {
+	    matches: GrepMatchDTO[];
+	    count: number;
+	    truncated: boolean;
+	    lines: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GrepResultDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.matches = this.convertValues(source["matches"], GrepMatchDTO);
+	        this.count = source["count"];
+	        this.truncated = source["truncated"];
+	        this.lines = source["lines"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class JumpHopDTO {
 	    host: string;
 	    port: number;
@@ -148,6 +222,20 @@ export namespace app {
 	        this.value = source["value"];
 	        this.effective = source["effective"];
 	        this.source = source["source"];
+	    }
+	}
+	export class PeekDTO {
+	    start: number;
+	    lines: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PeekDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.start = source["start"];
+	        this.lines = source["lines"];
 	    }
 	}
 	export class PromptReply {

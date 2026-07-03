@@ -26,6 +26,8 @@ export function Filter(arg1:string):Promise<Array<app.FilterHit>>;
 
 export function GetVersion():Promise<string>;
 
+export function GrepTerminal(arg1:string,arg2:string,arg3:app.GrepOptsDTO):Promise<app.GrepResultDTO>;
+
 export function ImportITermTheme():Promise<string>;
 
 export function OpenTerminal(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
@@ -51,6 +53,10 @@ export function Settings():Promise<app.UISettings>;
 export function TermInput(arg1:string,arg2:string):Promise<void>;
 
 export function TermResize(arg1:string,arg2:number,arg3:number):Promise<void>;
+
+export function TerminalPeek(arg1:string,arg2:number,arg3:number):Promise<app.PeekDTO>;
+
+export function TerminalStats(arg1:string):Promise<number>;
 
 export function Theme(arg1:string):Promise<theme.Theme>;
 
