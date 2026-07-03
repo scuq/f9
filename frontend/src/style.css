@@ -177,3 +177,36 @@ body {
 }
 .modal-actions button.primary { border-color: var(--accent); color: var(--accent); }
 .modal-actions button:hover { border-color: var(--accent); }
+
+/* --- 01c: multi-select, connections panel, prompt modal --- */
+.row input[type="checkbox"] { accent-color: var(--accent); margin: 0 2px 0 0; }
+
+.connpanel { border-top: 1px solid var(--border); max-height: 40%; overflow-y: auto; }
+.connhead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 8px; color: var(--folder-fg); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.connhead button {
+  background: var(--bg-raised); border: 1px solid var(--border);
+  color: var(--folder-fg); border-radius: 4px; padding: 1px 6px; cursor: pointer;
+  text-transform: none; letter-spacing: 0;
+}
+.connhead button:hover { color: var(--danger); border-color: var(--danger); }
+.connrow { display: flex; align-items: center; gap: 8px; padding: 2px 8px; }
+.cname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cstate { color: var(--folder-fg); font-size: 11px; }
+.cx { background: none; border: none; color: var(--folder-fg); cursor: pointer; }
+.cx:hover { color: var(--danger); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dot.dialing { background: #d9a441; animation: pulse 1s ease-in-out infinite; }
+.dot.connected { background: #09823a; }
+.dot.error { background: var(--danger); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.checkrow { display: flex; align-items: center; gap: 8px; margin: 8px 0; color: var(--folder-fg); font-size: 12px; }
+.checkrow input { accent-color: var(--accent); }
+.fpline { margin: 6px 0 12px; color: var(--folder-fg); }
+.fpline code { color: var(--accent); }
+.modal-actions button.danger { border-color: var(--border); }
+.modal-actions button.danger:hover { color: var(--danger); border-color: var(--danger); }

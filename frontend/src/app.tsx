@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
-// Phase 01b: filtering runs in Go (internal/filter, <5ms/10k). While the
-// query is non-empty the tree is replaced by the ranked flat list; clearing
-// it restores the tree. CRUD dialogs use the inheritance view from
-// SessionDetail — empty option inputs mean "inherit".
+// Phase 01c: multi-select + multisession connect. Marks accumulate across the
+// tree; "connect marked" / "connect folder" dial via connmgr (cap 64). The
+// active panel reflects live state; prompts arrive as events and queue.
 
 const api = () => window.go.app.App;
 
@@ -16,22 +15,43 @@ const OPTION_KEYS: { key: string; label: string; hint: string }[] = [
   { key: "auditScope", label: "audit scope", hint: "off | events | events+input | full-io" },
 ];
 
-function Folder(props: {
-  node: FolderNode;
-  depth: number;
-  selected: string;
-  selectedFolder: string;
-  onSelect: (s: SessionNode) => void;
-  onSelectFolder: (f: FolderNode) => void;
+function SessionRow(props: {
+  s: SessionNode; pathPrefix?: string; indent: number;
+  selected: boolean; marked: boolean;
+  onSelect: () => void; onToggleMark: () => void;
 }) {
-  const { node, depth, selected, selectedFolder, onSelect, onSelectFolder } = props;
+  const { s, pathPrefix, indent, selected, marked, onSelect, onToggleMark } = props;
+  return (
+    <div
+      class={"row session" + (selected ? " selected" : "")}
+      style={{ paddingLeft: `${indent}px` }}
+      onClick={onSelect}
+    >
+      <input
+        type="checkbox"
+        checked={marked}
+        onClick={(e) => { e.stopPropagation(); onToggleMark(); }}
+      />
+      {pathPrefix && <span class="hitpath">{pathPrefix}</span>}
+      <span class="sname">{s.name}</span>
+      {s.detectedOs && <span class="ostag">{s.detectedOs}</span>}
+    </div>
+  );
+}
+
+function Folder(props: {
+  node: FolderNode; depth: number;
+  selected: string; selectedFolder: string; marked: Record<string, true>;
+  onSelect: (s: SessionNode) => void; onSelectFolder: (f: FolderNode) => void;
+  onToggleMark: (id: string) => void;
+}) {
+  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark } = props;
   const [open, setOpen] = useState(depth < 2);
-  const pad = { paddingLeft: `${depth * 14}px` };
   return (
     <div>
       <div
         class={"row folder" + (node.id === selectedFolder ? " selected" : "")}
-        style={pad}
+        style={{ paddingLeft: `${depth * 14}px` }}
         onClick={() => onSelectFolder(node)}
       >
         <span class="twist" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
@@ -39,39 +59,74 @@ function Folder(props: {
         </span>
         <span class="fname">{node.name}</span>
       </div>
-      {open &&
-        (node.sessions ?? []).map((s) => (
-          <div
-            key={s.id}
-            class={"row session" + (s.id === selected ? " selected" : "")}
-            style={{ paddingLeft: `${(depth + 1) * 14 + 12}px` }}
-            onClick={() => onSelect(s)}
-          >
-            <span class="sname">{s.name}</span>
-            {s.detectedOs && <span class="ostag">{s.detectedOs}</span>}
-          </div>
-        ))}
-      {open &&
-        (node.folders ?? []).map((c) => (
-          <Folder
-            key={c.id}
-            node={c}
-            depth={depth + 1}
-            selected={selected}
-            selectedFolder={selectedFolder}
-            onSelect={onSelect}
-            onSelectFolder={onSelectFolder}
-          />
-        ))}
+      {open && (node.sessions ?? []).map((s) => (
+        <SessionRow
+          key={s.id} s={s} indent={(depth + 1) * 14 + 8}
+          selected={s.id === selected} marked={!!marked[s.id]}
+          onSelect={() => onSelect(s)} onToggleMark={() => onToggleMark(s.id)}
+        />
+      ))}
+      {open && (node.folders ?? []).map((c) => (
+        <Folder key={c.id} node={c} depth={depth + 1}
+          selected={selected} selectedFolder={selectedFolder} marked={marked}
+          onSelect={onSelect} onSelectFolder={onSelectFolder} onToggleMark={onToggleMark} />
+      ))}
+    </div>
+  );
+}
+
+function PromptModal(props: { req: PromptRequest; onResolve: (r: PromptReply) => void }) {
+  const { req, onResolve } = props;
+  const [value, setValue] = useState("");
+  const [useForAll, setUseForAll] = useState(false);
+  const reply = (patch: Partial<PromptReply>): PromptReply =>
+    ({ value: "", useForAll: false, accept: false, cancel: false, ...patch });
+
+  return (
+    <div class="modal-overlay">
+      <div class="modal">
+        <h2>{req.prompt}</h2>
+        {req.kind === "hostkey" ? (
+          <>
+            <div class="fpline">fingerprint<br /><code>{req.fingerprint}</code></div>
+            <div class="modal-actions">
+              <button onClick={() => onResolve(reply({ cancel: true }))}>cancel</button>
+              <button class="danger" onClick={() => onResolve(reply({ accept: false }))}>reject</button>
+              <button class="primary" onClick={() => onResolve(reply({ accept: true }))}>accept &amp; save</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div class="formrow">
+              <input
+                type={req.echo ? "text" : "password"}
+                autoFocus
+                value={value}
+                onInput={(e) => setValue((e.target as HTMLInputElement).value)}
+                onKeyDown={(e) => { if (e.key === "Enter") onResolve(reply({ value, useForAll, accept: true })); }}
+              />
+            </div>
+            {req.kind === "password" && (
+              <label class="checkrow">
+                <input type="checkbox" checked={useForAll}
+                  onChange={(e) => setUseForAll((e.target as HTMLInputElement).checked)} />
+                use this password for all sessions in this batch
+              </label>
+            )}
+            <div class="modal-actions">
+              <button onClick={() => onResolve(reply({ cancel: true }))}>cancel</button>
+              <button class="primary" onClick={() => onResolve(reply({ value, useForAll, accept: true }))}>ok</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
 function SessionModal(props: {
   folder: { id: string; path: string };
-  detail: SessionDetail | null; // null = create
-  onClose: () => void;
-  onSaved: (id: string) => void;
+  detail: SessionDetail | null; onClose: () => void; onSaved: (id: string) => void;
 }) {
   const { folder, detail, onClose, onSaved } = props;
   const [name, setName] = useState(detail?.name ?? "");
@@ -84,27 +139,18 @@ function SessionModal(props: {
     return o;
   });
   const [err, setErr] = useState("");
-
   const save = () => {
-    const input: SessionInput = {
-      id: detail?.id ?? "",
-      folderId: detail?.folderId ?? folder.id,
-      name,
-      host,
-      port: port.trim() === "" ? 0 : parseInt(port, 10) || 0,
-      user,
-      proto: detail?.proto ?? "ssh",
-      options: opts,
-    };
-    api().SaveSession(input).then(onSaved).catch((e) => setErr(String(e)));
+    api().SaveSession({
+      id: detail?.id ?? "", folderId: detail?.folderId ?? folder.id,
+      name, host, port: port.trim() === "" ? 0 : parseInt(port, 10) || 0,
+      user, proto: detail?.proto ?? "ssh", options: opts,
+    }).then(onSaved).catch((e) => setErr(String(e)));
   };
-
   const placeholderFor = (key: string) => {
     const f = detail?.options[key];
     if (f && f.effective !== "") return `${f.effective}  (${f.source})`;
     return OPTION_KEYS.find((o) => o.key === key)?.hint ?? "";
   };
-
   return (
     <div class="modal-overlay" onClick={onClose}>
       <div class="modal" onClick={(e) => e.stopPropagation()}>
@@ -118,27 +164,20 @@ function SessionModal(props: {
           <input value={port} placeholder="22" onInput={(e) => setPort((e.target as HTMLInputElement).value)} /></div>
         <div class="formrow"><label>user</label>
           <input value={user} onInput={(e) => setUser((e.target as HTMLInputElement).value)} /></div>
-
         <div class="opthead">options — empty = inherit</div>
         {OPTION_KEYS.map(({ key, label }) => (
           <div class="formrow" key={key}>
             <label>{label}</label>
-            <input
-              value={opts[key]}
-              placeholder={placeholderFor(key)}
-              onInput={(e) => setOpts({ ...opts, [key]: (e.target as HTMLInputElement).value })}
-            />
+            <input value={opts[key]} placeholder={placeholderFor(key)}
+              onInput={(e) => setOpts({ ...opts, [key]: (e.target as HTMLInputElement).value })} />
           </div>
         ))}
-
         {detail && detail.jumpChain && detail.jumpChain.length > 0 && (
-          <div class="jumpinfo">
-            jump chain ({detail.jumpSource}):{" "}
+          <div class="jumpinfo">jump chain ({detail.jumpSource}):{" "}
             {detail.jumpChain.map((j) => `${j.user ? j.user + "@" : ""}${j.host} [${j.mode}]`).join(" \u2192 ")}
             <div class="hintsmall">jump-chain editor arrives with the tree drag/drop work</div>
           </div>
         )}
-
         <div class="modal-actions">
           <button onClick={onClose}>cancel</button>
           <button class="primary" onClick={save}>save</button>
@@ -148,19 +187,13 @@ function SessionModal(props: {
   );
 }
 
-function FolderModal(props: {
-  parent: { id: string; path: string };
-  onClose: () => void;
-  onSaved: () => void;
-}) {
+function FolderModal(props: { parent: { id: string; path: string }; onClose: () => void; onSaved: () => void }) {
   const { parent, onClose, onSaved } = props;
   const [name, setName] = useState("");
   const [err, setErr] = useState("");
   const save = () => {
-    api()
-      .SaveFolder({ id: "", parentId: parent.id, name })
-      .then(() => onSaved())
-      .catch((e) => setErr(String(e)));
+    api().SaveFolder({ id: "", parentId: parent.id, name })
+      .then(() => onSaved()).catch((e) => setErr(String(e)));
   };
   return (
     <div class="modal-overlay" onClick={onClose}>
@@ -178,6 +211,8 @@ function FolderModal(props: {
   );
 }
 
+const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
+
 export function App() {
   const [tree, setTree] = useState<FolderNode | null>(null);
   const [err, setErr] = useState("");
@@ -186,6 +221,9 @@ export function App() {
   const [sel, setSel] = useState<SessionNode | null>(null);
   const [detail, setDetail] = useState<SessionDetail | null>(null);
   const [selFolder, setSelFolder] = useState<{ id: string; path: string } | null>(null);
+  const [marked, setMarked] = useState<Record<string, true>>({});
+  const [conns, setConns] = useState<Conn[]>([]);
+  const [promptQ, setPromptQ] = useState<PromptRequest[]>([]);
   const [ver, setVer] = useState("");
   const [modal, setModal] = useState<"" | "session-new" | "session-edit" | "folder">("");
   const debounce = useRef<number | undefined>(undefined);
@@ -196,44 +234,50 @@ export function App() {
       if (!selFolder) setSelFolder({ id: t.id, path: t.path });
     }).catch((e) => setErr(String(e)));
   };
+  const refreshConns = () => api().ActiveConnections().then(setConns).catch(() => {});
 
   useEffect(() => {
     load();
     api().GetVersion().then(setVer).catch(() => {});
+    refreshConns();
+    const offC = window.runtime.EventsOn("f9:conns", () => refreshConns());
+    const offP = window.runtime.EventsOn("f9:prompt", (req: PromptRequest) => setPromptQ((qs) => [...qs, req]));
+    return () => { offC?.(); offP?.(); };
   }, []);
 
   const onQuery = (raw: string) => {
     setQ(raw);
     window.clearTimeout(debounce.current);
-    if (raw.trim() === "") {
-      setHits(null);
-      return;
-    }
+    if (raw.trim() === "") { setHits(null); return; }
     debounce.current = window.setTimeout(() => {
       api().Filter(raw).then(setHits).catch((e) => setErr(String(e)));
     }, 80);
   };
-
   const select = (s: SessionNode) => {
     setSel(s);
     api().SessionDetail(s.id).then(setDetail).catch((e) => setErr(String(e)));
   };
+  const toggleMark = (id: string) =>
+    setMarked((m) => { const n = { ...m }; if (n[id]) delete n[id]; else n[id] = true; return n; });
+  const markedIds = Object.keys(marked);
+
+  const connectMarked = () => { if (markedIds.length) api().ConnectSessions(markedIds).catch((e) => setErr(String(e))); };
+  const connectFolder = () => { if (selFolder) api().ConnectFolder(selFolder.id).catch((e) => setErr(String(e))); };
 
   const afterMutation = () => {
-    setModal("");
-    load();
+    setModal(""); load();
     if (sel) api().SessionDetail(sel.id).then(setDetail).catch(() => { setSel(null); setDetail(null); });
     if (q.trim() !== "") api().Filter(q).then(setHits).catch(() => {});
   };
-
   const deleteSelected = () => {
-    if (!sel) return;
-    if (!confirm(`delete session ${sel.name}?`)) return;
-    api().DeleteSession(sel.id).then(() => {
-      setSel(null);
-      setDetail(null);
-      afterMutation();
-    }).catch((e) => setErr(String(e)));
+    if (!sel || !confirm(`delete session ${sel.name}?`)) return;
+    api().DeleteSession(sel.id).then(() => { setSel(null); setDetail(null); afterMutation(); }).catch((e) => setErr(String(e)));
+  };
+
+  const resolvePrompt = (r: PromptReply) => {
+    const cur = promptQ[0];
+    if (cur) api().ResolvePrompt(cur.id, r);
+    setPromptQ((qs) => qs.slice(1));
   };
 
   return (
@@ -242,51 +286,51 @@ export function App() {
         <div class="toolbar">
           <button onClick={() => setModal("session-new")} disabled={!selFolder}>+ session</button>
           <button onClick={() => setModal("folder")} disabled={!selFolder}>+ folder</button>
-          <span class="tbpath">{selFolder?.path ?? ""}</span>
+        </div>
+        <div class="toolbar">
+          <button onClick={connectMarked} disabled={markedIds.length === 0}>connect marked ({markedIds.length})</button>
+          <button onClick={connectFolder} disabled={!selFolder}>connect folder</button>
         </div>
         <div class="filterbar">
-          <input
-            type="text"
-            placeholder="filter sessions..."
-            value={q}
-            onInput={(e) => onQuery((e.target as HTMLInputElement).value)}
-          />
+          <input type="text" placeholder="filter sessions..." value={q}
+            onInput={(e) => onQuery((e.target as HTMLInputElement).value)} />
           <button title="reload store" onClick={load}>&#x21bb;</button>
         </div>
         <div class="tree">
           {err && <div class="error" onClick={() => setErr("")}>{err}</div>}
           {hits !== null ? (
-            hits.length === 0 ? (
-              <div class="nohits">no matches</div>
-            ) : (
+            hits.length === 0 ? <div class="nohits">no matches</div> :
               hits.map((h) => (
-                <div
-                  key={h.id}
-                  class={"row session" + (h.id === sel?.id ? " selected" : "")}
-                  style={{ paddingLeft: "10px" }}
-                  onClick={() => select(h)}
-                >
-                  <span class="hitpath">{h.path}/</span>
-                  <span class="sname">{h.name}</span>
-                  {h.detectedOs && <span class="ostag">{h.detectedOs}</span>}
-                </div>
+                <SessionRow key={h.id} s={h} pathPrefix={h.path + "/"} indent={10}
+                  selected={h.id === sel?.id} marked={!!marked[h.id]}
+                  onSelect={() => select(h)} onToggleMark={() => toggleMark(h.id)} />
               ))
-            )
           ) : (
-            tree && (
-              <Folder
-                node={tree}
-                depth={0}
-                selected={sel?.id ?? ""}
-                selectedFolder={selFolder?.id ?? ""}
-                onSelect={select}
-                onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })}
-              />
-            )
+            tree && <Folder node={tree} depth={0}
+              selected={sel?.id ?? ""} selectedFolder={selFolder?.id ?? ""} marked={marked}
+              onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })}
+              onToggleMark={toggleMark} />
           )}
         </div>
+        {conns.length > 0 && (
+          <div class="connpanel">
+            <div class="connhead">
+              <span>connections ({conns.length})</span>
+              <button onClick={() => api().DisconnectAll()}>disconnect all</button>
+            </div>
+            {conns.map((c) => (
+              <div class="connrow" key={c.sessionId} title={c.err}>
+                <span class={"dot " + c.state} />
+                <span class="cname">{c.name}</span>
+                <span class="cstate">{STATE_LABEL[c.state] ?? c.state}</span>
+                <button class="cx" onClick={() => api().Disconnect(c.sessionId)}>&#x2715;</button>
+              </div>
+            ))}
+          </div>
+        )}
         <div class="statusbar">f9 {ver}</div>
       </div>
+
       <div class="mainpane">
         {sel && detail ? (
           <div class="details">
@@ -303,43 +347,32 @@ export function App() {
               {OPTION_KEYS.map(({ key, label }) => {
                 const f = detail.options[key];
                 if (!f || f.effective === "") return null;
-                return (
-                  <tr key={key}>
-                    <td>{label}</td>
-                    <td>{f.effective} <span class="badge">{f.source}</span></td>
-                  </tr>
-                );
+                return <tr key={key}><td>{label}</td><td>{f.effective} <span class="badge">{f.source}</span></td></tr>;
               })}
               {detail.jumpChain && detail.jumpChain.length > 0 && (
-                <tr>
-                  <td>jump chain</td>
-                  <td>
-                    {detail.jumpChain.map((j) => `${j.user ? j.user + "@" : ""}${j.host} [${j.mode}]`).join(" \u2192 ")}{" "}
-                    <span class="badge">{detail.jumpSource}</span>
-                  </td>
-                </tr>
+                <tr><td>jump chain</td><td>
+                  {detail.jumpChain.map((j) => `${j.user ? j.user + "@" : ""}${j.host} [${j.mode}]`).join(" \u2192 ")}{" "}
+                  <span class="badge">{detail.jumpSource}</span>
+                </td></tr>
               )}
             </table>
             <div class="detail-actions">
+              <button onClick={() => api().ConnectSessions([detail.id])}>connect</button>
               <button onClick={() => setModal("session-edit")}>edit</button>
               <button class="danger" onClick={deleteSelected}>delete</button>
             </div>
-            <div class="hint">terminal attach arrives in phase 02 — until then: <code>f9 connect {detail.name}</code></div>
           </div>
-        ) : (
-          <div class="empty">select a session</div>
-        )}
+        ) : <div class="empty">select a session</div>}
       </div>
 
-      {modal === "session-new" && selFolder && (
-        <SessionModal folder={selFolder} detail={null} onClose={() => setModal("")} onSaved={afterMutation} />
-      )}
-      {modal === "session-edit" && selFolder && detail && (
-        <SessionModal folder={selFolder} detail={detail} onClose={() => setModal("")} onSaved={afterMutation} />
-      )}
-      {modal === "folder" && selFolder && (
-        <FolderModal parent={selFolder} onClose={() => setModal("")} onSaved={afterMutation} />
-      )}
+      {modal === "session-new" && selFolder &&
+        <SessionModal folder={selFolder} detail={null} onClose={() => setModal("")} onSaved={afterMutation} />}
+      {modal === "session-edit" && selFolder && detail &&
+        <SessionModal folder={selFolder} detail={detail} onClose={() => setModal("")} onSaved={afterMutation} />}
+      {modal === "folder" && selFolder &&
+        <FolderModal parent={selFolder} onClose={() => setModal("")} onSaved={afterMutation} />}
+
+      {promptQ.length > 0 && <PromptModal req={promptQ[0]} onResolve={resolvePrompt} />}
     </div>
   );
 }

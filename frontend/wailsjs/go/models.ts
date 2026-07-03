@@ -146,6 +146,24 @@ export namespace app {
 	        this.source = source["source"];
 	    }
 	}
+	export class PromptReply {
+	    value: string;
+	    useForAll: boolean;
+	    accept: boolean;
+	    cancel: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PromptReply(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.value = source["value"];
+	        this.useForAll = source["useForAll"];
+	        this.accept = source["accept"];
+	        this.cancel = source["cancel"];
+	    }
+	}
 	export class SessionDetail {
 	    id: string;
 	    name: string;
@@ -221,6 +239,52 @@ export namespace app {
 	        this.proto = source["proto"];
 	        this.options = source["options"];
 	    }
+	}
+
+}
+
+export namespace connmgr {
+	
+	export class Conn {
+	    sessionId: string;
+	    name: string;
+	    host: string;
+	    state: string;
+	    err: string;
+	    // Go type: time
+	    since: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Conn(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.name = source["name"];
+	        this.host = source["host"];
+	        this.state = source["state"];
+	        this.err = source["err"];
+	        this.since = this.convertValues(source["since"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

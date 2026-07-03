@@ -11,9 +11,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/scuq/f9/internal/connmgr"
 	"github.com/scuq/f9/internal/filter"
+	"github.com/scuq/f9/internal/sshx"
 	"github.com/scuq/f9/internal/store"
 )
 
@@ -106,6 +109,14 @@ type FolderInput struct {
 type App struct {
 	ctx context.Context
 	st  *store.YAMLStore
+	mgr *connmgr.Manager
+
+	pmu     sync.Mutex
+	prompts map[string]chan PromptReply
+	reqSeq  int64
+
+	// onEmit is a test hook used only by the non-gui emitEvent stub.
+	onEmit func(event string, data interface{})
 }
 
 func New() (*App, error) {
@@ -117,7 +128,9 @@ func New() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &App{st: st}, nil
+	a := &App{st: st, prompts: map[string]chan PromptReply{}}
+	a.mgr = connmgr.New(64, sshx.Dial, a.emitConns)
+	return a, nil
 }
 
 func (a *App) Startup(ctx context.Context) { a.ctx = ctx }

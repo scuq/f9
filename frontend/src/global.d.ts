@@ -1,5 +1,3 @@
-// Wails runtime bridge. Using window.go directly keeps the frontend
-// independent of the generated wailsjs/ modules and their generation order.
 export {};
 
 declare global {
@@ -15,77 +13,51 @@ declare global {
           SaveFolder(input: FolderInput): Promise<string>;
           DeleteSession(id: string): Promise<void>;
           DeleteFolder(id: string): Promise<void>;
+          ConnectSessions(ids: string[]): Promise<void>;
+          ConnectFolder(id: string): Promise<void>;
+          ActiveConnections(): Promise<Conn[]>;
+          Disconnect(id: string): Promise<void>;
+          DisconnectAll(): Promise<void>;
+          ResolvePrompt(id: string, reply: PromptReply): Promise<void>;
         };
       };
+    };
+    runtime: {
+      EventsOn(event: string, cb: (data: any) => void): () => void;
+      EventsOff(event: string): void;
     };
   }
 
   interface SessionNode {
-    id: string;
-    name: string;
-    host: string;
-    port: number;
-    user: string;
-    proto: string;
-    detectedOs: string;
-    osPinned: boolean;
+    id: string; name: string; host: string; port: number;
+    user: string; proto: string; detectedOs: string; osPinned: boolean;
   }
-
   interface FolderNode {
-    id: string;
-    name: string;
-    path: string;
-    folders: FolderNode[] | null;
-    sessions: SessionNode[] | null;
+    id: string; name: string; path: string;
+    folders: FolderNode[] | null; sessions: SessionNode[] | null;
   }
-
-  interface FilterHit extends SessionNode {
-    path: string;
-    score: number;
-  }
-
-  interface OptionField {
-    value: string;
-    effective: string;
-    source: string;
-  }
-
-  interface JumpHop {
-    host: string;
-    port: number;
-    user: string;
-    mode: string;
-    userOverride: string;
-  }
-
+  interface FilterHit extends SessionNode { path: string; score: number; }
+  interface OptionField { value: string; effective: string; source: string; }
+  interface JumpHop { host: string; port: number; user: string; mode: string; userOverride: string; }
   interface SessionDetail {
-    id: string;
-    name: string;
-    folderId: string;
-    folderPath: string;
-    host: string;
-    port: number;
-    user: string;
-    proto: string;
-    options: Record<string, OptionField>;
-    jumpChain: JumpHop[] | null;
-    jumpSource: string;
+    id: string; name: string; folderId: string; folderPath: string;
+    host: string; port: number; user: string; proto: string;
+    options: Record<string, OptionField>; jumpChain: JumpHop[] | null; jumpSource: string;
   }
-
   interface SessionInput {
-    id: string;
-    folderId: string;
-    name: string;
-    host: string;
-    port: number;
-    user: string;
-    proto: string;
-    options: Record<string, string>;
+    id: string; folderId: string; name: string; host: string;
+    port: number; user: string; proto: string; options: Record<string, string>;
   }
+  interface FolderInput { id: string; parentId: string; name: string; }
 
-  interface FolderInput {
-    id: string;
-    parentId: string;
-    name: string;
+  interface Conn {
+    sessionId: string; name: string; host: string;
+    state: "dialing" | "connected" | "error"; err: string; since: string;
   }
+  interface PromptRequest {
+    id: string; kind: "password" | "passphrase" | "hostkey" | "kbi";
+    user: string; host: string; keyPath: string; fingerprint: string;
+    prompt: string; echo: boolean;
+  }
+  interface PromptReply { value: string; useForAll: boolean; accept: boolean; cancel: boolean; }
 }
