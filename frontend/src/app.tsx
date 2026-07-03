@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { TerminalView } from "./terminal";
 import { setTheme as applyThemeColors, setSettings as applyOverrides } from "./theme";
+import { onFindRequested } from "./termsearch";
 
 const api = () => window.go.app.App;
 
@@ -258,10 +259,12 @@ function SearchPanel(props: {
 }) {
   const { stats, res, busy, q, ic, inv, ctx, peek, onQ, onIC, onInv, onCtx, onRun, onClose, onRow } = props;
   const matches = res?.matches ?? [];
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); inputRef.current?.select(); }, []);
   return (
     <div class="searchpanel">
       <div class="searchbar">
-        <input class="searchinput" autoFocus placeholder="regex over full scrollback…" value={q}
+        <input ref={inputRef} class="searchinput" autoFocus placeholder="regex over full scrollback…" value={q}
           onInput={(e) => onQ((e.target as HTMLInputElement).value)}
           onKeyDown={(e) => { if (e.key === "Enter") onRun(); if (e.key === "Escape") onClose(); }} />
         <label class="sopt" title="ignore case"><input type="checkbox" checked={ic} onChange={(e) => onIC((e.target as HTMLInputElement).checked)} /> i</label>
@@ -405,6 +408,13 @@ export function App() {
     if (peek[i]) { setPeek((p) => { const n = { ...p }; delete n[i]; return n; }); return; }
     api().TerminalPeek(view.id, lineNo - 1, 6).then((r) => setPeek((p) => ({ ...p, [i]: r }))).catch((e) => setErr(String(e)));
   };
+
+  useEffect(() => {
+    const off = onFindRequested((termId) => {
+      if (view.kind === "term" && view.id === termId) openSearch();
+    });
+    return off;
+  }, [view]);
 
   const activateTerm = (termId: string) => {
     setView({ kind: "term", id: termId });
@@ -608,9 +618,7 @@ export function App() {
             {activeTab && (
               <span class="tabnew" title="new terminal for this session" onClick={() => openTerminalFor(activeTab.sessionId, activeTab.name)}>+</span>
             )}
-            {activeTab && (
-              <span class="tabsearch" title="search scrollback" onClick={openSearch}>{"\u2315"}</span>
-            )}
+
           </div>
         )}
         <div class="paneview">

@@ -3,6 +3,7 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { currentTermConfig, onTermConfig } from "./theme";
+import { requestFind } from "./termsearch";
 
 const api = () => window.go.app.App;
 
@@ -53,6 +54,17 @@ export function TerminalView(
     const offData = window.runtime.EventsOn("f9:term:" + termId, (b64: string) => term.write(b64ToBytes(b64)));
     term.onData((d) => api().TermInput(termId, d));
     api().OpenTerminal(termId, sessionId, term.cols, term.rows).catch(() => {});
+
+    // Intercept Ctrl/Cmd+F before xterm forwards it to the shell; open the
+    // scrollback search panel instead.
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        requestFind(termId);
+        return false;
+      }
+      return true;
+    });
 
     const offCfg = onTermConfig((cfg) => {
       term.options.theme = cfg.theme;

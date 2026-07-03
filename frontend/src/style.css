@@ -333,8 +333,6 @@ select, input, textarea, option { color-scheme: dark; }
 }
 
 /* --- 04a: scrollback search panel --- */
-.tabsearch { display: flex; align-items: center; padding: 0 10px; color: var(--folder-fg); cursor: pointer; font-size: 15px; }
-.tabsearch:hover { color: var(--accent); }
 
 .paneview { position: relative; }
 .searchpanel {
