@@ -8,6 +8,7 @@
   --border: #1b1b1f;
   --folder-fg: #8a8f98;
   --selected-bg: #0b2d45;
+  --danger: #e06c75;
 }
 
 * { box-sizing: border-box; }
@@ -22,12 +23,37 @@ body {
 .layout { display: flex; height: 100%; }
 
 .sidebar {
-  width: 320px;
-  min-width: 240px;
+  width: 340px;
+  min-width: 260px;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border);
   background: var(--bg);
+}
+
+.toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 8px 0;
+}
+.toolbar button {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.toolbar button:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.toolbar button:disabled { opacity: 0.4; cursor: default; }
+.tbpath {
+  margin-left: auto;
+  color: var(--folder-fg);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .filterbar { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--border); }
@@ -57,6 +83,8 @@ body {
 .twist { width: 12px; color: var(--folder-fg); font-size: 10px; }
 .fname { color: var(--folder-fg); font-weight: 600; }
 .sname { color: var(--fg); }
+.hitpath { color: var(--folder-fg); font-size: 11px; }
+.nohits { color: var(--folder-fg); padding: 8px; }
 .ostag {
   margin-left: auto;
   font-size: 10px;
@@ -73,13 +101,79 @@ body {
   font-size: 11px;
 }
 
-.mainpane { flex: 1; display: flex; align-items: center; justify-content: center; }
+.mainpane { flex: 1; display: flex; align-items: center; justify-content: center; overflow-y: auto; }
 .empty { color: var(--folder-fg); }
-.details { min-width: 380px; }
+.details { min-width: 420px; max-width: 640px; padding: 24px; }
 .details h1 { font-size: 18px; color: var(--accent); margin: 0 0 12px; }
 .details table { border-collapse: collapse; }
-.details td { padding: 3px 14px 3px 0; }
-.details td:first-child { color: var(--folder-fg); }
+.details td { padding: 3px 14px 3px 0; vertical-align: top; }
+.details td:first-child { color: var(--folder-fg); white-space: nowrap; }
 .details .hint { margin-top: 18px; color: var(--folder-fg); font-size: 12px; }
 .details code { color: var(--accent); }
-.error { color: #e06c75; padding: 8px; }
+.opthead { margin: 14px 0 4px; color: var(--folder-fg); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.badge {
+  font-size: 10px;
+  color: var(--folder-fg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 6px;
+}
+.detail-actions { margin-top: 16px; display: flex; gap: 8px; }
+.detail-actions button {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.detail-actions button:hover { color: var(--accent); border-color: var(--accent); }
+.detail-actions button.danger:hover { color: var(--danger); border-color: var(--danger); }
+
+.error { color: var(--danger); padding: 8px; cursor: pointer; }
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal {
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 18px;
+  width: 460px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.modal h2 { font-size: 14px; color: var(--accent); margin: 0 0 12px; }
+.formrow { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.formrow label { width: 130px; color: var(--folder-fg); text-align: right; }
+.formrow input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 5px 8px;
+  border-radius: 4px;
+  outline: none;
+}
+.formrow input:focus { border-color: var(--accent); }
+.formrow input::placeholder { color: #4a4f58; }
+.jumpinfo { margin: 10px 0; color: var(--folder-fg); font-size: 12px; }
+.hintsmall { font-size: 10px; margin-top: 2px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.modal-actions button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+.modal-actions button.primary { border-color: var(--accent); color: var(--accent); }
+.modal-actions button:hover { border-color: var(--accent); }
