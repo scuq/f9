@@ -20,10 +20,11 @@ import (
 	"github.com/scuq/f9/internal/sshx"
 	"github.com/scuq/f9/internal/store"
 	"github.com/scuq/f9/internal/theme"
+	"github.com/scuq/f9/internal/vars"
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.4.4-phase04c3"
+const Version = "0.5.3-phase05c2"
 
 // ---- tree ----
 
@@ -110,9 +111,10 @@ type FolderInput struct {
 }
 
 type App struct {
-	ctx context.Context
-	st  *store.YAMLStore
-	mgr *connmgr.Manager
+	ctx      context.Context
+	st       *store.YAMLStore
+	varStore *vars.YAMLStore
+	mgr      *connmgr.Manager
 
 	pmu     sync.Mutex
 	prompts map[string]chan PromptReply
@@ -148,6 +150,11 @@ func New() (*App, error) {
 	}
 	a.themeName = initialThemeName(a.themes)
 	a.mgr = connmgr.New(64, sshx.Dial, a.emitConns)
+	vstore, err := vars.Open(filepath.Join(root, ".vars"), a.varsChain)
+	if err != nil {
+		return nil, err
+	}
+	a.varStore = vstore
 	return a, nil
 }
 
