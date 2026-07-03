@@ -1,16 +1,20 @@
 // Package vars is the scoped variable store (global -> folder -> session, same
 // resolution semantics as session options; see internal/store resolve.go).
-// Secrets are rejected by key-naming policy (ADR-0005); use the SSH agent or an
-// interactive prompt instead. Consumers: snippet templating (pongo2),
-// button-bar send-strings, and Lua read access (phase 07).
+// Secrets are rejected by key-naming policy (ADR-0005). Consumers: snippet
+// templating (pongo2), button-bar send-strings, and Lua read access (phase 07).
+//
+// OS tagging: a value is either a scalar (applies to all OS families) or an OS
+// map keyed by "all", "unknown", or an osdetect family (linux, ios, nxos, ...).
+// Per key, resolution selects: for a detected family F, entry[F] else
+// entry["all"]; for an undetected session, entry["unknown"] else entry["all"];
+// otherwise the key is absent for that session. Scope overlay (global -> folder
+// chain -> session) then runs on the selected values.
 //
 // Persistence: one YAML file per scope under <dir>:
 //
-//	global.yaml            map[key]value at global scope
-//	folder/<folderID>.yaml map[key]value at a folder scope
-//	session/<sessionID>.yaml map[key]value at a session scope
+//	global.yaml, folder/<folderID>.yaml, session/<sessionID>.yaml
 //
-// yaml.v3 sorts map keys on encode, so files stay git-friendly.
+// A scalar key emits as a bare scalar; an OS-mapped key emits as a mapping.
 package vars
 
 import (
@@ -30,34 +34,84 @@ type Scope struct {
 	SessionID string // "" = folder/global level
 }
 
-// Store is the scoped variable store.
+// Store is the scoped, OS-aware variable store. family is the session's
+// detected OS ("" = undetected); os is the selector to write ("all" default).
 type Store interface {
-	Get(s Scope, key string) (string, bool)
-	// List returns the fully resolved view: global overlaid by the folder chain
-	// (root -> leaf) overlaid by the session.
-	List(s Scope) map[string]string
-	Put(s Scope, key, value string) error
-	Delete(s Scope, key string) error
+	Get(s Scope, key, family string) (string, bool)
+	List(s Scope, family string) map[string]string
+	Put(s Scope, key, value, os string) error
+	Delete(s Scope, key, os string) error
 }
 
-// ChainFunc returns the folder IDs from the root folder down to folderID
-// (inclusive, root first) — how the vars store learns the folder hierarchy for
-// resolution. The session store provides it; nil means "no ancestor
-// inheritance" (only the exact folder scope is consulted).
+// ChainFunc returns folder IDs root -> leaf (inclusive) for a folder; nil means
+// no ancestor inheritance.
 type ChainFunc func(folderID string) []string
 
-// keyPattern accepts jinja/pongo2-style identifiers so vars map 1:1 to
-// template variables.
 var keyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-// secretMarkers: a key whose lowercased name contains any of these is rejected.
 var secretMarkers = []string{"password", "passwd", "secret", "token", "apikey", "api_key", "privatekey", "private_key"}
+
+// allowedOS is the set of valid OS selectors for Put/Delete.
+var allowedOS = map[string]bool{
+	"all": true, "unknown": true,
+	"linux": true, "openbsd": true, "ios": true, "nxos": true,
+	"panos": true, "junos": true, "windows": true,
+}
 
 const (
 	globalFile = "global.yaml"
 	folderDir  = "folder"
 	sessionDir = "session"
+	selAll     = "all"
+	selUnknown = "unknown"
 )
+
+// osValue is one variable's value: a selector ("all"/"unknown"/<family>) -> value
+// map. A bare scalar in YAML is stored under "all".
+type osValue struct {
+	m map[string]string
+}
+
+func (v osValue) MarshalYAML() (interface{}, error) {
+	if len(v.m) == 1 {
+		if s, ok := v.m[selAll]; ok {
+			return s, nil // emit a bare scalar
+		}
+	}
+	return v.m, nil
+}
+
+func (v *osValue) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		v.m = map[string]string{selAll: node.Value}
+		return nil
+	case yaml.MappingNode:
+		mm := map[string]string{}
+		if err := node.Decode(&mm); err != nil {
+			return err
+		}
+		v.m = mm
+		return nil
+	default:
+		return fmt.Errorf("vars: unexpected yaml node kind %d", node.Kind)
+	}
+}
+
+// selectOS resolves one osValue for a session's family ("" = undetected).
+func selectOS(v osValue, family string) (string, bool) {
+	if family != "" {
+		if val, ok := v.m[family]; ok {
+			return val, true
+		}
+	} else if val, ok := v.m[selUnknown]; ok {
+		return val, true
+	}
+	if val, ok := v.m[selAll]; ok {
+		return val, true
+	}
+	return "", false
+}
 
 // YAMLStore is the file-backed vars store.
 type YAMLStore struct {
@@ -65,9 +119,9 @@ type YAMLStore struct {
 	chain ChainFunc
 
 	mu      sync.RWMutex
-	global  map[string]string
-	folder  map[string]map[string]string
-	session map[string]map[string]string
+	global  map[string]osValue
+	folder  map[string]map[string]osValue
+	session map[string]map[string]osValue
 }
 
 var _ Store = (*YAMLStore)(nil)
@@ -93,11 +147,11 @@ func Open(dir string, chain ChainFunc) (*YAMLStore, error) {
 func (s *YAMLStore) reload() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.global = map[string]string{}
-	s.folder = map[string]map[string]string{}
-	s.session = map[string]map[string]string{}
+	s.global = map[string]osValue{}
+	s.folder = map[string]map[string]osValue{}
+	s.session = map[string]map[string]osValue{}
 
-	m, err := readMap(filepath.Join(s.dir, globalFile))
+	m, err := readScope(filepath.Join(s.dir, globalFile))
 	if err != nil {
 		return err
 	}
@@ -110,7 +164,7 @@ func (s *YAMLStore) reload() error {
 	return s.loadScopeDir(sessionDir, s.session)
 }
 
-func (s *YAMLStore) loadScopeDir(sub string, into map[string]map[string]string) error {
+func (s *YAMLStore) loadScopeDir(sub string, into map[string]map[string]osValue) error {
 	dir := filepath.Join(s.dir, sub)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -124,7 +178,7 @@ func (s *YAMLStore) loadScopeDir(sub string, into map[string]map[string]string) 
 			continue
 		}
 		id := strings.TrimSuffix(e.Name(), ".yaml")
-		m, err := readMap(filepath.Join(dir, e.Name()))
+		m, err := readScope(filepath.Join(dir, e.Name()))
 		if err != nil {
 			return err
 		}
@@ -135,28 +189,27 @@ func (s *YAMLStore) loadScopeDir(sub string, into map[string]map[string]string) 
 	return nil
 }
 
-func (s *YAMLStore) List(sc Scope) map[string]string {
+func (s *YAMLStore) List(sc Scope, family string) map[string]string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	out := map[string]string{}
-	for k, v := range s.global {
-		out[k] = v
-	}
-	for _, fid := range s.folderChainFor(sc.FolderID) {
-		for k, v := range s.folder[fid] {
-			out[k] = v
+	apply := func(m map[string]osValue) {
+		for k, v := range m {
+			if val, ok := selectOS(v, family); ok {
+				out[k] = val
+			}
 		}
+	}
+	apply(s.global)
+	for _, fid := range s.folderChainFor(sc.FolderID) {
+		apply(s.folder[fid])
 	}
 	if sc.SessionID != "" {
-		for k, v := range s.session[sc.SessionID] {
-			out[k] = v
-		}
+		apply(s.session[sc.SessionID])
 	}
 	return out
 }
 
-// folderChainFor returns root->leaf folder IDs for folderID via the chain func,
-// or just [folderID] when no chain is configured.
 func (s *YAMLStore) folderChainFor(folderID string) []string {
 	if folderID == "" {
 		return nil
@@ -167,67 +220,87 @@ func (s *YAMLStore) folderChainFor(folderID string) []string {
 	return []string{folderID}
 }
 
-func (s *YAMLStore) Get(sc Scope, key string) (string, bool) {
-	v, ok := s.List(sc)[key]
+func (s *YAMLStore) Get(sc Scope, key, family string) (string, bool) {
+	v, ok := s.List(sc, family)[key]
 	return v, ok
 }
 
-func (s *YAMLStore) Put(sc Scope, key, value string) error {
+func (s *YAMLStore) Put(sc Scope, key, value, osSel string) error {
 	if !keyPattern.MatchString(key) {
 		return fmt.Errorf("vars: invalid key %q (want ^[A-Za-z_][A-Za-z0-9_]*$)", key)
 	}
 	if IsSecretKey(key) {
 		return fmt.Errorf("vars: key %q looks like a secret; keep secrets in the SSH agent or an interactive prompt (ADR-0005)", key)
 	}
+	if osSel == "" {
+		osSel = selAll
+	}
+	if !allowedOS[osSel] {
+		return fmt.Errorf("vars: invalid OS selector %q (want all|unknown|<family>)", osSel)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m, path := s.scopeMapLocked(sc, true)
-	m[key] = value
-	return writeMap(path, m)
+	v := m[key]
+	if v.m == nil {
+		v.m = map[string]string{}
+	}
+	v.m[osSel] = value
+	m[key] = v
+	return writeScope(path, m)
 }
 
-func (s *YAMLStore) Delete(sc Scope, key string) error {
+// Delete removes an OS selector from a key (osSel != ""), or the entire key
+// (osSel == ""). Empty keys and empty scope files are removed.
+func (s *YAMLStore) Delete(sc Scope, key, osSel string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m, path := s.scopeMapLocked(sc, false)
 	if m == nil {
 		return nil
 	}
-	if _, ok := m[key]; !ok {
+	v, ok := m[key]
+	if !ok {
 		return nil
 	}
-	delete(m, key)
+	if osSel == "" {
+		delete(m, key)
+	} else {
+		delete(v.m, osSel)
+		if len(v.m) == 0 {
+			delete(m, key)
+		} else {
+			m[key] = v
+		}
+	}
 	if len(m) == 0 {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("vars: remove %s: %w", path, err)
 		}
 		return nil
 	}
-	return writeMap(path, m)
+	return writeScope(path, m)
 }
 
-// scopeMapLocked returns the writable map and file path for the most specific
-// non-empty scope level (session > folder > global). With create, a nil map is
-// initialized and registered. Callers must hold s.mu.
-func (s *YAMLStore) scopeMapLocked(sc Scope, create bool) (map[string]string, string) {
+func (s *YAMLStore) scopeMapLocked(sc Scope, create bool) (map[string]osValue, string) {
 	switch {
 	case sc.SessionID != "":
 		m := s.session[sc.SessionID]
 		if m == nil && create {
-			m = map[string]string{}
+			m = map[string]osValue{}
 			s.session[sc.SessionID] = m
 		}
 		return m, filepath.Join(s.dir, sessionDir, sc.SessionID+".yaml")
 	case sc.FolderID != "":
 		m := s.folder[sc.FolderID]
 		if m == nil && create {
-			m = map[string]string{}
+			m = map[string]osValue{}
 			s.folder[sc.FolderID] = m
 		}
 		return m, filepath.Join(s.dir, folderDir, sc.FolderID+".yaml")
 	default:
 		if s.global == nil && create {
-			s.global = map[string]string{}
+			s.global = map[string]osValue{}
 		}
 		return s.global, filepath.Join(s.dir, globalFile)
 	}
@@ -244,7 +317,7 @@ func IsSecretKey(key string) bool {
 	return false
 }
 
-func readMap(path string) (map[string]string, error) {
+func readScope(path string) (map[string]osValue, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -252,15 +325,15 @@ func readMap(path string) (map[string]string, error) {
 		}
 		return nil, fmt.Errorf("vars: read %s: %w", path, err)
 	}
-	m := map[string]string{}
+	m := map[string]osValue{}
 	if err := yaml.Unmarshal(b, &m); err != nil {
 		return nil, fmt.Errorf("vars: parse %s: %w", path, err)
 	}
 	return m, nil
 }
 
-// writeMap writes m atomically (temp file + rename), mirroring internal/store.
-func writeMap(path string, m map[string]string) error {
+// writeScope writes m atomically (temp file + rename).
+func writeScope(path string, m map[string]osValue) error {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".f9vars-*")
 	if err != nil {

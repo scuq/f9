@@ -222,7 +222,7 @@ chained grep; highlight rules live on scroll with no fps drop.
 
 - **Vars store (`internal/vars`):** scoped KV: global → folder → session (same
   resolve semantics as options). Values string or list; secrets NOT allowed here
-  (enforced: no `password`-named keys, docs point at agent/prompt).
+  (enforced: no `password`-named keys, docs point at agent/prompt). Each value may be OS-tagged (`all`/`unknown`/`<family>`): resolution picks the session's detected family, else `all`, before the global->folder->session overlay.
   Lua (phase 07) gets read access: `vars.get("scope", "key")`.
 - **Snippets (`internal/snippets`):** tree of snippets (folders, like sessions).
   Multiline body, rendered with pongo2 (`{{ var }}`, `{% for %}`, filters).

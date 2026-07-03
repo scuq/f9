@@ -31,18 +31,18 @@ func (a *App) varsChain(folderID string) []string {
 }
 
 // VarsList returns the resolved variables visible at a scope.
-func (a *App) VarsList(scope VarsScopeDTO) map[string]string {
-	return a.varStore.List(scope.scope())
+func (a *App) VarsList(scope VarsScopeDTO, family string) map[string]string {
+	return a.varStore.List(scope.scope(), family)
 }
 
 // VarsPut sets a variable at the most specific level of scope.
-func (a *App) VarsPut(scope VarsScopeDTO, key, value string) error {
-	return a.varStore.Put(scope.scope(), key, value)
+func (a *App) VarsPut(scope VarsScopeDTO, key, value, os string) error {
+	return a.varStore.Put(scope.scope(), key, value, os)
 }
 
 // VarsDelete removes a variable at the scope's level.
-func (a *App) VarsDelete(scope VarsScopeDTO, key string) error {
-	return a.varStore.Delete(scope.scope(), key)
+func (a *App) VarsDelete(scope VarsScopeDTO, key, os string) error {
+	return a.varStore.Delete(scope.scope(), key, os)
 }
 
 // resolvedVars returns the fully resolved variables for a session (its folder
@@ -52,7 +52,8 @@ func (a *App) resolvedVars(sessionID string) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return a.varStore.List(vars.Scope{FolderID: s.FolderID, SessionID: sessionID}), nil
+	family := string(a.sessionFamily(sessionID))
+	return a.varStore.List(vars.Scope{FolderID: s.FolderID, SessionID: sessionID}, family), nil
 }
 
 // TemplateUnresolved returns the template variables that cannot be resolved for
