@@ -24,7 +24,7 @@ matrix:
 GUI_TAGS := gui,webkit2_41
 
 gui-dev:
-	wails dev -tags "$(GUI_TAGS)"
+	WEBKIT_DISABLE_DMABUF_RENDERER=1 wails dev -tags "$(GUI_TAGS)"
 
 gui-build:
-	wails build -tags "$(GUI_TAGS)"
+	WEBKIT_DISABLE_DMABUF_RENDERER=1 wails build -tags "$(GUI_TAGS)"

@@ -9,6 +9,7 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -21,6 +22,10 @@ import (
 var assets embed.FS
 
 func main() {
+	// WebKitGTK renders blurry through the DMABUF path on virtio/VM GPUs;
+	// force the SHM renderer for crisp 1:1 output. Ignored on macOS/Windows.
+	os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
+
 	a, err := app.New()
 	if err != nil {
 		log.Fatalf("f9-gui: %v", err)
