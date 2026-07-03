@@ -23,7 +23,7 @@ import (
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.3.0-phase03a"
+const Version = "0.3.4-phase03e"
 
 // ---- tree ----
 
@@ -124,6 +124,7 @@ type App struct {
 
 	themes    map[string]*theme.Theme
 	themeName string
+	themeMu   sync.RWMutex
 
 	// onEmit is a test hook used only by the non-gui emitEvent stub.
 	onEmit func(event string, data interface{})
@@ -150,7 +151,10 @@ func New() (*App, error) {
 	return a, nil
 }
 
-func (a *App) Startup(ctx context.Context) { a.ctx = ctx }
+func (a *App) Startup(ctx context.Context) {
+	a.ctx = ctx
+	a.startThemeWatcher()
+}
 
 func (a *App) GetVersion() string { return Version }
 

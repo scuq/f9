@@ -26,6 +26,8 @@ export function Filter(arg1:string):Promise<Array<app.FilterHit>>;
 
 export function GetVersion():Promise<string>;
 
+export function ImportITermTheme():Promise<string>;
+
 export function OpenTerminal(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
 
 export function PinSession(arg1:string):Promise<void>;
@@ -38,11 +40,13 @@ export function SaveFolder(arg1:app.FolderInput):Promise<string>;
 
 export function SaveSession(arg1:app.SessionInput):Promise<string>;
 
+export function SaveSettings(arg1:app.UISettings):Promise<void>;
+
 export function SessionDetail(arg1:string):Promise<app.SessionDetail>;
 
 export function SetTerminalWatch(arg1:string,arg2:string):Promise<void>;
 
-export function SetTheme(arg1:string):Promise<void>;
+export function Settings():Promise<app.UISettings>;
 
 export function TermInput(arg1:string,arg2:string):Promise<void>;
 

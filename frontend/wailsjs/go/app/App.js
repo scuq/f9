@@ -46,6 +46,10 @@ export function GetVersion() {
   return window['go']['app']['App']['GetVersion']();
 }
 
+export function ImportITermTheme() {
+  return window['go']['app']['App']['ImportITermTheme']();
+}
+
 export function OpenTerminal(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['OpenTerminal'](arg1, arg2, arg3, arg4);
 }
@@ -70,6 +74,10 @@ export function SaveSession(arg1) {
   return window['go']['app']['App']['SaveSession'](arg1);
 }
 
+export function SaveSettings(arg1) {
+  return window['go']['app']['App']['SaveSettings'](arg1);
+}
+
 export function SessionDetail(arg1) {
   return window['go']['app']['App']['SessionDetail'](arg1);
 }
@@ -78,8 +86,8 @@ export function SetTerminalWatch(arg1, arg2) {
   return window['go']['app']['App']['SetTerminalWatch'](arg1, arg2);
 }
 
-export function SetTheme(arg1) {
-  return window['go']['app']['App']['SetTheme'](arg1);
+export function Settings() {
+  return window['go']['app']['App']['Settings']();
 }
 
 export function TermInput(arg1, arg2) {

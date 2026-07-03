@@ -244,6 +244,29 @@ export namespace app {
 	        this.options = source["options"];
 	    }
 	}
+	
+	export class UISettings {
+	    theme: string;
+	    zoom: number;
+	    fontUI: string;
+	    fontMono: string;
+	    fontUISize: number;
+	    fontTermSize: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new UISettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.theme = source["theme"];
+	        this.zoom = source["zoom"];
+	        this.fontUI = source["fontUI"];
+	        this.fontMono = source["fontMono"];
+	        this.fontUISize = source["fontUISize"];
+	        this.fontTermSize = source["fontTermSize"];
+	    }
+	}
 
 }
 

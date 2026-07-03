@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { TerminalView } from "./terminal";
-import { applyTheme } from "./theme";
+import { setTheme as applyThemeColors, setSettings as applyOverrides } from "./theme";
 
 const api = () => window.go.app.App;
 
@@ -13,6 +13,9 @@ const OPTION_KEYS: { key: string; label: string; hint: string }[] = [
   { key: "auditScope", label: "audit scope", hint: "off | events | events+input | full-io" },
 ];
 
+const UI_FONTS = ["Inter", "system-ui", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Ubuntu", "Cantarell", "Noto Sans"];
+const MONO_FONTS = ["JetBrains Mono", "Fira Code", "Cascadia Code", "Cascadia Mono", "Source Code Pro", "IBM Plex Mono", "Hack", "Menlo", "Monaco", "Consolas", "Ubuntu Mono", "DejaVu Sans Mono", "Liberation Mono"];
+
 function uuid(): string {
   const c = (globalThis as any).crypto;
   return c?.randomUUID ? c.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -23,9 +26,9 @@ type View = { kind: "empty" | "details" | "term"; id: string };
 type IndKind = "output" | "prompt" | "match";
 type IndFlags = { output?: boolean; prompt?: boolean; match?: boolean };
 type TabCfg = { output: boolean; prompt: boolean; match: boolean; watch: string };
+type DefInd = { output: boolean; prompt: boolean; match: boolean };
 
-const DEFAULT_CFG = (d: { output: boolean; prompt: boolean; match: boolean }): TabCfg =>
-  ({ output: d.output, prompt: d.prompt, match: d.match, watch: "" });
+const DEFAULT_CFG = (d: DefInd): TabCfg => ({ output: d.output, prompt: d.prompt, match: d.match, watch: "" });
 
 function dotClass(fl?: IndFlags): string | null {
   if (!fl) return null;
@@ -193,7 +196,61 @@ function FolderModal(props: { parent: { id: string; path: string }; onClose: () 
   );
 }
 
+function SettingsModal(props: {
+  settings: UISettings; themeList: string[]; defInd: DefInd;
+  onChangeTheme: (n: string) => void; onImport: () => void; onSave: (patch: Partial<UISettings>) => void;
+  onDefInd: (d: DefInd) => void; onClose: () => void;
+}) {
+  const { settings, themeList, defInd, onChangeTheme, onImport, onSave, onDefInd, onClose } = props;
+  const numOrZero = (v: string) => parseInt(v, 10) || 0;
+  return (
+    <div class="modal-overlay" onClick={onClose}>
+      <div class="modal settings-modal" onClick={(e) => e.stopPropagation()}>
+        <h2>settings</h2>
+
+        <div class="opthead">theme</div>
+        <div class="formrow">
+          <label>theme</label>
+          <select class="themesel" value={settings.theme} onChange={(e) => onChangeTheme((e.target as HTMLSelectElement).value)}>
+            {themeList.map((n) => <option value={n} key={n}>{n}</option>)}
+          </select>
+        </div>
+        <div class="formrow"><label></label><button class="importbtn" onClick={onImport}>import iTerm2 theme…</button></div>
+
+        <div class="opthead">fonts (empty = theme default)</div>
+        <div class="formrow"><label>UI font</label>
+          <input list="f9-ui-fonts" value={settings.fontUI} placeholder="Inter" onInput={(e) => onSave({ fontUI: (e.target as HTMLInputElement).value })} /></div>
+        <div class="formrow"><label>UI size</label>
+          <input type="number" min="8" max="40" value={settings.fontUISize || ""} placeholder="theme"
+            onInput={(e) => onSave({ fontUISize: numOrZero((e.target as HTMLInputElement).value) })} /></div>
+        <div class="formrow"><label>terminal font</label>
+          <input list="f9-mono-fonts" value={settings.fontMono} placeholder="JetBrains Mono" onInput={(e) => onSave({ fontMono: (e.target as HTMLInputElement).value })} /></div>
+        <div class="formrow"><label>terminal size</label>
+          <input type="number" min="8" max="40" value={settings.fontTermSize || ""} placeholder="theme"
+            onInput={(e) => onSave({ fontTermSize: numOrZero((e.target as HTMLInputElement).value) })} /></div>
+        <datalist id="f9-ui-fonts">{UI_FONTS.map((f) => <option value={f} key={f} />)}</datalist>
+        <datalist id="f9-mono-fonts">{MONO_FONTS.map((f) => <option value={f} key={f} />)}</datalist>
+
+        <div class="opthead">zoom</div>
+        <div class="formrow">
+          <label>{Math.round((settings.zoom || 1) * 100)}%</label>
+          <input type="range" min="0.6" max="2" step="0.05" value={String(settings.zoom || 1)}
+            onInput={(e) => onSave({ zoom: parseFloat((e.target as HTMLInputElement).value) })} />
+        </div>
+
+        <div class="opthead">tab indicators (new tabs)</div>
+        <label class="checkrow"><input type="checkbox" checked={defInd.output} onChange={(e) => onDefInd({ ...defInd, output: (e.target as HTMLInputElement).checked })} /> <span class="swatch output" /> output</label>
+        <label class="checkrow"><input type="checkbox" checked={defInd.prompt} onChange={(e) => onDefInd({ ...defInd, prompt: (e.target as HTMLInputElement).checked })} /> <span class="swatch prompt" /> command done</label>
+        <label class="checkrow"><input type="checkbox" checked={defInd.match} onChange={(e) => onDefInd({ ...defInd, match: (e.target as HTMLInputElement).checked })} /> <span class="swatch match" /> regex match</label>
+
+        <div class="modal-actions"><button class="primary" onClick={onClose}>done</button></div>
+      </div>
+    </div>
+  );
+}
+
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
+const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0 };
 
 export function App() {
   const [tree, setTree] = useState<FolderNode | null>(null);
@@ -214,14 +271,13 @@ export function App() {
   const [pendingOpen, setPendingOpen] = useState<{ id: string; name: string }[]>([]);
   const [activity, setActivity] = useState<Record<string, IndFlags>>({});
   const [tabCfg, setTabCfg] = useState<Record<string, TabCfg>>({});
-  const [defInd, setDefInd] = useState({ output: true, prompt: true, match: true });
+  const [defInd, setDefInd] = useState<DefInd>({ output: true, prompt: true, match: true });
   const [ctxMenu, setCtxMenu] = useState<{ termId: string; x: number; y: number } | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [themeList, setThemeList] = useState<string[]>([]);
-  const [themeName, setThemeName] = useState("");
+  const [settings, setSettings] = useState<UISettings>(EMPTY_SETTINGS);
+  const [settingsModal, setSettingsModal] = useState(false);
   const debounce = useRef<number | undefined>(undefined);
 
-  // refs so the event handler (registered once) reads current state
   const activeTermRef = useRef<string | null>(null);
   const tabCfgRef = useRef(tabCfg);
   const defIndRef = useRef(defInd);
@@ -239,7 +295,12 @@ export function App() {
     refreshConns();
     refreshPinned();
     api().Themes().then((ts) => setThemeList(ts ?? [])).catch(() => {});
-    api().CurrentTheme().then((n) => { setThemeName(n); return api().Theme(n); }).then((t) => applyTheme(t)).catch(() => {});
+    api().Settings().then((s) => {
+      setSettings(s);
+      applyOverrides({ zoom: s.zoom, fontUI: s.fontUI, fontMono: s.fontMono, fontUISize: s.fontUISize, fontTermSize: s.fontTermSize });
+      return api().Theme(s.theme);
+    }).then((t) => applyThemeColors(t)).catch(() => {});
+
     const offC = window.runtime.EventsOn("f9:conns", () => refreshConns());
     const offP = window.runtime.EventsOn("f9:prompt", (req: PromptRequest) => setPromptQ((qs) => [...qs, req]));
     const offT = window.runtime.EventsOn("f9:termclosed", (termId: string) => {
@@ -257,7 +318,11 @@ export function App() {
         return { ...prev, [ev.termId]: { ...cur, [ev.kind]: true } };
       });
     });
-    return () => { offC?.(); offP?.(); offT?.(); offA?.(); };
+    const offTh = window.runtime.EventsOn("f9:themes", () => {
+      api().Themes().then((ts) => setThemeList(ts ?? [])).catch(() => {});
+      api().Settings().then((s) => api().Theme(s.theme)).then((t) => applyThemeColors(t)).catch(() => {});
+    });
+    return () => { offC?.(); offP?.(); offT?.(); offA?.(); offTh?.(); };
   }, []);
 
   const isConnected = (id: string) => conns.some((c) => c.sessionId === id && c.state === "connected");
@@ -303,14 +368,40 @@ export function App() {
   const markedIds = Object.keys(marked);
   const connectMarked = () => { if (markedIds.length) api().ConnectSessions(markedIds).catch((e) => setErr(String(e))); };
   const connectFolder = () => { if (selFolder) api().ConnectFolder(selFolder.id).catch((e) => setErr(String(e))); };
+  const cycleSessionTabs = (sessionId: string) => {
+    const sessTabs = tabs.filter((t) => t.sessionId === sessionId);
+    if (sessTabs.length === 0) {
+      const conn = conns.find((c) => c.sessionId === sessionId);
+      openTerminalFor(sessionId, conn?.name ?? sessionId);
+      return;
+    }
+    let idx = 0;
+    if (view.kind === "term") {
+      const cur = sessTabs.findIndex((t) => t.termId === view.id);
+      if (cur >= 0) idx = (cur + 1) % sessTabs.length;
+    }
+    activateTerm(sessTabs[idx].termId);
+  };
+
+  const saveSettings = (patch: Partial<UISettings>) => {
+    const next = { ...settings, ...patch };
+    setSettings(next);
+    applyOverrides({ zoom: next.zoom, fontUI: next.fontUI, fontMono: next.fontMono, fontUISize: next.fontUISize, fontTermSize: next.fontTermSize });
+    api().SaveSettings(next).catch((e) => setErr(String(e)));
+  };
+  const changeTheme = (name: string) => {
+    saveSettings({ theme: name });
+    api().Theme(name).then((t) => applyThemeColors(t)).catch((e) => setErr(String(e)));
+  };
+  const importIterm = () => {
+    api().ImportITermTheme().then((name) => {
+      if (name) { api().Themes().then((ts) => setThemeList(ts ?? [])).catch(() => {}); changeTheme(name); }
+    }).catch((e) => setErr(String(e)));
+  };
 
   const togglePin = (sessionId: string, currentlyPinned: boolean) => {
     const p = currentlyPinned ? api().UnpinSession(sessionId) : api().PinSession(sessionId);
     p.then(() => { refreshPinned(); load(); if (sel && sel.id === sessionId) api().SessionDetail(sessionId).then(setDetail).catch(() => {}); }).catch((e) => setErr(String(e)));
-  };
-  const changeTheme = (name: string) => {
-    setThemeName(name);
-    api().SetTheme(name).then(() => api().Theme(name)).then((t) => applyTheme(t)).catch((e) => setErr(String(e)));
   };
   const closeTab = (termId: string) => {
     api().CloseTerminal(termId).catch(() => {});
@@ -319,7 +410,6 @@ export function App() {
     setActivity((a) => { if (!a[termId]) return a; const n = { ...a }; delete n[termId]; return n; });
     setTabCfg((c) => { const n = { ...c }; delete n[termId]; return n; });
   };
-
   const setCfg = (termId: string, patch: Partial<TabCfg>) => {
     setTabCfg((c) => {
       const cur = c[termId] ?? DEFAULT_CFG(defIndRef.current);
@@ -358,7 +448,16 @@ export function App() {
   const ctxCfg = ctxMenu ? (tabCfg[ctxMenu.termId] ?? DEFAULT_CFG(defInd)) : null;
 
   return (
-    <div class="layout" onClick={() => { if (ctxMenu) setCtxMenu(null); if (settingsOpen) setSettingsOpen(false); }}>
+    <div class="approot">
+      <div class="titlebar" style={{ "--wails-draggable": "drag" } as any}
+        onDblClick={() => window.runtime.WindowToggleMaximise?.()}>
+        <span class="tb-brand">f9</span>
+        <div class="tb-controls" style={{ "--wails-draggable": "no-drag" } as any}>
+          <button class="tb-btn" title="minimise" onClick={() => window.runtime.WindowMinimise?.()}>{"\u2013"}</button>
+          <button class="tb-btn tb-close" title="close" onClick={() => window.runtime.Quit?.()}>{"\u2715"}</button>
+        </div>
+      </div>
+      <div class="layout" onClick={() => { if (ctxMenu) setCtxMenu(null); }}>
       <div class="sidebar">
         <div class="toolbar">
           <button onClick={() => setModal("session-new")} disabled={!selFolder}>+ session</button>
@@ -388,16 +487,24 @@ export function App() {
         {conns.length > 0 && (
           <div class="connpanel">
             <div class="connhead"><span>connections ({conns.length})</span><button onClick={() => api().DisconnectAll()}>disconnect all</button></div>
-            {conns.map((c) => (
-              <div class="connrow" key={c.sessionId} title={c.err}>
-                <span class={"dot " + c.state} /><span class="cname">{c.name}</span>
-                <span class="cstate">{STATE_LABEL[c.state] ?? c.state}</span>
-                <button class="cx" onClick={() => api().Disconnect(c.sessionId)}>&#x2715;</button>
-              </div>
-            ))}
+            {conns.map((c) => {
+              const tc = tabs.filter((t) => t.sessionId === c.sessionId).length;
+              return (
+                <div class="connrow" key={c.sessionId} title={tc > 1 ? `${tc} terminals — click to cycle` : c.err}
+                  onClick={() => cycleSessionTabs(c.sessionId)}>
+                  <span class={"dot " + c.state} /><span class="cname">{c.name}</span>
+                  {tc > 1 && <span class="conncount">{"\u00d7" + tc}</span>}
+                  <span class="cstate">{STATE_LABEL[c.state] ?? c.state}</span>
+                  <button class="cx" title="disconnect" onClick={(e) => { e.stopPropagation(); api().Disconnect(c.sessionId); }}>&#x2715;</button>
+                </div>
+              );
+            })}
           </div>
         )}
-        <div class="statusbar">f9 {ver}</div>
+        <div class="statusbar">
+          <span>f9 {ver}</span>
+          <span class="gear" title="settings" onClick={() => setSettingsModal(true)}>{"\u2699"}</span>
+        </div>
       </div>
 
       <div class="mainpane">
@@ -421,21 +528,6 @@ export function App() {
             ))}
             {activeTab && (
               <span class="tabnew" title="new terminal for this session" onClick={() => openTerminalFor(activeTab.sessionId, activeTab.name)}>+</span>
-            )}
-            <span class="gear" title="indicator defaults" onClick={(e) => { e.stopPropagation(); setSettingsOpen((s) => !s); }}>{"\u2699"}</span>
-            {settingsOpen && (
-              <div class="settings-pop" onClick={(e) => e.stopPropagation()}>
-                <div class="mhead">theme</div>
-                <div class="mrow">
-                  <select class="themesel" value={themeName} onChange={(e) => changeTheme((e.target as HTMLSelectElement).value)}>
-                    {themeList.map((n) => <option value={n} key={n}>{n}</option>)}
-                  </select>
-                </div>
-                <div class="mhead">default indicators (new tabs)</div>
-                <label class="mrow"><input type="checkbox" checked={defInd.output} onChange={(e) => setDefInd({ ...defInd, output: (e.target as HTMLInputElement).checked })} /> <span class="swatch output" /> output</label>
-                <label class="mrow"><input type="checkbox" checked={defInd.prompt} onChange={(e) => setDefInd({ ...defInd, prompt: (e.target as HTMLInputElement).checked })} /> <span class="swatch prompt" /> command done</label>
-                <label class="mrow"><input type="checkbox" checked={defInd.match} onChange={(e) => setDefInd({ ...defInd, match: (e.target as HTMLInputElement).checked })} /> <span class="swatch match" /> regex match</label>
-              </div>
             )}
           </div>
         )}
@@ -496,7 +588,13 @@ export function App() {
       {modal === "session-new" && selFolder && <SessionModal folder={selFolder} detail={null} onClose={() => setModal("")} onSaved={afterMutation} />}
       {modal === "session-edit" && selFolder && detail && <SessionModal folder={selFolder} detail={detail} onClose={() => setModal("")} onSaved={afterMutation} />}
       {modal === "folder" && selFolder && <FolderModal parent={selFolder} onClose={() => setModal("")} onSaved={afterMutation} />}
+      {settingsModal && (
+        <SettingsModal settings={settings} themeList={themeList} defInd={defInd}
+          onChangeTheme={changeTheme} onImport={importIterm} onSave={saveSettings} onDefInd={setDefInd}
+          onClose={() => setSettingsModal(false)} />
+      )}
       {promptQ.length > 0 && <PromptModal req={promptQ[0]} onResolve={resolvePrompt} />}
+      </div>
     </div>
   );
 }

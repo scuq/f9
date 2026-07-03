@@ -2,7 +2,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
-import { currentTheme, xtermTheme, onThemeChange } from "./theme";
+import { currentTermConfig, onTermConfig } from "./theme";
 
 const api = () => window.go.app.App;
 
@@ -12,8 +12,6 @@ function b64ToBytes(b64: string): Uint8Array {
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
-
-const monoStack = (m: string) => `"${m}", ui-monospace, monospace`;
 
 export function TerminalView(
   { termId, sessionId, active }: { termId: string; sessionId: string; active: boolean },
@@ -35,12 +33,12 @@ export function TerminalView(
   };
 
   useEffect(() => {
-    const th = currentTheme();
+    const c = currentTermConfig();
     const term = new XTerm({
-      fontFamily: monoStack(th.font.mono),
-      fontSize: th.font.size,
+      fontFamily: c.fontFamily,
+      fontSize: c.fontSize,
       lineHeight: 1.1,
-      theme: xtermTheme(th),
+      theme: c.theme,
       cursorBlink: true,
       scrollback: 5000,
     });
@@ -56,10 +54,10 @@ export function TerminalView(
     term.onData((d) => api().TermInput(termId, d));
     api().OpenTerminal(termId, sessionId, term.cols, term.rows).catch(() => {});
 
-    const offTheme = onThemeChange((t) => {
-      term.options.theme = xtermTheme(t);
-      term.options.fontFamily = monoStack(t.font.mono);
-      term.options.fontSize = t.font.size;
+    const offCfg = onTermConfig((cfg) => {
+      term.options.theme = cfg.theme;
+      term.options.fontFamily = cfg.fontFamily;
+      term.options.fontSize = cfg.fontSize;
       requestAnimationFrame(fitAndSync);
     });
 
@@ -69,7 +67,7 @@ export function TerminalView(
 
     return () => {
       window.clearTimeout(timer);
-      offData?.(); offTheme(); ro.disconnect();
+      offData?.(); offCfg(); ro.disconnect();
       api().CloseTerminal(termId).catch(() => {});
       term.dispose();
     };

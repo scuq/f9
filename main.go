@@ -32,6 +32,7 @@ func main() {
 	}
 	err = wails.Run(&options.App{
 		Title:            "f9",
+		Frameless:        true,
 		Width:            1440,
 		Height:           900,
 		MinWidth:         900,

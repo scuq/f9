@@ -27,7 +27,9 @@ declare global {
           Themes(): Promise<string[]>;
           Theme(name: string): Promise<ThemeData>;
           CurrentTheme(): Promise<string>;
-          SetTheme(name: string): Promise<void>;
+          Settings(): Promise<UISettings>;
+          SaveSettings(s: UISettings): Promise<void>;
+          ImportITermTheme(): Promise<string>;
           PinSession(id: string): Promise<void>;
           UnpinSession(id: string): Promise<void>;
           PinnedSessions(): Promise<SessionNode[]>;
@@ -37,6 +39,9 @@ declare global {
     runtime: {
       EventsOn(event: string, cb: (data: any) => void): () => void;
       EventsOff(event: string): void;
+      WindowMinimise?: () => void;
+      WindowToggleMaximise?: () => void;
+      Quit?: () => void;
     };
   }
 
@@ -71,6 +76,10 @@ declare global {
     prompt: string; echo: boolean;
   }
   interface PromptReply { value: string; useForAll: boolean; accept: boolean; cancel: boolean; }
+  interface UISettings {
+    theme: string; zoom: number;
+    fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
+  }
   interface ThemeData {
     name: string;
     ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };

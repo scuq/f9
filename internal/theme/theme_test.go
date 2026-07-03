@@ -8,10 +8,10 @@ func TestLoadAllBuiltins(t *testing.T) {
 	if !ok {
 		t.Fatal("oled-black builtin missing")
 	}
-	if ob.UI.Bg != "#000000" {
-		t.Fatalf("oled-black ui.bg = %q, want #000000", ob.UI.Bg)
+	if ob.UI.Bg != "#0a0b0d" {
+		t.Fatalf("oled-black ui.bg = %q, want #0a0b0d", ob.UI.Bg)
 	}
-	if ob.Terminal.ANSI.Green != "#09823a" {
+	if ob.Terminal.ANSI.Green != "#2ea043" {
 		t.Fatalf("oled-black ansi.green = %q", ob.Terminal.ANSI.Green)
 	}
 	if ob.Font.Mono != "JetBrains Mono" {

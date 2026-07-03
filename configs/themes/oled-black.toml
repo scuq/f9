@@ -1,13 +1,13 @@
 name = "oled-black"
 
 [ui]
-bg = "#000000"
-bg_raised = "#0a0a0c"
-fg = "#d6d6d6"
-accent = "#33b1ff"
-border = "#1b1b1f"
-folder_fg = "#8a8f98"
-selected_bg = "#0b2d45"
+bg = "#0a0b0d"
+bg_raised = "#14161a"
+fg = "#c6c9cf"
+accent = "#4db2f0"
+border = "#24272d"
+folder_fg = "#7d828b"
+selected_bg = "#123049"
 danger = "#e06c75"
 
 [font]
@@ -16,22 +16,22 @@ mono = "JetBrains Mono"
 size = 13
 
 [terminal]
-background = "#000000"
-foreground = "#d6d6d6"
-cursor = "#33b1ff"
-cursor_accent = "#000000"
-selection = "#0b2d45"
+background = "#0a0b0d"
+foreground = "#c6c9cf"
+cursor = "#4db2f0"
+cursor_accent = "#0a0b0d"
+selection = "#123049"
 
 [terminal.ansi]
-black = "#0a0a0c"
+black = "#14161a"
 red = "#e06c75"
-green = "#09823a"
+green = "#2ea043"
 yellow = "#d9a441"
-blue = "#33b1ff"
+blue = "#4db2f0"
 magenta = "#c678dd"
 cyan = "#56b6c2"
-white = "#d6d6d6"
-bright_black = "#4a4f58"
+white = "#c6c9cf"
+bright_black = "#5c626b"
 bright_red = "#ff7b86"
 bright_green = "#3fbf6a"
 bright_yellow = "#f0c674"

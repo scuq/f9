@@ -1,13 +1,14 @@
 /* oled-black — mirrors configs/themes/oled-black.toml until the theme
    engine (phase 03) injects these as CSS custom properties. */
 :root {
-  --bg: #000000;
-  --bg-raised: #0a0a0c;
-  --fg: #d6d6d6;
-  --accent: #33b1ff;
-  --border: #1b1b1f;
-  --folder-fg: #8a8f98;
-  --selected-bg: #0b2d45;
+  color-scheme: dark;
+  --bg: #0a0b0d;
+  --bg-raised: #14161a;
+  --fg: #c6c9cf;
+  --accent: #4db2f0;
+  --border: #24272d;
+  --folder-fg: #7d828b;
+  --selected-bg: #123049;
   --danger: #e06c75;
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
@@ -25,7 +26,8 @@ body {
   font-synthesis: none;
 }
 
-.layout { display: flex; height: 100%; }
+.approot { display: flex; flex-direction: column; height: 100%; }
+.layout { display: flex; flex: 1; min-height: 0; }
 
 .sidebar {
   width: 340px;
@@ -100,11 +102,14 @@ body {
 }
 
 .statusbar {
+  display: flex; align-items: center; justify-content: space-between;
   padding: 4px 8px;
   border-top: 1px solid var(--border);
   color: var(--folder-fg);
   font-size: 11px;
 }
+.statusbar .gear { cursor: pointer; font-size: 14px; }
+.statusbar .gear:hover { color: var(--accent); }
 
 .mainpane { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #000; }
 .tabstrip {
@@ -283,3 +288,46 @@ code { font-family: var(--font-mono); }
   color: var(--fg); border-radius: 4px; padding: 4px 6px; outline: none;
 }
 .themesel:focus { border-color: var(--accent); }
+
+.importbtn {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  color: var(--folder-fg); border-radius: 4px; padding: 4px 8px; cursor: pointer;
+}
+.importbtn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* --- 03c: settings modal --- */
+.settings-modal { width: 500px; }
+.settings-modal .formrow label { width: 120px; }
+.settings-modal input[type="number"] { width: 90px; flex: none; }
+.settings-modal input[type="range"] { flex: 1; accent-color: var(--accent); }
+.settings-modal select.themesel { flex: 1; }
+.settings-modal .checkrow { margin: 4px 0 4px 4px; }
+
+/* --- 03d: frameless titlebar, native-control dark, font pickers --- */
+select, input, textarea, option { color-scheme: dark; }
+.themesel { appearance: none; -webkit-appearance: none; background: var(--bg-raised); }
+
+.titlebar {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 30px; flex: none; padding: 0 6px 0 12px; user-select: none;
+  background: var(--bg-raised); border-bottom: 1px solid var(--border);
+}
+.tb-brand { font-weight: 700; color: var(--accent); font-size: 13px; letter-spacing: 0.03em; }
+.tb-controls { display: flex; gap: 2px; }
+.tb-btn {
+  background: none; border: none; color: var(--folder-fg); cursor: pointer;
+  width: 28px; height: 22px; border-radius: 4px; font-size: 12px; line-height: 1;
+}
+.tb-btn:hover { background: var(--bg); color: var(--fg); }
+.tb-close:hover { background: var(--danger); color: #fff; }
+
+/* --- 03e: connection tab counter + cycling --- */
+.connrow { cursor: pointer; }
+.connrow:hover { background: var(--bg-raised); }
+.connrow .cname { flex: 0 1 auto; }
+.connrow .cstate { margin-left: auto; }
+.conncount {
+  margin-left: 2px; padding: 0 6px; border-radius: 8px;
+  font-size: 10px; line-height: 16px; font-variant-numeric: tabular-nums;
+  background: var(--selected-bg); color: var(--accent);
+}
