@@ -456,3 +456,14 @@ select, input, textarea, option { color-scheme: dark; }
 .picker-meta { color: var(--folder-fg); font-size: 11px; }
 .picker-empty { color: var(--folder-fg); padding: 12px; font-size: 13px; }
 .picker-editlink { color: var(--accent); cursor: pointer; text-decoration: underline; }
+
+/* --- vertical button-bar rail --- */
+.barrail { flex: none; border-left: 1px solid var(--border); background: var(--bg-raised); display: flex; flex-direction: column; overflow-y: auto; transition: width 0.12s ease; }
+.barrail.expanded { width: 192px; }
+.barrail.collapsed { width: 32px; align-items: center; }
+.barrail-inner { display: flex; flex-direction: column; gap: 12px; padding: 8px; }
+.barrail-section { display: flex; flex-direction: column; gap: 5px; }
+.barrail-head { display: flex; justify-content: space-between; align-items: center; color: var(--folder-fg); font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+.barrail-btn { width: 100%; justify-content: flex-start; }
+.barrail-collapsed { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0; height: 100%; }
+.barrail-handle { color: var(--folder-fg); font-size: 12px; margin-top: auto; }

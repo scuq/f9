@@ -344,6 +344,8 @@ export namespace app {
 	    showFolderBar: boolean;
 	    showTemplates: boolean;
 	    showSnippets: boolean;
+	    barVertical: boolean;
+	    barUnpinned: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UISettings(source);
@@ -361,6 +363,8 @@ export namespace app {
 	        this.showFolderBar = source["showFolderBar"];
 	        this.showTemplates = source["showTemplates"];
 	        this.showSnippets = source["showSnippets"];
+	        this.barVertical = source["barVertical"];
+	        this.barUnpinned = source["barUnpinned"];
 	    }
 	}
 	export class VarsScopeDTO {

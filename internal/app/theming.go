@@ -26,6 +26,8 @@ type UISettings struct {
 	ShowFolderBar bool    `yaml:"show_folder_bar,omitempty" json:"showFolderBar"`
 	ShowTemplates bool    `yaml:"show_templates,omitempty" json:"showTemplates"`
 	ShowSnippets  bool    `yaml:"show_snippets,omitempty" json:"showSnippets"`
+	BarVertical   bool    `yaml:"bar_vertical,omitempty" json:"barVertical"`
+	BarUnpinned   bool    `yaml:"bar_unpinned,omitempty" json:"barUnpinned"`
 }
 
 func (a *App) Themes() []string {

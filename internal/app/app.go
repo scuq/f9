@@ -26,7 +26,7 @@ import (
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.5.15-gbar-cbar-rename"
+const Version = "0.5.16-vertical-bar"
 
 // ---- tree ----
 

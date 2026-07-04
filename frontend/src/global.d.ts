@@ -108,6 +108,7 @@ declare global {
     theme: string; zoom: number;
     fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
     showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean; showSnippets: boolean;
+    barVertical: boolean; barUnpinned: boolean;
   }
   interface GrepOptsInput { invert: boolean; ignoreCase: boolean; before: number; after: number; maxMatches: number; }
   interface GrepMatch { lineNo: number; line: string; before: string[] | null; after: string[] | null; }

@@ -268,6 +268,15 @@ function SettingsModal(props: {
         <label class="checkrow"><input type="checkbox" checked={settings.showTemplates} onChange={(e) => onSave({ showTemplates: (e.target as HTMLInputElement).checked })} /> template composer</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showSnippets} onChange={(e) => onSave({ showSnippets: (e.target as HTMLInputElement).checked })} /> snippet library (Ctrl+P)</label>
 
+        <div class="opthead">button bar layout</div>
+        <div class="formrow"><label>layout</label>
+          <select value={settings.barVertical ? "vertical" : "horizontal"} onChange={(e) => onSave({ barVertical: (e.target as HTMLSelectElement).value === "vertical" })}>
+            <option value="horizontal">horizontal (bottom)</option>
+            <option value="vertical">vertical (right)</option>
+          </select>
+        </div>
+        <label class="checkrow"><input type="checkbox" checked={!settings.barUnpinned} onChange={(e) => onSave({ barUnpinned: !(e.target as HTMLInputElement).checked })} /> pin vertical bar (uncheck = auto-collapse)</label>
+
         <div class="modal-actions"><button class="primary" onClick={onClose}>done</button></div>
       </div>
     </div>
@@ -326,7 +335,7 @@ function SearchPanel(props: {
 }
 
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
-const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false };
+const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false };
 
 function UnresolvedModal(props: {
   names: string[];
@@ -588,6 +597,53 @@ function SnippetPicker(props: {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+function BarRail(props: {
+  global: Bar | null; folder: Bar | null;
+  showGlobal: boolean; showFolder: boolean; folderActive: boolean; pinned: boolean;
+  onAction: (a: BarAction) => void; onEditGlobal: () => void; onEditFolder: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  const showG = props.showGlobal;
+  const showF = props.showFolder && props.folderActive;
+  if (!showG && !showF) return null;
+  const expanded = props.pinned || hover;
+  const act = (a: BarAction) => { props.onAction(a); if (!props.pinned) setHover(false); };
+  const buttons = (bar: Bar | null) => (bar?.rows ?? []).flatMap((r, ri) =>
+    (r.buttons ?? []).map((b, bi) => (
+      <button class="bbbtn barrail-btn" key={ri + "-" + bi} title={b.action.kind}
+        style={b.color ? { borderColor: b.color, color: b.color } : undefined}
+        onClick={() => act(b.action)}>{b.icon ? <span class="bbicon">{b.icon}</span> : null}{b.label}</button>
+    )));
+  return (
+    <div class={"barrail " + (expanded ? "expanded" : "collapsed")}
+      onMouseEnter={() => { if (!props.pinned) setHover(true); }}
+      onMouseLeave={() => { if (!props.pinned) setHover(false); }}>
+      {expanded ? (
+        <div class="barrail-inner">
+          {showG && (
+            <div class="barrail-section">
+              <div class="barrail-head"><span>G-Bar</span><button class="barcog" title="configure G-Bar" onClick={props.onEditGlobal}>{"\u2699"}</button></div>
+              {buttons(props.global)}
+            </div>
+          )}
+          {showF && (
+            <div class="barrail-section">
+              <div class="barrail-head"><span>C-Bar</span><button class="barcog" title="configure C-Bar" onClick={props.onEditFolder}>{"\u2699"}</button></div>
+              {buttons(props.folder)}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div class="barrail-collapsed">
+          {showG && <button class="barcog" title="G-Bar" onClick={props.onEditGlobal}>{"\u2699"}</button>}
+          {showF && <button class="barcog" title="C-Bar" onClick={props.onEditFolder}>{"\u2699"}</button>}
+          <span class="barrail-handle" title="hover to expand">{"\u25c2"}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -1102,11 +1158,19 @@ export function App() {
             </div>
           ) : <div class="empty">select a session</div>}
         </div>
-        <BarStrip global={gbar} folder={bar}
-          showGlobal={settings.showGlobalBar} showFolder={settings.showFolderBar}
-          folderActive={view.kind === "term" && !!activeTab}
-          onAction={runAction} onEditGlobal={openGlobalBar} onEditFolder={openFolderBar} />
+        {!settings.barVertical && (
+          <BarStrip global={gbar} folder={bar}
+            showGlobal={settings.showGlobalBar} showFolder={settings.showFolderBar}
+            folderActive={view.kind === "term" && !!activeTab}
+            onAction={runAction} onEditGlobal={openGlobalBar} onEditFolder={openFolderBar} />
+        )}
       </div>
+      {settings.barVertical && (
+        <BarRail global={gbar} folder={bar}
+          showGlobal={settings.showGlobalBar} showFolder={settings.showFolderBar}
+          folderActive={view.kind === "term" && !!activeTab} pinned={!settings.barUnpinned}
+          onAction={runAction} onEditGlobal={openGlobalBar} onEditFolder={openFolderBar} />
+      )}
 
       {ctxMenu && ctxCfg && (
         <div class="ctxmenu" style={{ left: `${ctxMenu.x}px`, top: `${ctxMenu.y}px` }} onClick={(e) => e.stopPropagation()}>
