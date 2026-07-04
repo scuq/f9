@@ -36,6 +36,8 @@ export function PinSession(arg1:string):Promise<void>;
 
 export function PinnedSessions():Promise<Array<app.SessionNode>>;
 
+export function RenderTemplate(arg1:string,arg2:string,arg3:Record<string, string>):Promise<string>;
+
 export function ResolvePrompt(arg1:string,arg2:app.PromptReply):Promise<void>;
 
 export function SaveFolder(arg1:app.FolderInput):Promise<string>;
@@ -44,11 +46,17 @@ export function SaveSession(arg1:app.SessionInput):Promise<string>;
 
 export function SaveSettings(arg1:app.UISettings):Promise<void>;
 
+export function SendTemplate(arg1:string,arg2:string,arg3:Record<string, string>,arg4:number,arg5:boolean):Promise<void>;
+
+export function SendToTerminal(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<void>;
+
 export function SessionDetail(arg1:string):Promise<app.SessionDetail>;
 
 export function SetTerminalWatch(arg1:string,arg2:string):Promise<void>;
 
 export function Settings():Promise<app.UISettings>;
+
+export function TemplateUnresolved(arg1:string,arg2:string):Promise<Array<string>>;
 
 export function TermInput(arg1:string,arg2:string):Promise<void>;
 
@@ -65,3 +73,9 @@ export function Themes():Promise<Array<string>>;
 export function Tree():Promise<app.FolderNode>;
 
 export function UnpinSession(arg1:string):Promise<void>;
+
+export function VarsDelete(arg1:app.VarsScopeDTO,arg2:string,arg3:string):Promise<void>;
+
+export function VarsList(arg1:app.VarsScopeDTO,arg2:string):Promise<Record<string, string>>;
+
+export function VarsPut(arg1:app.VarsScopeDTO,arg2:string,arg3:string,arg4:string):Promise<void>;

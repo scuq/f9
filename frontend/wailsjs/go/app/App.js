@@ -66,6 +66,10 @@ export function PinnedSessions() {
   return window['go']['app']['App']['PinnedSessions']();
 }
 
+export function RenderTemplate(arg1, arg2, arg3) {
+  return window['go']['app']['App']['RenderTemplate'](arg1, arg2, arg3);
+}
+
 export function ResolvePrompt(arg1, arg2) {
   return window['go']['app']['App']['ResolvePrompt'](arg1, arg2);
 }
@@ -82,6 +86,14 @@ export function SaveSettings(arg1) {
   return window['go']['app']['App']['SaveSettings'](arg1);
 }
 
+export function SendTemplate(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['app']['App']['SendTemplate'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function SendToTerminal(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['SendToTerminal'](arg1, arg2, arg3, arg4);
+}
+
 export function SessionDetail(arg1) {
   return window['go']['app']['App']['SessionDetail'](arg1);
 }
@@ -92,6 +104,10 @@ export function SetTerminalWatch(arg1, arg2) {
 
 export function Settings() {
   return window['go']['app']['App']['Settings']();
+}
+
+export function TemplateUnresolved(arg1, arg2) {
+  return window['go']['app']['App']['TemplateUnresolved'](arg1, arg2);
 }
 
 export function TermInput(arg1, arg2) {
@@ -124,4 +140,16 @@ export function Tree() {
 
 export function UnpinSession(arg1) {
   return window['go']['app']['App']['UnpinSession'](arg1);
+}
+
+export function VarsDelete(arg1, arg2, arg3) {
+  return window['go']['app']['App']['VarsDelete'](arg1, arg2, arg3);
+}
+
+export function VarsList(arg1, arg2) {
+  return window['go']['app']['App']['VarsList'](arg1, arg2);
+}
+
+export function VarsPut(arg1, arg2, arg3, arg4) {
+  return window['go']['app']['App']['VarsPut'](arg1, arg2, arg3, arg4);
 }

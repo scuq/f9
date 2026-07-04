@@ -304,6 +304,69 @@ function SearchPanel(props: {
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
 const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0 };
 
+function UnresolvedModal(props: {
+  names: string[];
+  onSubmit: (vals: Record<string, string>, remember: boolean) => void;
+  onCancel: () => void;
+}) {
+  const { names, onSubmit, onCancel } = props;
+  const [vals, setVals] = useState<Record<string, string>>(() => Object.fromEntries(names.map((n) => [n, ""])));
+  const [remember, setRemember] = useState(true);
+  const set = (k: string, v: string) => setVals((p) => ({ ...p, [k]: v }));
+  const allFilled = names.every((n) => (vals[n] ?? "").trim() !== "");
+  return (
+    <div class="modal-overlay">
+      <div class="modal">
+        <h2>fill in template variables</h2>
+        {names.map((n, i) => (
+          <div class="formrow" key={n}>
+            <label>{n}</label>
+            <input autoFocus={i === 0} value={vals[n] ?? ""}
+              onInput={(e) => set(n, (e.target as HTMLInputElement).value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && allFilled) onSubmit(vals, remember); }} />
+          </div>
+        ))}
+        <label class="checkrow">
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember((e.target as HTMLInputElement).checked)} />
+          remember for this session
+        </label>
+        <div class="modal-actions">
+          <button onClick={onCancel}>cancel</button>
+          <button class="primary" disabled={!allFilled} onClick={() => onSubmit(vals, remember)}>send</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SendPanel(props: {
+  body: string; delay: number; bracketed: boolean;
+  onBody: (v: string) => void; onDelay: (v: number) => void; onBracketed: (v: boolean) => void;
+  onSend: () => void; onClose: () => void;
+}) {
+  const { body, delay, bracketed, onBody, onDelay, onBracketed, onSend, onClose } = props;
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { taRef.current?.focus(); }, []);
+  return (
+    <div class="sendpanel">
+      <div class="sendhead">
+        <span class="sendtitle">send template</span>
+        <label class="sopt" title="bracketed paste"><input type="checkbox" checked={bracketed} onChange={(e) => onBracketed((e.target as HTMLInputElement).checked)} /> bracketed</label>
+        <label class="sopt" title="per-line delay (ms)">delay <input type="number" min="0" max="5000" step="10" value={delay} onInput={(e) => onDelay(parseInt((e.target as HTMLInputElement).value, 10) || 0)} /></label>
+        <button class="searchx" title="close (Esc)" onClick={onClose}>{"\u2715"}</button>
+      </div>
+      <textarea ref={taRef} class="sendinput" value={body}
+        placeholder="pongo2 template \u2014 {{ vlan_id }}, {% if %} \u2026 \u2014 Ctrl+Enter to send"
+        onInput={(e) => onBody((e.target as HTMLTextAreaElement).value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); onSend(); } if (e.key === "Escape") onClose(); }} />
+      <div class="sendfoot">
+        <span class="sendhint">vars resolve by session \u00b7 OS-aware \u00b7 Ctrl+Enter sends</span>
+        <button class="searchgo" onClick={onSend}>send</button>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const [tree, setTree] = useState<FolderNode | null>(null);
   const [err, setErr] = useState("");
@@ -337,6 +400,12 @@ export function App() {
   const [searchStats, setSearchStats] = useState<number | null>(null);
   const [searchBusy, setSearchBusy] = useState(false);
   const [peek, setPeek] = useState<Record<number, PeekResult | null>>({});
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendBody, setSendBody] = useState("");
+  const [sendDelay, setSendDelay] = useState(0);
+  const [sendBracketed, setSendBracketed] = useState(false);
+  const [unresolved, setUnresolved] = useState<string[] | null>(null);
+  const [sendMemo, setSendMemo] = useState<Record<string, Record<string, string>>>({});
   const debounce = useRef<number | undefined>(undefined);
 
   const activeTermRef = useRef<string | null>(null);
@@ -533,6 +602,30 @@ export function App() {
   for (const t of tabs) if (!pinnedIds.has(t.sessionId)) displayTabs.push({ type: "term", tab: t, pinned: false });
 
   const activeTab = view.kind === "term" ? tabs.find((t) => t.termId === view.id) : undefined;
+
+  const finishSend = (extra: Record<string, string>) => {
+    if (view.kind !== "term" || !activeTab) return;
+    api().SendTemplate(activeTab.termId, sendBody, extra, sendDelay, sendBracketed)
+      .then(() => setUnresolved(null))
+      .catch((e) => setErr(String(e)));
+  };
+  const doSend = () => {
+    if (view.kind !== "term" || !activeTab || sendBody.trim() === "") return;
+    const sid = activeTab.sessionId;
+    api().TemplateUnresolved(sid, sendBody).then((names) => {
+      const memo = sendMemo[sid] ?? {};
+      const need = (names ?? []).filter((n) => !(n in memo));
+      if (need.length === 0) finishSend(memo);
+      else setUnresolved(need);
+    }).catch((e) => setErr(String(e)));
+  };
+  const submitUnresolved = (values: Record<string, string>, remember: boolean) => {
+    if (!activeTab) return;
+    const sid = activeTab.sessionId;
+    const memo = sendMemo[sid] ?? {};
+    if (remember) setSendMemo({ ...sendMemo, [sid]: { ...memo, ...values } });
+    finishSend({ ...memo, ...values });
+  };
   const selPinned = !!sel && pinned.some((p) => p.id === sel.id);
   const ctxCfg = ctxMenu ? (tabCfg[ctxMenu.termId] ?? DEFAULT_CFG(defInd)) : null;
 
@@ -618,6 +711,9 @@ export function App() {
             {activeTab && (
               <span class="tabnew" title="new terminal for this session" onClick={() => openTerminalFor(activeTab.sessionId, activeTab.name)}>+</span>
             )}
+            {activeTab && (
+              <span class="tabsend" title="send template" onClick={() => setSendOpen(true)}>{"\u27a4"}</span>
+            )}
 
           </div>
         )}
@@ -632,6 +728,11 @@ export function App() {
               onQ={setSearchQ} onIC={setSearchIC} onInv={setSearchInv} onCtx={setSearchCtx}
               onRun={runSearch} onClose={() => setSearchOpen(false)} onRow={togglePeek}
             />
+          )}
+          {sendOpen && view.kind === "term" && (
+            <SendPanel body={sendBody} delay={sendDelay} bracketed={sendBracketed}
+              onBody={setSendBody} onDelay={setSendDelay} onBracketed={setSendBracketed}
+              onSend={doSend} onClose={() => setSendOpen(false)} />
           )}
           {view.kind === "term" ? null : sel && view.kind === "details" && detail ? (
             <div class="details">
@@ -692,6 +793,9 @@ export function App() {
           onClose={() => setSettingsModal(false)} />
       )}
       {promptQ.length > 0 && <PromptModal req={promptQ[0]} onResolve={resolvePrompt} />}
+      {unresolved && view.kind === "term" && activeTab && (
+        <UnresolvedModal names={unresolved} onSubmit={submitUnresolved} onCancel={() => setUnresolved(null)} />
+      )}
       </div>
     </div>
   );

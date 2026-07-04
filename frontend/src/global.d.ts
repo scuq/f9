@@ -36,6 +36,13 @@ declare global {
           PinSession(id: string): Promise<void>;
           UnpinSession(id: string): Promise<void>;
           PinnedSessions(): Promise<SessionNode[]>;
+          VarsList(scope: VarsScope, family: string): Promise<Record<string, string>>;
+          VarsPut(scope: VarsScope, key: string, value: string, os: string): Promise<void>;
+          VarsDelete(scope: VarsScope, key: string, os: string): Promise<void>;
+          TemplateUnresolved(sessionId: string, body: string): Promise<string[] | null>;
+          RenderTemplate(sessionId: string, body: string, extra: Record<string, string>): Promise<string>;
+          SendToTerminal(termId: string, text: string, lineDelayMs: number, bracketed: boolean): Promise<void>;
+          SendTemplate(termId: string, body: string, extra: Record<string, string>, lineDelayMs: number, bracketed: boolean): Promise<void>;
         };
       };
     };
@@ -87,6 +94,7 @@ declare global {
   interface GrepMatch { lineNo: number; line: string; before: string[] | null; after: string[] | null; }
   interface GrepResult { matches: GrepMatch[] | null; count: number; truncated: boolean; lines: number; }
   interface PeekResult { start: number; lines: string[] | null; }
+  interface VarsScope { folderId: string; sessionId: string; }
   interface ThemeData {
     name: string;
     ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };

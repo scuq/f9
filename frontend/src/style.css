@@ -366,3 +366,25 @@ select, input, textarea, option { color-scheme: dark; }
 .sline.clickable { cursor: pointer; }
 .sline.shit.clickable:hover { background: var(--bg); }
 .speek { margin: 2px 0 6px 12px; padding-left: 8px; border-left: 2px solid var(--accent); }
+
+/* --- 05d-1: send composer --- */
+.tabsend { display: flex; align-items: center; padding: 0 10px; color: var(--folder-fg); cursor: pointer; font-size: 13px; }
+.tabsend:hover { color: var(--accent); }
+.sendpanel {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 32;
+  display: flex; flex-direction: column; gap: 6px;
+  background: var(--bg-raised); border-top: 1px solid var(--border);
+  padding: 8px; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.55);
+}
+.sendhead { display: flex; align-items: center; gap: 14px; }
+.sendtitle { color: var(--folder-fg); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-right: auto; }
+.sendhead .sopt input[type="number"] { width: 64px; }
+.sendinput {
+  width: 100%; min-height: 88px; resize: vertical;
+  background: var(--bg); border: 1px solid var(--border); color: var(--fg);
+  border-radius: 4px; padding: 6px 8px; outline: none;
+  font-family: var(--font-mono); font-size: 12px;
+}
+.sendinput:focus { border-color: var(--accent); }
+.sendfoot { display: flex; align-items: center; justify-content: space-between; }
+.sendhint { color: var(--folder-fg); font-size: 11px; }

@@ -355,6 +355,20 @@ export namespace app {
 	        this.fontTermSize = source["fontTermSize"];
 	    }
 	}
+	export class VarsScopeDTO {
+	    folderId: string;
+	    sessionId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new VarsScopeDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.folderId = source["folderId"];
+	        this.sessionId = source["sessionId"];
+	    }
+	}
 
 }
 
