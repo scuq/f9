@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/scuq/f9/internal/buttonbar"
 	"github.com/scuq/f9/internal/connmgr"
 	"github.com/scuq/f9/internal/filter"
 	"github.com/scuq/f9/internal/osdetect"
@@ -24,7 +25,7 @@ import (
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.5.5-phase05d1"
+const Version = "0.5.6-phase05d2a"
 
 // ---- tree ----
 
@@ -114,6 +115,7 @@ type App struct {
 	ctx      context.Context
 	st       *store.YAMLStore
 	varStore *vars.YAMLStore
+	bars     *buttonbar.YAMLStore
 	mgr      *connmgr.Manager
 
 	pmu     sync.Mutex
@@ -155,6 +157,11 @@ func New() (*App, error) {
 		return nil, err
 	}
 	a.varStore = vstore
+	bstore, err := buttonbar.Open(filepath.Join(root, ".bars"), a.varsChain)
+	if err != nil {
+		return nil, err
+	}
+	a.bars = bstore
 	return a, nil
 }
 
