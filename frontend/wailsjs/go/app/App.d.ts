@@ -3,6 +3,7 @@
 import {connmgr} from '../models';
 import {buttonbar} from '../models';
 import {app} from '../models';
+import {snippets} from '../models';
 import {theme} from '../models';
 
 export function ActiveConnections():Promise<Array<connmgr.Conn>>;
@@ -76,6 +77,22 @@ export function SessionDetail(arg1:string):Promise<app.SessionDetail>;
 export function SetTerminalWatch(arg1:string,arg2:string):Promise<void>;
 
 export function Settings():Promise<app.UISettings>;
+
+export function SnippetDelete(arg1:string):Promise<void>;
+
+export function SnippetDeleteFolder(arg1:string):Promise<void>;
+
+export function SnippetFolders():Promise<Array<snippets.Folder>>;
+
+export function SnippetGet(arg1:string):Promise<snippets.Snippet>;
+
+export function SnippetList():Promise<Array<snippets.Snippet>>;
+
+export function SnippetRun(arg1:string,arg2:string,arg3:Record<string, string>):Promise<void>;
+
+export function SnippetSave(arg1:snippets.Snippet):Promise<snippets.Snippet>;
+
+export function SnippetSaveFolder(arg1:snippets.Folder):Promise<snippets.Folder>;
 
 export function TemplateUnresolved(arg1:string,arg2:string):Promise<Array<string>>;
 

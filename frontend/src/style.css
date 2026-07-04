@@ -422,3 +422,37 @@ select, input, textarea, option { color-scheme: dark; }
 .barcog { margin-left: 6px; background: none; border: none; color: var(--folder-fg); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; }
 .barcog:hover { color: var(--accent); }
 .bareditor-hint { color: var(--folder-fg); font-size: 11px; margin-bottom: 8px; }
+
+/* --- 05d-3b-1: snippet library --- */
+.snippet-lib { width: 780px; max-width: 94vw; }
+.snlib-body { display: flex; gap: 12px; }
+.snlib-list { width: 260px; flex: none; display: flex; flex-direction: column; gap: 3px; max-height: 440px; overflow-y: auto; border-right: 1px solid var(--border); padding-right: 10px; }
+.snlib-listhead { display: flex; justify-content: space-between; align-items: center; color: var(--folder-fg); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 8px; }
+.snlib-listhead button { background: none; border: 1px solid var(--border); color: var(--folder-fg); border-radius: 4px; padding: 1px 8px; cursor: pointer; }
+.snlib-listhead button:hover { color: var(--accent); border-color: var(--accent); }
+.snlib-item { display: flex; flex-direction: column; padding: 5px 8px; border-radius: 4px; cursor: pointer; }
+.snlib-item:hover { background: var(--bg); }
+.snlib-item.active { background: var(--selected-bg); }
+.snlib-name { color: var(--fg); font-size: 13px; }
+.snlib-meta { color: var(--folder-fg); font-size: 11px; }
+.snlib-empty { color: var(--folder-fg); font-size: 12px; padding: 6px 8px; }
+.snlib-folder { display: flex; justify-content: space-between; align-items: center; padding: 3px 8px; color: var(--fg); font-size: 12px; }
+.snlib-del { background: none; border: none; color: var(--folder-fg); cursor: pointer; }
+.snlib-del:hover { color: var(--danger); }
+.snlib-newfolder { display: flex; gap: 6px; padding: 4px 8px; }
+.snlib-newfolder input { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 3px 6px; }
+.snlib-form { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.snlib-body-input { width: 100%; min-height: 170px; resize: vertical; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 6px 8px; outline: none; font-family: var(--font-mono); font-size: 12px; }
+.snlib-body-input:focus { border-color: var(--accent); }
+.snlib-formactions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* --- 05d-3b-2: snippet picker (Ctrl+P) --- */
+.picker { position: fixed; top: 18%; left: 50%; transform: translateX(-50%); width: 520px; max-width: 92vw; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6); display: flex; flex-direction: column; overflow: hidden; }
+.picker-input { background: var(--bg); border: none; border-bottom: 1px solid var(--border); color: var(--fg); padding: 10px 12px; outline: none; font-size: 14px; font-family: var(--font-mono); }
+.picker-list { max-height: 360px; overflow-y: auto; }
+.picker-item { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 12px; cursor: pointer; }
+.picker-item.active { background: var(--selected-bg); }
+.picker-name { color: var(--fg); font-size: 13px; }
+.picker-meta { color: var(--folder-fg); font-size: 11px; }
+.picker-empty { color: var(--folder-fg); padding: 12px; font-size: 13px; }
+.picker-editlink { color: var(--accent); cursor: pointer; text-decoration: underline; }

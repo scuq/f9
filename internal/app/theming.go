@@ -25,6 +25,7 @@ type UISettings struct {
 	ShowGlobalBar bool    `yaml:"show_global_bar,omitempty" json:"showGlobalBar"`
 	ShowFolderBar bool    `yaml:"show_folder_bar,omitempty" json:"showFolderBar"`
 	ShowTemplates bool    `yaml:"show_templates,omitempty" json:"showTemplates"`
+	ShowSnippets  bool    `yaml:"show_snippets,omitempty" json:"showSnippets"`
 }
 
 func (a *App) Themes() []string {

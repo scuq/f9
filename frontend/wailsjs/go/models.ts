@@ -343,6 +343,7 @@ export namespace app {
 	    showGlobalBar: boolean;
 	    showFolderBar: boolean;
 	    showTemplates: boolean;
+	    showSnippets: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UISettings(source);
@@ -359,6 +360,7 @@ export namespace app {
 	        this.showGlobalBar = source["showGlobalBar"];
 	        this.showFolderBar = source["showFolderBar"];
 	        this.showTemplates = source["showTemplates"];
+	        this.showSnippets = source["showSnippets"];
 	    }
 	}
 	export class VarsScopeDTO {
@@ -526,6 +528,51 @@ export namespace connmgr {
 	        this.state = source["state"];
 	        this.err = source["err"];
 	        this.since = source["since"];
+	    }
+	}
+
+}
+
+export namespace snippets {
+	
+	export class Folder {
+	    id: string;
+	    parentId: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Folder(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.parentId = source["parentId"];
+	        this.name = source["name"];
+	    }
+	}
+	export class Snippet {
+	    id: string;
+	    folderId: string;
+	    name: string;
+	    body: string;
+	    os: string;
+	    delayMs: number;
+	    bracketed: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Snippet(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.folderId = source["folderId"];
+	        this.name = source["name"];
+	        this.body = source["body"];
+	        this.os = source["os"];
+	        this.delayMs = source["delayMs"];
+	        this.bracketed = source["bracketed"];
 	    }
 	}
 

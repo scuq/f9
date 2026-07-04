@@ -3,7 +3,7 @@ import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { currentTermConfig, onTermConfig } from "./theme";
-import { requestFind } from "./termsearch";
+import { requestFind, requestPicker, pickerIsEnabled } from "./termsearch";
 
 const api = () => window.go.app.App;
 
@@ -61,6 +61,11 @@ export function TerminalView(
       if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "f" || e.key === "F")) {
         e.preventDefault();
         requestFind(termId);
+        return false;
+      }
+      if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "p" || e.key === "P") && pickerIsEnabled()) {
+        e.preventDefault();
+        requestPicker(termId);
         return false;
       }
       return true;

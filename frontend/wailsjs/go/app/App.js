@@ -146,6 +146,38 @@ export function Settings() {
   return window['go']['app']['App']['Settings']();
 }
 
+export function SnippetDelete(arg1) {
+  return window['go']['app']['App']['SnippetDelete'](arg1);
+}
+
+export function SnippetDeleteFolder(arg1) {
+  return window['go']['app']['App']['SnippetDeleteFolder'](arg1);
+}
+
+export function SnippetFolders() {
+  return window['go']['app']['App']['SnippetFolders']();
+}
+
+export function SnippetGet(arg1) {
+  return window['go']['app']['App']['SnippetGet'](arg1);
+}
+
+export function SnippetList() {
+  return window['go']['app']['App']['SnippetList']();
+}
+
+export function SnippetRun(arg1, arg2, arg3) {
+  return window['go']['app']['App']['SnippetRun'](arg1, arg2, arg3);
+}
+
+export function SnippetSave(arg1) {
+  return window['go']['app']['App']['SnippetSave'](arg1);
+}
+
+export function SnippetSaveFolder(arg1) {
+  return window['go']['app']['App']['SnippetSaveFolder'](arg1);
+}
+
 export function TemplateUnresolved(arg1, arg2) {
   return window['go']['app']['App']['TemplateUnresolved'](arg1, arg2);
 }

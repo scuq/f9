@@ -26,7 +26,7 @@ import (
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.5.12-phase05d3a"
+const Version = "0.5.14-phase05d3b2"
 
 // ---- tree ----
 

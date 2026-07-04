@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { TerminalView } from "./terminal";
 import { setTheme as applyThemeColors, setSettings as applyOverrides } from "./theme";
-import { onFindRequested } from "./termsearch";
+import { onFindRequested, onPickerRequested, setPickerEnabled } from "./termsearch";
 
 const api = () => window.go.app.App;
 
@@ -266,6 +266,7 @@ function SettingsModal(props: {
         <label class="checkrow"><input type="checkbox" checked={settings.showGlobalBar} onChange={(e) => onSave({ showGlobalBar: (e.target as HTMLInputElement).checked })} /> global button bar</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showFolderBar} onChange={(e) => onSave({ showFolderBar: (e.target as HTMLInputElement).checked })} /> folder / OS button bar</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showTemplates} onChange={(e) => onSave({ showTemplates: (e.target as HTMLInputElement).checked })} /> template composer</label>
+        <label class="checkrow"><input type="checkbox" checked={settings.showSnippets} onChange={(e) => onSave({ showSnippets: (e.target as HTMLInputElement).checked })} /> snippet library (Ctrl+P)</label>
 
         <div class="modal-actions"><button class="primary" onClick={onClose}>done</button></div>
       </div>
@@ -325,7 +326,7 @@ function SearchPanel(props: {
 }
 
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
-const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false };
+const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false };
 
 function UnresolvedModal(props: {
   names: string[];
@@ -464,6 +465,133 @@ function BarEditorModal(props: {
   );
 }
 
+function SnippetLibraryModal(props: {
+  folders: SnippetFolder[]; snippets: Snippet[]; err: string;
+  onSaveFolder: (name: string) => void; onDeleteFolder: (id: string) => void;
+  onSaveSnippet: (s: Snippet) => Promise<Snippet | null>; onDeleteSnippet: (id: string) => void;
+  onClose: () => void;
+}) {
+  const { folders, snippets, err, onSaveFolder, onDeleteFolder, onSaveSnippet, onDeleteSnippet, onClose } = props;
+  const blank = (): Snippet => ({ id: "", folderId: "", name: "", body: "", os: "", delayMs: 0, bracketed: false });
+  const [sel, setSel] = useState<Snippet | null>(null);
+  const [form, setForm] = useState<Snippet>(blank());
+  const [newFolder, setNewFolder] = useState("");
+  const folderName = (id?: string) => folders.find((f) => f.id === id)?.name ?? "(no folder)";
+  const OS_OPTS = ["", "all", "unknown", "linux", "openbsd", "ios", "nxos", "panos", "junos", "windows"];
+  const doSave = () => { onSaveSnippet(form).then((saved) => { if (saved) { setSel(saved); setForm({ ...saved }); } }); };
+  return (
+    <div class="modal-overlay">
+      <div class="modal snippet-lib">
+        <h2>snippet library</h2>
+        {err && <div class="bareditor-err">{err}</div>}
+        <div class="snlib-body">
+          <div class="snlib-list">
+            <div class="snlib-listhead"><span>snippets</span><button onClick={() => { setSel(null); setForm(blank()); }}>+ new</button></div>
+            {snippets.length === 0 && <div class="snlib-empty">no snippets yet</div>}
+            {snippets.map((s) => (
+              <div class={"snlib-item" + (sel?.id === s.id ? " active" : "")} key={s.id} onClick={() => { setSel(s); setForm({ ...s }); }}>
+                <span class="snlib-name">{s.name}</span>
+                <span class="snlib-meta">{folderName(s.folderId)}{s.os ? " \u00b7 " + s.os : ""}</span>
+              </div>
+            ))}
+            <div class="snlib-listhead"><span>folders</span></div>
+            {folders.map((f) => (
+              <div class="snlib-folder" key={f.id}><span>{f.name}</span>
+                <button class="snlib-del" title="delete folder" onClick={() => onDeleteFolder(f.id)}>{"\u2715"}</button>
+              </div>
+            ))}
+            <div class="snlib-newfolder">
+              <input placeholder="new folder" value={newFolder} onInput={(e) => setNewFolder((e.target as HTMLInputElement).value)} />
+              <button onClick={() => { if (newFolder.trim()) { onSaveFolder(newFolder.trim()); setNewFolder(""); } }}>add</button>
+            </div>
+          </div>
+          <div class="snlib-form">
+            <div class="formrow"><label>name</label><input value={form.name} onInput={(e) => setForm({ ...form, name: (e.target as HTMLInputElement).value })} /></div>
+            <div class="formrow"><label>folder</label>
+              <select value={form.folderId} onChange={(e) => setForm({ ...form, folderId: (e.target as HTMLSelectElement).value })}>
+                <option value="">(no folder)</option>
+                {folders.map((f) => <option value={f.id} key={f.id}>{f.name}</option>)}
+              </select>
+            </div>
+            <div class="formrow"><label>OS</label>
+              <select value={form.os} onChange={(e) => setForm({ ...form, os: (e.target as HTMLSelectElement).value })}>
+                {OS_OPTS.map((o) => <option value={o} key={o}>{o || "(any)"}</option>)}
+              </select>
+            </div>
+            <div class="formrow"><label>delay (ms)</label>
+              <input type="number" min="0" max="5000" value={form.delayMs || ""} onInput={(e) => setForm({ ...form, delayMs: parseInt((e.target as HTMLInputElement).value, 10) || 0 })} /></div>
+            <label class="checkrow"><input type="checkbox" checked={!!form.bracketed} onChange={(e) => setForm({ ...form, bracketed: (e.target as HTMLInputElement).checked })} /> bracketed paste</label>
+            <textarea class="snlib-body-input" spellcheck={false} placeholder="pongo2 template body - {{ vlan_id }}, {% if %} ..." value={form.body}
+              onInput={(e) => setForm({ ...form, body: (e.target as HTMLTextAreaElement).value })} />
+            <div class="snlib-formactions">
+              {sel && <button class="danger" onClick={() => { onDeleteSnippet(sel.id); setSel(null); setForm(blank()); }}>delete</button>}
+              <button class="primary" disabled={form.name.trim() === ""} onClick={doSave}>{sel ? "save" : "create"}</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions"><button onClick={onClose}>close</button></div>
+      </div>
+    </div>
+  );
+}
+
+function fuzzyScore(q: string, text: string): number {
+  if (q === "") return 1;
+  const ql = q.toLowerCase(), tl = text.toLowerCase();
+  let ti = 0, score = 0, streak = 0;
+  for (let qi = 0; qi < ql.length; qi++) {
+    let found = -1;
+    for (let j = ti; j < tl.length; j++) { if (tl[j] === ql[qi]) { found = j; break; } }
+    if (found === -1) return 0;
+    streak = found === ti ? streak + 1 : 0;
+    score += 1 + streak;
+    ti = found + 1;
+  }
+  return score;
+}
+
+function SnippetPicker(props: {
+  snippets: Snippet[]; folderName: (id?: string) => string;
+  onRun: (s: Snippet) => void; onClose: () => void; onEdit: () => void;
+}) {
+  const { snippets, folderName, onRun, onClose, onEdit } = props;
+  const [q, setQ] = useState("");
+  const [idx, setIdx] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+  const ranked = snippets
+    .map((s) => ({ s, score: fuzzyScore(q, s.name + " " + folderName(s.folderId)) }))
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score || a.s.name.localeCompare(b.s.name));
+  const clamp = Math.min(idx, Math.max(0, ranked.length - 1));
+  return (
+    <div class="modal-overlay" onClick={onClose}>
+      <div class="picker" onClick={(e) => e.stopPropagation()}>
+        <input ref={inputRef} class="picker-input" placeholder="run snippet..." value={q}
+          onInput={(e) => { setQ((e.target as HTMLInputElement).value); setIdx(0); }}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") { e.preventDefault(); setIdx((i) => Math.min(i + 1, ranked.length - 1)); }
+            else if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
+            else if (e.key === "Enter") { e.preventDefault(); if (ranked[clamp]) onRun(ranked[clamp].s); }
+            else if (e.key === "Escape") { e.preventDefault(); onClose(); }
+          }} />
+        <div class="picker-list">
+          {ranked.length === 0 && (
+            <div class="picker-empty">no snippets \u2014 <span class="picker-editlink" onClick={onEdit}>manage library</span></div>
+          )}
+          {ranked.map((r, i) => (
+            <div class={"picker-item" + (i === clamp ? " active" : "")} key={r.s.id}
+              onMouseEnter={() => setIdx(i)} onClick={() => onRun(r.s)}>
+              <span class="picker-name">{r.s.name}</span>
+              <span class="picker-meta">{folderName(r.s.folderId)}{r.s.os ? " \u00b7 " + r.s.os : ""}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const [tree, setTree] = useState<FolderNode | null>(null);
   const [err, setErr] = useState("");
@@ -488,6 +616,11 @@ export function App() {
   const [themeList, setThemeList] = useState<string[]>([]);
   const [settings, setSettings] = useState<UISettings>(EMPTY_SETTINGS);
   const [settingsModal, setSettingsModal] = useState(false);
+  const [snLib, setSnLib] = useState(false);
+  const [snFolders, setSnFolders] = useState<SnippetFolder[]>([]);
+  const [snList, setSnList] = useState<Snippet[]>([]);
+  const [snErr, setSnErr] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [searchIC, setSearchIC] = useState(false);
@@ -736,6 +869,20 @@ export function App() {
     sendResolved(pendingSend, { ...memo, ...values });
   };
 
+  const runSnippetObj = (s: Snippet) => {
+    if (view.kind === "term" && activeTab) runSend(s.body, s.delayMs ?? 0, !!s.bracketed);
+  };
+  const runSnippetById = (id: string) => {
+    if (!id) return;
+    api().SnippetGet(id).then((sn) => { if (sn) runSnippetObj(sn); else setErr("snippet not found"); }).catch((e) => setErr(String(e)));
+  };
+  const openPicker = () => { refreshSnips(); setPickerOpen(true); };
+  useEffect(() => { setPickerEnabled(settings.showSnippets); }, [settings.showSnippets]);
+  useEffect(() => {
+    const off = onPickerRequested((termId) => { if (activeTermRef.current === termId) openPicker(); });
+    return off;
+  }, []);
+
   const runAction = (a: BarAction) => {
     switch (a.kind) {
       case "send": runSend(a.text ?? "", a.delayMs ?? 0, a.bracketed ?? false); break;
@@ -746,7 +893,7 @@ export function App() {
         else if (a.text === "send-composer") setSendOpen(true);
         else setErr("unknown internal command: " + (a.text ?? ""));
         break;
-      case "snippet": setErr("snippets are not available yet (phase 05d-3)"); break;
+      case "snippet": runSnippetById(a.snippetId ?? ""); break;
       default: setErr("unknown action kind: " + a.kind);
     }
   };
@@ -793,6 +940,24 @@ export function App() {
   const deleteBar = () => {
     api().BarDelete(barScopeId()).then(() => { setBarEditor(false); refreshBar(); })
       .catch((e) => setBarErr(String(e)));
+  };
+
+  const refreshSnips = () => {
+    api().SnippetFolders().then((f) => setSnFolders(f ?? [])).catch(() => setSnFolders([]));
+    api().SnippetList().then((l) => setSnList(l ?? [])).catch(() => setSnList([]));
+  };
+  const openSnippetLib = () => { setSnErr(""); refreshSnips(); setSnLib(true); };
+  const saveSnFolder = (name: string) => {
+    api().SnippetSaveFolder({ id: "", name }).then(() => { setSnErr(""); refreshSnips(); }).catch((e) => setSnErr(String(e)));
+  };
+  const deleteSnFolder = (id: string) => {
+    api().SnippetDeleteFolder(id).then(() => { setSnErr(""); refreshSnips(); }).catch((e) => setSnErr(String(e)));
+  };
+  const saveSnippet = (s: Snippet): Promise<Snippet | null> => {
+    return api().SnippetSave(s).then((saved) => { setSnErr(""); refreshSnips(); return saved; }).catch((e) => { setSnErr(String(e)); return null; });
+  };
+  const deleteSnippet = (id: string) => {
+    api().SnippetDelete(id).then(() => { setSnErr(""); refreshSnips(); }).catch((e) => setSnErr(String(e)));
   };
   const selPinned = !!sel && pinned.some((p) => p.id === sel.id);
   const ctxCfg = ctxMenu ? (tabCfg[ctxMenu.termId] ?? DEFAULT_CFG(defInd)) : null;
@@ -853,6 +1018,7 @@ export function App() {
         )}
         <div class="statusbar">
           <span>f9 {ver}</span>
+          {settings.showSnippets && <span class="gear" title="snippet library" onClick={openSnippetLib}>{"\u2261"}</span>}
           <span class="gear" title="settings" onClick={() => setSettingsModal(true)}>{"\u2699"}</span>
         </div>
       </div>
@@ -972,6 +1138,19 @@ export function App() {
         <BarEditorModal scope={barScope} yaml={barYaml} err={barErr} canDelete={barHasOwn}
           onYaml={setBarYaml} onSave={saveBar} onDelete={deleteBar}
           onClose={() => { setBarEditor(false); setBarErr(""); }} />
+      )}
+      {snLib && (
+        <SnippetLibraryModal folders={snFolders} snippets={snList} err={snErr}
+          onSaveFolder={saveSnFolder} onDeleteFolder={deleteSnFolder}
+          onSaveSnippet={saveSnippet} onDeleteSnippet={deleteSnippet}
+          onClose={() => setSnLib(false)} />
+      )}
+      {pickerOpen && settings.showSnippets && view.kind === "term" && activeTab && (
+        <SnippetPicker snippets={snList}
+          folderName={(id) => snFolders.find((f) => f.id === id)?.name ?? "(no folder)"}
+          onRun={(s) => { setPickerOpen(false); runSnippetObj(s); }}
+          onClose={() => setPickerOpen(false)}
+          onEdit={() => { setPickerOpen(false); openSnippetLib(); }} />
       )}
       </div>
     </div>

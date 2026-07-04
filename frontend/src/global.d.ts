@@ -53,6 +53,14 @@ declare global {
           BarImport(folderId: string, yamlText: string): Promise<void>;
           LaunchApp(args: string[]): Promise<void>;
           OpenURL(url: string): Promise<void>;
+          SnippetFolders(): Promise<SnippetFolder[] | null>;
+          SnippetList(): Promise<Snippet[] | null>;
+          SnippetGet(id: string): Promise<Snippet | null>;
+          SnippetSaveFolder(f: SnippetFolder): Promise<SnippetFolder | null>;
+          SnippetDeleteFolder(id: string): Promise<void>;
+          SnippetSave(s: Snippet): Promise<Snippet | null>;
+          SnippetDelete(id: string): Promise<void>;
+          SnippetRun(termId: string, snippetId: string, extra: Record<string, string>): Promise<void>;
         };
       };
     };
@@ -99,7 +107,7 @@ declare global {
   interface UISettings {
     theme: string; zoom: number;
     fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
-    showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean;
+    showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean; showSnippets: boolean;
   }
   interface GrepOptsInput { invert: boolean; ignoreCase: boolean; before: number; after: number; maxMatches: number; }
   interface GrepMatch { lineNo: number; line: string; before: string[] | null; after: string[] | null; }
@@ -110,6 +118,8 @@ declare global {
   interface BarButton { icon?: string; label: string; color?: string; action: BarAction; }
   interface BarRow { buttons: BarButton[] | null; }
   interface Bar { rows: BarRow[] | null; }
+  interface SnippetFolder { id: string; parentId?: string; name: string; }
+  interface Snippet { id: string; folderId?: string; name: string; body: string; os?: string; delayMs?: number; bracketed?: boolean; }
   interface ThemeData {
     name: string;
     ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };
