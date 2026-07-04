@@ -17,6 +17,7 @@ import (
 	"github.com/scuq/f9/internal/buttonbar"
 	"github.com/scuq/f9/internal/connmgr"
 	"github.com/scuq/f9/internal/filter"
+	"github.com/scuq/f9/internal/multisend"
 	"github.com/scuq/f9/internal/osdetect"
 	"github.com/scuq/f9/internal/snippets"
 	"github.com/scuq/f9/internal/sshx"
@@ -26,7 +27,7 @@ import (
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.6.0-phase06a"
+const Version = "0.6.1-phase06b"
 
 // ---- tree ----
 
@@ -127,6 +128,10 @@ type App struct {
 	tmu     sync.Mutex
 	terms   map[string]*terminal
 	tunings map[osdetect.Family]osdetect.Tuning
+
+	msMu     sync.RWMutex
+	msJob    *multisend.Job
+	msCancel chan struct{}
 
 	themes    map[string]*theme.Theme
 	themeName string

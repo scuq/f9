@@ -102,6 +102,7 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 	sess.OnData(func(p []byte) {
 		a.emitEvent(dataEvent, base64.StdEncoding.EncodeToString(p))
 		t.sb.Append(stripANSI(p))
+		a.feedMultisend(termID, p)
 		a.detectActivity(termID, t, p)
 	})
 	go func() {
