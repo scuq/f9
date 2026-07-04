@@ -18,6 +18,7 @@ import (
 	"github.com/scuq/f9/internal/connmgr"
 	"github.com/scuq/f9/internal/filter"
 	"github.com/scuq/f9/internal/osdetect"
+	"github.com/scuq/f9/internal/snippets"
 	"github.com/scuq/f9/internal/sshx"
 	"github.com/scuq/f9/internal/store"
 	"github.com/scuq/f9/internal/theme"
@@ -25,7 +26,7 @@ import (
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.5.11-phase05d2c-ctx"
+const Version = "0.5.12-phase05d3a"
 
 // ---- tree ----
 
@@ -116,6 +117,7 @@ type App struct {
 	st       *store.YAMLStore
 	varStore *vars.YAMLStore
 	bars     *buttonbar.YAMLStore
+	snips    *snippets.Store
 	mgr      *connmgr.Manager
 
 	pmu     sync.Mutex
@@ -162,6 +164,11 @@ func New() (*App, error) {
 		return nil, err
 	}
 	a.bars = bstore
+	sstore, err := snippets.Open(filepath.Join(root, ".snippets"))
+	if err != nil {
+		return nil, err
+	}
+	a.snips = sstore
 	return a, nil
 }
 

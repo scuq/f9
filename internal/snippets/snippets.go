@@ -16,10 +16,13 @@ import (
 
 // Snippet is one templated command block in the snippet tree.
 type Snippet struct {
-	ID       string
-	FolderID string
-	Name     string
-	Body     string // pongo2 template; multiline
+	ID        string `yaml:"id" json:"id"`
+	FolderID  string `yaml:"folder,omitempty" json:"folderId"`
+	Name      string `yaml:"name" json:"name"`
+	Body      string `yaml:"body" json:"body"` // pongo2 template; multiline
+	OS        string `yaml:"os,omitempty" json:"os"`
+	DelayMs   int    `yaml:"delayMs,omitempty" json:"delayMs"`
+	Bracketed bool   `yaml:"bracketed,omitempty" json:"bracketed"`
 }
 
 // PasteMode controls how a rendered snippet is sent to a terminal.
