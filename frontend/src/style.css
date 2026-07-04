@@ -390,7 +390,7 @@ select, input, textarea, option { color-scheme: dark; }
 .sendhint { color: var(--folder-fg); font-size: 11px; }
 
 /* --- 05d-2b: button bar --- */
-.buttonbar { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; background: var(--bg-raised); border-bottom: 1px solid var(--border); }
+.buttonbar { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .bbrow { display: flex; flex-wrap: wrap; gap: 6px; }
 .bbbtn { display: inline-flex; align-items: center; gap: 5px; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
 .bbbtn:hover { border-color: var(--accent); }
@@ -403,3 +403,22 @@ select, input, textarea, option { color-scheme: dark; }
 .bareditor-yaml { width: 100%; min-height: 260px; resize: vertical; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 8px; outline: none; font-family: var(--font-mono); font-size: 12px; }
 .bareditor-yaml:focus { border-color: var(--accent); }
 .bareditor-err { color: var(--danger); font-size: 12px; margin-top: 6px; white-space: pre-wrap; }
+
+/* --- 05d-2c: bottom button-bar strip --- */
+.barstrip {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 6px 8px; background: var(--bg-raised); border-top: 1px solid var(--border);
+  max-height: 34%; overflow-y: auto; flex: none;
+}
+.barstrip-row { display: flex; align-items: flex-start; gap: 10px; }
+.barstrip-label {
+  min-width: 46px; padding-top: 6px; color: var(--folder-fg);
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; user-select: none;
+}
+
+/* --- 05d-2c-ctx: bar config cogs --- */
+.barstrip-row { align-items: center; }
+.barstrip-label { padding-top: 0; }
+.barcog { margin-left: 6px; background: none; border: none; color: var(--folder-fg); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; }
+.barcog:hover { color: var(--accent); }
+.bareditor-hint { color: var(--folder-fg); font-size: 11px; margin-bottom: 8px; }

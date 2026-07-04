@@ -44,6 +44,7 @@ declare global {
           SendToTerminal(termId: string, text: string, lineDelayMs: number, bracketed: boolean): Promise<void>;
           SendTemplate(termId: string, body: string, extra: Record<string, string>, lineDelayMs: number, bracketed: boolean): Promise<void>;
           BarForSession(sessionId: string): Promise<Bar>;
+          GlobalBar(sessionId: string): Promise<Bar>;
           BarResolved(folderId: string): Promise<Bar>;
           BarRaw(folderId: string): Promise<Bar | null>;
           BarSave(folderId: string, bar: Bar): Promise<void>;
@@ -98,6 +99,7 @@ declare global {
   interface UISettings {
     theme: string; zoom: number;
     fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
+    showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean;
   }
   interface GrepOptsInput { invert: boolean; ignoreCase: boolean; before: number; after: number; maxMatches: number; }
   interface GrepMatch { lineNo: number; line: string; before: string[] | null; after: string[] | null; }

@@ -340,6 +340,9 @@ export namespace app {
 	    fontMono: string;
 	    fontUISize: number;
 	    fontTermSize: number;
+	    showGlobalBar: boolean;
+	    showFolderBar: boolean;
+	    showTemplates: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UISettings(source);
@@ -353,6 +356,9 @@ export namespace app {
 	        this.fontMono = source["fontMono"];
 	        this.fontUISize = source["fontUISize"];
 	        this.fontTermSize = source["fontTermSize"];
+	        this.showGlobalBar = source["showGlobalBar"];
+	        this.showFolderBar = source["showFolderBar"];
+	        this.showTemplates = source["showTemplates"];
 	    }
 	}
 	export class VarsScopeDTO {
@@ -400,6 +406,7 @@ export namespace buttonbar {
 	    icon: string;
 	    label: string;
 	    color: string;
+	    os: string;
 	    action: Action;
 	
 	    static createFrom(source: any = {}) {
@@ -411,6 +418,7 @@ export namespace buttonbar {
 	        this.icon = source["icon"];
 	        this.label = source["label"];
 	        this.color = source["color"];
+	        this.os = source["os"];
 	        this.action = this.convertValues(source["action"], Action);
 	    }
 	

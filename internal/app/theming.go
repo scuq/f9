@@ -16,12 +16,15 @@ import (
 // UISettings is the persisted UI preference set (~/.config/f9/ui.yaml). Font
 // fields empty/zero mean "use the theme's value".
 type UISettings struct {
-	Theme        string  `yaml:"theme" json:"theme"`
-	Zoom         float64 `yaml:"zoom,omitempty" json:"zoom"`
-	FontUI       string  `yaml:"font_ui,omitempty" json:"fontUI"`
-	FontMono     string  `yaml:"font_mono,omitempty" json:"fontMono"`
-	FontUISize   int     `yaml:"font_ui_size,omitempty" json:"fontUISize"`
-	FontTermSize int     `yaml:"font_term_size,omitempty" json:"fontTermSize"`
+	Theme         string  `yaml:"theme" json:"theme"`
+	Zoom          float64 `yaml:"zoom,omitempty" json:"zoom"`
+	FontUI        string  `yaml:"font_ui,omitempty" json:"fontUI"`
+	FontMono      string  `yaml:"font_mono,omitempty" json:"fontMono"`
+	FontUISize    int     `yaml:"font_ui_size,omitempty" json:"fontUISize"`
+	FontTermSize  int     `yaml:"font_term_size,omitempty" json:"fontTermSize"`
+	ShowGlobalBar bool    `yaml:"show_global_bar,omitempty" json:"showGlobalBar"`
+	ShowFolderBar bool    `yaml:"show_folder_bar,omitempty" json:"showFolderBar"`
+	ShowTemplates bool    `yaml:"show_templates,omitempty" json:"showTemplates"`
 }
 
 func (a *App) Themes() []string {

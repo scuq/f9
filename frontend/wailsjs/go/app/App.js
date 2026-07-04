@@ -74,6 +74,10 @@ export function GetVersion() {
   return window['go']['app']['App']['GetVersion']();
 }
 
+export function GlobalBar(arg1) {
+  return window['go']['app']['App']['GlobalBar'](arg1);
+}
+
 export function GrepTerminal(arg1, arg2, arg3) {
   return window['go']['app']['App']['GrepTerminal'](arg1, arg2, arg3);
 }

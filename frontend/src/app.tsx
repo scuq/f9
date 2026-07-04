@@ -12,10 +12,11 @@ const BAR_TEMPLATE = `rows:
         action:
           kind: send
           text: "{{ save_cmd }}"
-      - label: uptime
+      - label: write-mem
+        os: nxos
         action:
           kind: send
-          text: show version
+          text: copy run start
       - label: docs
         action:
           kind: url
@@ -261,6 +262,11 @@ function SettingsModal(props: {
         <label class="checkrow"><input type="checkbox" checked={defInd.prompt} onChange={(e) => onDefInd({ ...defInd, prompt: (e.target as HTMLInputElement).checked })} /> <span class="swatch prompt" /> command done</label>
         <label class="checkrow"><input type="checkbox" checked={defInd.match} onChange={(e) => onDefInd({ ...defInd, match: (e.target as HTMLInputElement).checked })} /> <span class="swatch match" /> regex match</label>
 
+        <div class="opthead">feature bars (off by default)</div>
+        <label class="checkrow"><input type="checkbox" checked={settings.showGlobalBar} onChange={(e) => onSave({ showGlobalBar: (e.target as HTMLInputElement).checked })} /> global button bar</label>
+        <label class="checkrow"><input type="checkbox" checked={settings.showFolderBar} onChange={(e) => onSave({ showFolderBar: (e.target as HTMLInputElement).checked })} /> folder / OS button bar</label>
+        <label class="checkrow"><input type="checkbox" checked={settings.showTemplates} onChange={(e) => onSave({ showTemplates: (e.target as HTMLInputElement).checked })} /> template composer</label>
+
         <div class="modal-actions"><button class="primary" onClick={onClose}>done</button></div>
       </div>
     </div>
@@ -319,7 +325,7 @@ function SearchPanel(props: {
 }
 
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
-const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0 };
+const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false };
 
 function UnresolvedModal(props: {
   names: string[];
@@ -403,26 +409,54 @@ function ButtonBar(props: { bar: Bar; onAction: (a: BarAction) => void }) {
   );
 }
 
+function BarStrip(props: {
+  global: Bar | null; folder: Bar | null;
+  showGlobal: boolean; showFolder: boolean; folderActive: boolean;
+  onAction: (a: BarAction) => void; onEditGlobal: () => void; onEditFolder: () => void;
+}) {
+  const showG = props.showGlobal;
+  const showF = props.showFolder && props.folderActive;
+  if (!showG && !showF) return null;
+  return (
+    <div class="barstrip">
+      {showG && (
+        <div class="barstrip-row">
+          <span class="barstrip-label">global</span>
+          <ButtonBar bar={props.global ?? { rows: [] }} onAction={props.onAction} />
+          <button class="barcog" title="configure global bar" onClick={props.onEditGlobal}>{"\u2699"}</button>
+        </div>
+      )}
+      {showF && (
+        <div class="barstrip-row">
+          <span class="barstrip-label">folder</span>
+          <ButtonBar bar={props.folder ?? { rows: [] }} onAction={props.onAction} />
+          <button class="barcog" title="configure folder / OS bar" onClick={props.onEditFolder}>{"\u2699"}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BarEditorModal(props: {
   scope: "folder" | "global"; yaml: string; err: string; canDelete: boolean;
-  onScope: (s: "folder" | "global") => void; onYaml: (v: string) => void;
-  onSave: () => void; onDelete: () => void; onClose: () => void;
+  onYaml: (v: string) => void; onSave: () => void; onDelete: () => void; onClose: () => void;
 }) {
-  const { scope, yaml, err, canDelete, onScope, onYaml, onSave, onDelete, onClose } = props;
+  const { scope, yaml, err, canDelete, onYaml, onSave, onDelete, onClose } = props;
   return (
     <div class="modal-overlay">
       <div class="modal bar-editor">
-        <h2>button bar</h2>
-        <div class="bareditor-scope">
-          <label class="radio"><input type="radio" checked={scope === "folder"} onChange={() => onScope("folder")} /> this folder</label>
-          <label class="radio"><input type="radio" checked={scope === "global"} onChange={() => onScope("global")} /> global</label>
+        <h2>{scope === "global" ? "global button bar" : "folder button bar"}</h2>
+        <div class="bareditor-hint">
+          {scope === "global"
+            ? "shown on every session (each button OS-filtered by its os: field)."
+            : "shown for this folder. add os: <family> (e.g. nxos, ios) to a button to show it only on that detected OS; omit os for all."}
         </div>
         <textarea class="bareditor-yaml" spellcheck={false} value={yaml}
           onInput={(e) => onYaml((e.target as HTMLTextAreaElement).value)} />
         {err && <div class="bareditor-err">{err}</div>}
         <div class="modal-actions">
           <button onClick={onClose}>close</button>
-          {canDelete && <button class="danger" onClick={onDelete}>delete (revert)</button>}
+          {canDelete && <button class="danger" onClick={onDelete}>delete</button>}
           <button class="primary" onClick={onSave}>save</button>
         </div>
       </div>
@@ -471,6 +505,7 @@ export function App() {
   const [sendMemo, setSendMemo] = useState<Record<string, Record<string, string>>>({});
   const [pendingSend, setPendingSend] = useState<{ body: string; delay: number; bracketed: boolean } | null>(null);
   const [bar, setBar] = useState<Bar | null>(null);
+  const [gbar, setGbar] = useState<Bar | null>(null);
   const [barEditor, setBarEditor] = useState(false);
   const [barScope, setBarScope] = useState<"folder" | "global">("folder");
   const [barFolderId, setBarFolderId] = useState("");
@@ -717,23 +752,30 @@ export function App() {
   };
 
   const refreshBar = () => {
-    if (view.kind === "term" && activeTab) {
-      api().BarForSession(activeTab.sessionId).then(setBar).catch(() => setBar(null));
-    }
+    const sid = view.kind === "term" && activeTab ? activeTab.sessionId : "";
+    api().GlobalBar(sid).then(setGbar).catch(() => setGbar(null));
+    if (sid) api().BarForSession(sid).then(setBar).catch(() => setBar(null));
+    else setBar(null);
   };
   useEffect(() => {
-    if (view.kind === "term" && activeTab) {
-      api().BarForSession(activeTab.sessionId).then(setBar).catch(() => setBar(null));
-    } else {
-      setBar(null);
-    }
+    const sid = view.kind === "term" && activeTab ? activeTab.sessionId : "";
+    api().GlobalBar(sid).then(setGbar).catch(() => setGbar(null));
+    if (sid) api().BarForSession(sid).then(setBar).catch(() => setBar(null));
+    else setBar(null);
   }, [view.kind === "term" && activeTab ? activeTab.sessionId : ""]);
 
   const loadBarYaml = (fid: string) => {
     api().BarExport(fid).then((y) => { setBarYaml(y); setBarHasOwn(true); })
       .catch(() => { setBarYaml(BAR_TEMPLATE); setBarHasOwn(false); });
   };
-  const openBarEditor = () => {
+  const openGlobalBar = () => {
+    setBarErr("");
+    setBarScope("global");
+    setBarFolderId("");
+    loadBarYaml("");
+    setBarEditor(true);
+  };
+  const openFolderBar = () => {
     if (!activeTab) return;
     setBarErr("");
     api().SessionDetail(activeTab.sessionId).then((d) => {
@@ -837,17 +879,11 @@ export function App() {
             {activeTab && (
               <span class="tabnew" title="new terminal for this session" onClick={() => openTerminalFor(activeTab.sessionId, activeTab.name)}>+</span>
             )}
-            {activeTab && (
+            {activeTab && settings.showTemplates && (
               <span class="tabsend" title="send template" onClick={() => setSendOpen(true)}>{"\u27a4"}</span>
-            )}
-            {activeTab && (
-              <span class="tabbaredit" title="button bar" onClick={openBarEditor}>{"\u270e"}</span>
             )}
 
           </div>
-        )}
-        {bar && (bar.rows ?? []).length > 0 && view.kind === "term" && (
-          <ButtonBar bar={bar} onAction={runAction} />
         )}
         <div class="paneview">
           {tabs.map((t) => (
@@ -861,7 +897,7 @@ export function App() {
               onRun={runSearch} onClose={() => setSearchOpen(false)} onRow={togglePeek}
             />
           )}
-          {sendOpen && view.kind === "term" && (
+          {sendOpen && view.kind === "term" && settings.showTemplates && (
             <SendPanel body={sendBody} delay={sendDelay} bracketed={sendBracketed}
               onBody={setSendBody} onDelay={setSendDelay} onBracketed={setSendBracketed}
               onSend={doSend} onClose={() => setSendOpen(false)} />
@@ -900,6 +936,10 @@ export function App() {
             </div>
           ) : <div class="empty">select a session</div>}
         </div>
+        <BarStrip global={gbar} folder={bar}
+          showGlobal={settings.showGlobalBar} showFolder={settings.showFolderBar}
+          folderActive={view.kind === "term" && !!activeTab}
+          onAction={runAction} onEditGlobal={openGlobalBar} onEditFolder={openFolderBar} />
       </div>
 
       {ctxMenu && ctxCfg && (
@@ -930,7 +970,6 @@ export function App() {
       )}
       {barEditor && (
         <BarEditorModal scope={barScope} yaml={barYaml} err={barErr} canDelete={barHasOwn}
-          onScope={(s) => { setBarScope(s); loadBarYaml(s === "global" ? "" : barFolderId); }}
           onYaml={setBarYaml} onSave={saveBar} onDelete={deleteBar}
           onClose={() => { setBarEditor(false); setBarErr(""); }} />
       )}

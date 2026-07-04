@@ -41,6 +41,8 @@ export function Filter(arg1:string):Promise<Array<app.FilterHit>>;
 
 export function GetVersion():Promise<string>;
 
+export function GlobalBar(arg1:string):Promise<buttonbar.Bar>;
+
 export function GrepTerminal(arg1:string,arg2:string,arg3:app.GrepOptsDTO):Promise<app.GrepResultDTO>;
 
 export function ImportITermTheme():Promise<string>;
