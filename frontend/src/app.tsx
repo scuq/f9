@@ -263,8 +263,8 @@ function SettingsModal(props: {
         <label class="checkrow"><input type="checkbox" checked={defInd.match} onChange={(e) => onDefInd({ ...defInd, match: (e.target as HTMLInputElement).checked })} /> <span class="swatch match" /> regex match</label>
 
         <div class="opthead">feature bars (off by default)</div>
-        <label class="checkrow"><input type="checkbox" checked={settings.showGlobalBar} onChange={(e) => onSave({ showGlobalBar: (e.target as HTMLInputElement).checked })} /> global button bar</label>
-        <label class="checkrow"><input type="checkbox" checked={settings.showFolderBar} onChange={(e) => onSave({ showFolderBar: (e.target as HTMLInputElement).checked })} /> folder / OS button bar</label>
+        <label class="checkrow"><input type="checkbox" checked={settings.showGlobalBar} onChange={(e) => onSave({ showGlobalBar: (e.target as HTMLInputElement).checked })} /> G-Bar (global)</label>
+        <label class="checkrow"><input type="checkbox" checked={settings.showFolderBar} onChange={(e) => onSave({ showFolderBar: (e.target as HTMLInputElement).checked })} /> C-Bar (context: folder / OS)</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showTemplates} onChange={(e) => onSave({ showTemplates: (e.target as HTMLInputElement).checked })} /> template composer</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showSnippets} onChange={(e) => onSave({ showSnippets: (e.target as HTMLInputElement).checked })} /> snippet library (Ctrl+P)</label>
 
@@ -422,16 +422,16 @@ function BarStrip(props: {
     <div class="barstrip">
       {showG && (
         <div class="barstrip-row">
-          <span class="barstrip-label">global</span>
+          <span class="barstrip-label">G-Bar</span>
           <ButtonBar bar={props.global ?? { rows: [] }} onAction={props.onAction} />
-          <button class="barcog" title="configure global bar" onClick={props.onEditGlobal}>{"\u2699"}</button>
+          <button class="barcog" title="configure G-Bar (global)" onClick={props.onEditGlobal}>{"\u2699"}</button>
         </div>
       )}
       {showF && (
         <div class="barstrip-row">
-          <span class="barstrip-label">folder</span>
+          <span class="barstrip-label">C-Bar</span>
           <ButtonBar bar={props.folder ?? { rows: [] }} onAction={props.onAction} />
-          <button class="barcog" title="configure folder / OS bar" onClick={props.onEditFolder}>{"\u2699"}</button>
+          <button class="barcog" title="configure C-Bar (context)" onClick={props.onEditFolder}>{"\u2699"}</button>
         </div>
       )}
     </div>
@@ -446,11 +446,11 @@ function BarEditorModal(props: {
   return (
     <div class="modal-overlay">
       <div class="modal bar-editor">
-        <h2>{scope === "global" ? "global button bar" : "folder button bar"}</h2>
+        <h2>{scope === "global" ? "G-Bar (global button bar)" : "C-Bar (context button bar)"}</h2>
         <div class="bareditor-hint">
           {scope === "global"
-            ? "shown on every session (each button OS-filtered by its os: field)."
-            : "shown for this folder. add os: <family> (e.g. nxos, ios) to a button to show it only on that detected OS; omit os for all."}
+            ? "G-Bar - shown on every session (each button OS-filtered by its os: field)."
+            : "C-Bar - context bar for this folder/OS. add os: <family> (e.g. nxos, ios) to a button to show it only on that detected OS; omit os for all."}
         </div>
         <textarea class="bareditor-yaml" spellcheck={false} value={yaml}
           onInput={(e) => onYaml((e.target as HTMLTextAreaElement).value)} />
