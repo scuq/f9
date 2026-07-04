@@ -6,6 +6,34 @@ export function ActiveConnections() {
   return window['go']['app']['App']['ActiveConnections']();
 }
 
+export function BarDelete(arg1) {
+  return window['go']['app']['App']['BarDelete'](arg1);
+}
+
+export function BarExport(arg1) {
+  return window['go']['app']['App']['BarExport'](arg1);
+}
+
+export function BarForSession(arg1) {
+  return window['go']['app']['App']['BarForSession'](arg1);
+}
+
+export function BarImport(arg1, arg2) {
+  return window['go']['app']['App']['BarImport'](arg1, arg2);
+}
+
+export function BarRaw(arg1) {
+  return window['go']['app']['App']['BarRaw'](arg1);
+}
+
+export function BarResolved(arg1) {
+  return window['go']['app']['App']['BarResolved'](arg1);
+}
+
+export function BarSave(arg1, arg2) {
+  return window['go']['app']['App']['BarSave'](arg1, arg2);
+}
+
 export function CloseTerminal(arg1) {
   return window['go']['app']['App']['CloseTerminal'](arg1);
 }
@@ -54,8 +82,16 @@ export function ImportITermTheme() {
   return window['go']['app']['App']['ImportITermTheme']();
 }
 
+export function LaunchApp(arg1) {
+  return window['go']['app']['App']['LaunchApp'](arg1);
+}
+
 export function OpenTerminal(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['OpenTerminal'](arg1, arg2, arg3, arg4);
+}
+
+export function OpenURL(arg1) {
+  return window['go']['app']['App']['OpenURL'](arg1);
 }
 
 export function PinSession(arg1) {

@@ -43,6 +43,15 @@ declare global {
           RenderTemplate(sessionId: string, body: string, extra: Record<string, string>): Promise<string>;
           SendToTerminal(termId: string, text: string, lineDelayMs: number, bracketed: boolean): Promise<void>;
           SendTemplate(termId: string, body: string, extra: Record<string, string>, lineDelayMs: number, bracketed: boolean): Promise<void>;
+          BarForSession(sessionId: string): Promise<Bar>;
+          BarResolved(folderId: string): Promise<Bar>;
+          BarRaw(folderId: string): Promise<Bar | null>;
+          BarSave(folderId: string, bar: Bar): Promise<void>;
+          BarDelete(folderId: string): Promise<void>;
+          BarExport(folderId: string): Promise<string>;
+          BarImport(folderId: string, yamlText: string): Promise<void>;
+          LaunchApp(args: string[]): Promise<void>;
+          OpenURL(url: string): Promise<void>;
         };
       };
     };
@@ -95,6 +104,10 @@ declare global {
   interface GrepResult { matches: GrepMatch[] | null; count: number; truncated: boolean; lines: number; }
   interface PeekResult { start: number; lines: string[] | null; }
   interface VarsScope { folderId: string; sessionId: string; }
+  interface BarAction { kind: string; text?: string; snippetId?: string; args?: string[] | null; delayMs?: number; bracketed?: boolean; }
+  interface BarButton { icon?: string; label: string; color?: string; action: BarAction; }
+  interface BarRow { buttons: BarButton[] | null; }
+  interface Bar { rows: BarRow[] | null; }
   interface ThemeData {
     name: string;
     ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };

@@ -5,6 +5,23 @@ import { onFindRequested } from "./termsearch";
 
 const api = () => window.go.app.App;
 
+const BAR_TEMPLATE = `rows:
+  - buttons:
+      - label: save config
+        color: "#2ea043"
+        action:
+          kind: send
+          text: "{{ save_cmd }}"
+      - label: uptime
+        action:
+          kind: send
+          text: show version
+      - label: docs
+        action:
+          kind: url
+          text: https://example.com
+`;
+
 const OPTION_KEYS: { key: string; label: string; hint: string }[] = [
   { key: "termType", label: "term type", hint: "xterm-256color" },
   { key: "keepaliveInterval", label: "keepalive", hint: "30s" },
@@ -367,6 +384,52 @@ function SendPanel(props: {
   );
 }
 
+function ButtonBar(props: { bar: Bar; onAction: (a: BarAction) => void }) {
+  const rows = props.bar.rows ?? [];
+  return (
+    <div class="buttonbar">
+      {rows.map((r, ri) => (
+        <div class="bbrow" key={ri}>
+          {(r.buttons ?? []).map((b, bi) => (
+            <button class="bbbtn" key={bi} title={b.action.kind}
+              style={b.color ? { borderColor: b.color, color: b.color } : undefined}
+              onClick={() => props.onAction(b.action)}>
+              {b.icon ? <span class="bbicon">{b.icon}</span> : null}{b.label}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BarEditorModal(props: {
+  scope: "folder" | "global"; yaml: string; err: string; canDelete: boolean;
+  onScope: (s: "folder" | "global") => void; onYaml: (v: string) => void;
+  onSave: () => void; onDelete: () => void; onClose: () => void;
+}) {
+  const { scope, yaml, err, canDelete, onScope, onYaml, onSave, onDelete, onClose } = props;
+  return (
+    <div class="modal-overlay">
+      <div class="modal bar-editor">
+        <h2>button bar</h2>
+        <div class="bareditor-scope">
+          <label class="radio"><input type="radio" checked={scope === "folder"} onChange={() => onScope("folder")} /> this folder</label>
+          <label class="radio"><input type="radio" checked={scope === "global"} onChange={() => onScope("global")} /> global</label>
+        </div>
+        <textarea class="bareditor-yaml" spellcheck={false} value={yaml}
+          onInput={(e) => onYaml((e.target as HTMLTextAreaElement).value)} />
+        {err && <div class="bareditor-err">{err}</div>}
+        <div class="modal-actions">
+          <button onClick={onClose}>close</button>
+          {canDelete && <button class="danger" onClick={onDelete}>delete (revert)</button>}
+          <button class="primary" onClick={onSave}>save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const [tree, setTree] = useState<FolderNode | null>(null);
   const [err, setErr] = useState("");
@@ -406,6 +469,14 @@ export function App() {
   const [sendBracketed, setSendBracketed] = useState(false);
   const [unresolved, setUnresolved] = useState<string[] | null>(null);
   const [sendMemo, setSendMemo] = useState<Record<string, Record<string, string>>>({});
+  const [pendingSend, setPendingSend] = useState<{ body: string; delay: number; bracketed: boolean } | null>(null);
+  const [bar, setBar] = useState<Bar | null>(null);
+  const [barEditor, setBarEditor] = useState(false);
+  const [barScope, setBarScope] = useState<"folder" | "global">("folder");
+  const [barFolderId, setBarFolderId] = useState("");
+  const [barYaml, setBarYaml] = useState("");
+  const [barErr, setBarErr] = useState("");
+  const [barHasOwn, setBarHasOwn] = useState(false);
   const debounce = useRef<number | undefined>(undefined);
 
   const activeTermRef = useRef<string | null>(null);
@@ -603,28 +674,83 @@ export function App() {
 
   const activeTab = view.kind === "term" ? tabs.find((t) => t.termId === view.id) : undefined;
 
-  const finishSend = (extra: Record<string, string>) => {
-    if (view.kind !== "term" || !activeTab) return;
-    api().SendTemplate(activeTab.termId, sendBody, extra, sendDelay, sendBracketed)
-      .then(() => setUnresolved(null))
+  const sendResolved = (p: { body: string; delay: number; bracketed: boolean }, extra: Record<string, string>) => {
+    if (!activeTab) return;
+    api().SendTemplate(activeTab.termId, p.body, extra, p.delay, p.bracketed)
+      .then(() => { setUnresolved(null); setPendingSend(null); })
       .catch((e) => setErr(String(e)));
   };
-  const doSend = () => {
-    if (view.kind !== "term" || !activeTab || sendBody.trim() === "") return;
+  const runSend = (body: string, delay: number, bracketed: boolean) => {
+    if (view.kind !== "term" || !activeTab || body.trim() === "") return;
     const sid = activeTab.sessionId;
-    api().TemplateUnresolved(sid, sendBody).then((names) => {
+    const p = { body, delay, bracketed };
+    setPendingSend(p);
+    api().TemplateUnresolved(sid, body).then((names) => {
       const memo = sendMemo[sid] ?? {};
       const need = (names ?? []).filter((n) => !(n in memo));
-      if (need.length === 0) finishSend(memo);
+      if (need.length === 0) sendResolved(p, memo);
       else setUnresolved(need);
     }).catch((e) => setErr(String(e)));
   };
+  const doSend = () => runSend(sendBody, sendDelay, sendBracketed);
   const submitUnresolved = (values: Record<string, string>, remember: boolean) => {
-    if (!activeTab) return;
+    if (!activeTab || !pendingSend) return;
     const sid = activeTab.sessionId;
     const memo = sendMemo[sid] ?? {};
     if (remember) setSendMemo({ ...sendMemo, [sid]: { ...memo, ...values } });
-    finishSend({ ...memo, ...values });
+    sendResolved(pendingSend, { ...memo, ...values });
+  };
+
+  const runAction = (a: BarAction) => {
+    switch (a.kind) {
+      case "send": runSend(a.text ?? "", a.delayMs ?? 0, a.bracketed ?? false); break;
+      case "launch": api().LaunchApp(a.args ?? []).catch((e) => setErr(String(e))); break;
+      case "url": api().OpenURL(a.text ?? "").catch((e) => setErr(String(e))); break;
+      case "internal":
+        if (a.text === "grep-overlay") setSearchOpen(true);
+        else if (a.text === "send-composer") setSendOpen(true);
+        else setErr("unknown internal command: " + (a.text ?? ""));
+        break;
+      case "snippet": setErr("snippets are not available yet (phase 05d-3)"); break;
+      default: setErr("unknown action kind: " + a.kind);
+    }
+  };
+
+  const refreshBar = () => {
+    if (view.kind === "term" && activeTab) {
+      api().BarForSession(activeTab.sessionId).then(setBar).catch(() => setBar(null));
+    }
+  };
+  useEffect(() => {
+    if (view.kind === "term" && activeTab) {
+      api().BarForSession(activeTab.sessionId).then(setBar).catch(() => setBar(null));
+    } else {
+      setBar(null);
+    }
+  }, [view.kind === "term" && activeTab ? activeTab.sessionId : ""]);
+
+  const loadBarYaml = (fid: string) => {
+    api().BarExport(fid).then((y) => { setBarYaml(y); setBarHasOwn(true); })
+      .catch(() => { setBarYaml(BAR_TEMPLATE); setBarHasOwn(false); });
+  };
+  const openBarEditor = () => {
+    if (!activeTab) return;
+    setBarErr("");
+    api().SessionDetail(activeTab.sessionId).then((d) => {
+      setBarFolderId(d.folderId);
+      setBarScope("folder");
+      loadBarYaml(d.folderId);
+      setBarEditor(true);
+    }).catch((e) => setErr(String(e)));
+  };
+  const barScopeId = () => (barScope === "global" ? "" : barFolderId);
+  const saveBar = () => {
+    api().BarImport(barScopeId(), barYaml).then(() => { setBarEditor(false); setBarErr(""); refreshBar(); })
+      .catch((e) => setBarErr(String(e)));
+  };
+  const deleteBar = () => {
+    api().BarDelete(barScopeId()).then(() => { setBarEditor(false); refreshBar(); })
+      .catch((e) => setBarErr(String(e)));
   };
   const selPinned = !!sel && pinned.some((p) => p.id === sel.id);
   const ctxCfg = ctxMenu ? (tabCfg[ctxMenu.termId] ?? DEFAULT_CFG(defInd)) : null;
@@ -714,8 +840,14 @@ export function App() {
             {activeTab && (
               <span class="tabsend" title="send template" onClick={() => setSendOpen(true)}>{"\u27a4"}</span>
             )}
+            {activeTab && (
+              <span class="tabbaredit" title="button bar" onClick={openBarEditor}>{"\u270e"}</span>
+            )}
 
           </div>
+        )}
+        {bar && (bar.rows ?? []).length > 0 && view.kind === "term" && (
+          <ButtonBar bar={bar} onAction={runAction} />
         )}
         <div class="paneview">
           {tabs.map((t) => (
@@ -795,6 +927,12 @@ export function App() {
       {promptQ.length > 0 && <PromptModal req={promptQ[0]} onResolve={resolvePrompt} />}
       {unresolved && view.kind === "term" && activeTab && (
         <UnresolvedModal names={unresolved} onSubmit={submitUnresolved} onCancel={() => setUnresolved(null)} />
+      )}
+      {barEditor && (
+        <BarEditorModal scope={barScope} yaml={barYaml} err={barErr} canDelete={barHasOwn}
+          onScope={(s) => { setBarScope(s); loadBarYaml(s === "global" ? "" : barFolderId); }}
+          onYaml={setBarYaml} onSave={saveBar} onDelete={deleteBar}
+          onClose={() => { setBarEditor(false); setBarErr(""); }} />
       )}
       </div>
     </div>

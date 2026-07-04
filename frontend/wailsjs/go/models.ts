@@ -372,6 +372,130 @@ export namespace app {
 
 }
 
+export namespace buttonbar {
+	
+	export class Action {
+	    kind: string;
+	    text: string;
+	    snippetId: string;
+	    args: string[];
+	    delayMs: number;
+	    bracketed: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Action(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.text = source["text"];
+	        this.snippetId = source["snippetId"];
+	        this.args = source["args"];
+	        this.delayMs = source["delayMs"];
+	        this.bracketed = source["bracketed"];
+	    }
+	}
+	export class Button {
+	    icon: string;
+	    label: string;
+	    color: string;
+	    action: Action;
+	
+	    static createFrom(source: any = {}) {
+	        return new Button(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.icon = source["icon"];
+	        this.label = source["label"];
+	        this.color = source["color"];
+	        this.action = this.convertValues(source["action"], Action);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Row {
+	    buttons: Button[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Row(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.buttons = this.convertValues(source["buttons"], Button);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Bar {
+	    rows: Row[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Bar(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.rows = this.convertValues(source["rows"], Row);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+
+}
+
 export namespace connmgr {
 	
 	export class Conn {

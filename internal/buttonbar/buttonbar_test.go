@@ -95,3 +95,50 @@ func TestSaveRejectsInvalid(t *testing.T) {
 		t.Fatal("expected invalid-kind rejection")
 	}
 }
+
+func TestResolveFolderNoGlobalFallback(t *testing.T) {
+	s, _ := Open(t.TempDir(), testChain)
+	_ = s.Save("", sampleBar("global"))
+	if got := s.ResolveFolder("A"); len(got.Rows) != 0 {
+		t.Fatalf("ResolveFolder(A) should be empty, got %+v", got)
+	}
+	_ = s.Save("A", sampleBar("folderA"))
+	if got := s.ResolveFolder("B"); got.Rows[0].Buttons[0].Label != "folderA" {
+		t.Fatalf("ResolveFolder(B) = %q, want folderA", got.Rows[0].Buttons[0].Label)
+	}
+}
+
+func labels(b Bar) []string {
+	var out []string
+	for _, r := range b.Rows {
+		for _, btn := range r.Buttons {
+			out = append(out, btn.Label)
+		}
+	}
+	return out
+}
+
+func TestFilterOS(t *testing.T) {
+	bar := Bar{Rows: []Row{{Buttons: []Button{
+		{Label: "always", Action: Action{Kind: "send"}},
+		{Label: "ios-only", OS: "ios", Action: Action{Kind: "send"}},
+		{Label: "undetected", OS: "unknown", Action: Action{Kind: "send"}},
+	}}}}
+	if got := labels(bar.FilterOS("ios")); len(got) != 2 || got[0] != "always" || got[1] != "ios-only" {
+		t.Fatalf("ios filter = %v", got)
+	}
+	if got := labels(bar.FilterOS("linux")); len(got) != 1 || got[0] != "always" {
+		t.Fatalf("linux filter = %v", got)
+	}
+	if got := labels(bar.FilterOS("")); len(got) != 2 || got[1] != "undetected" {
+		t.Fatalf("undetected filter = %v", got)
+	}
+}
+
+func TestSaveRejectsBadOS(t *testing.T) {
+	s, _ := Open(t.TempDir(), nil)
+	bad := Bar{Rows: []Row{{Buttons: []Button{{Label: "x", OS: "bogus", Action: Action{Kind: "send"}}}}}}
+	if err := s.Save("A", bad); err == nil {
+		t.Fatal("expected invalid-os rejection")
+	}
+}

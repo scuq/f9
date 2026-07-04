@@ -31,6 +31,7 @@ type Button struct {
 	Icon   string `yaml:"icon,omitempty" json:"icon"`
 	Label  string `yaml:"label" json:"label"`
 	Color  string `yaml:"color,omitempty" json:"color"`
+	OS     string `yaml:"os,omitempty" json:"os"` // "" / all / unknown / <family>
 	Action Action `yaml:"action" json:"action"`
 }
 
@@ -47,6 +48,12 @@ type ChainFunc func(folderID string) []string
 
 var actionKinds = map[string]bool{"send": true, "snippet": true, "launch": true, "url": true, "internal": true}
 
+var allowedOS = map[string]bool{
+	"": true, "all": true, "unknown": true,
+	"linux": true, "openbsd": true, "ios": true, "nxos": true,
+	"panos": true, "junos": true, "windows": true,
+}
+
 const (
 	globalFile = "global.yaml"
 	folderDir  = "folder"
@@ -60,6 +67,9 @@ func validateBar(b Bar) error {
 			}
 			if !actionKinds[btn.Action.Kind] {
 				return fmt.Errorf("buttonbar: row %d button %d: invalid action kind %q", ri, bi, btn.Action.Kind)
+			}
+			if !allowedOS[btn.OS] {
+				return fmt.Errorf("buttonbar: row %d button %d: invalid os selector %q", ri, bi, btn.OS)
 			}
 		}
 	}
@@ -152,6 +162,51 @@ func (s *YAMLStore) Resolve(folderID string) Bar {
 		return *s.global
 	}
 	return Bar{}
+}
+
+// ResolveFolder returns the nearest folder-defined bar up the chain (leaf ->
+// root), with NO global fallback — the global bar is surfaced separately.
+func (s *YAMLStore) ResolveFolder(folderID string) Bar {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	chain := s.chainFor(folderID)
+	for i := len(chain) - 1; i >= 0; i-- {
+		if b, ok := s.folder[chain[i]]; ok {
+			return *b
+		}
+	}
+	return Bar{}
+}
+
+// buttonShownForOS reports whether a button with the given os selector applies
+// to a session's detected family ("" = undetected). "" and "all" always apply;
+// "unknown" applies only when undetected; otherwise the family must match.
+func buttonShownForOS(os, family string) bool {
+	switch os {
+	case "", "all":
+		return true
+	case "unknown":
+		return family == ""
+	}
+	return os == family
+}
+
+// FilterOS returns a copy of the bar keeping only buttons that apply to family;
+// rows that become empty are dropped.
+func (b Bar) FilterOS(family string) Bar {
+	var out Bar
+	for _, r := range b.Rows {
+		var kept []Button
+		for _, btn := range r.Buttons {
+			if buttonShownForOS(btn.OS, family) {
+				kept = append(kept, btn)
+			}
+		}
+		if len(kept) > 0 {
+			out.Rows = append(out.Rows, Row{Buttons: kept})
+		}
+	}
+	return out
 }
 
 // Get returns a scope's own bar (folderID "" = global) and whether it is defined.

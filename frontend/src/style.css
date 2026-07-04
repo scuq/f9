@@ -388,3 +388,18 @@ select, input, textarea, option { color-scheme: dark; }
 .sendinput:focus { border-color: var(--accent); }
 .sendfoot { display: flex; align-items: center; justify-content: space-between; }
 .sendhint { color: var(--folder-fg); font-size: 11px; }
+
+/* --- 05d-2b: button bar --- */
+.buttonbar { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; background: var(--bg-raised); border-bottom: 1px solid var(--border); }
+.bbrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.bbbtn { display: inline-flex; align-items: center; gap: 5px; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+.bbbtn:hover { border-color: var(--accent); }
+.bbicon { font-size: 13px; }
+.tabbaredit { display: flex; align-items: center; padding: 0 10px; color: var(--folder-fg); cursor: pointer; font-size: 13px; }
+.tabbaredit:hover { color: var(--accent); }
+.bar-editor { width: 560px; max-width: 90vw; }
+.bareditor-scope { display: flex; gap: 16px; margin-bottom: 8px; color: var(--folder-fg); font-size: 12px; }
+.bareditor-scope .radio { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.bareditor-yaml { width: 100%; min-height: 260px; resize: vertical; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 8px; outline: none; font-family: var(--font-mono); font-size: 12px; }
+.bareditor-yaml:focus { border-color: var(--accent); }
+.bareditor-err { color: var(--danger); font-size: 12px; margin-top: 6px; white-space: pre-wrap; }

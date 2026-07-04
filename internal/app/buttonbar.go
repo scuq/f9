@@ -16,7 +16,19 @@ func (a *App) BarForSession(sessionID string) buttonbar.Bar {
 	if err != nil {
 		return buttonbar.Bar{}
 	}
-	return a.bars.Resolve(s.FolderID)
+	fam := string(a.sessionFamily(sessionID))
+	return a.bars.ResolveFolder(s.FolderID).FilterOS(fam)
+}
+
+// GlobalBar returns the always-visible global bar, OS-filtered for a session
+// (sessionID "" = no active session, so undetected).
+func (a *App) GlobalBar(sessionID string) buttonbar.Bar {
+	fam := ""
+	if sessionID != "" {
+		fam = string(a.sessionFamily(sessionID))
+	}
+	g, _ := a.bars.Get("")
+	return g.FilterOS(fam)
 }
 
 // BarResolved returns the effective bar for a folder (inherited/override).
