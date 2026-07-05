@@ -32,11 +32,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: linux-amd64,   runner: ubuntu-latest,    os: linux,   arch: amd64 }
-          - { name: linux-arm64,   runner: ubuntu-24.04-arm, os: linux,   arch: arm64 }
-          - { name: windows-amd64, runner: windows-latest,   os: windows, arch: amd64 }
-          - { name: windows-arm64, runner: windows-11-arm,   os: windows, arch: arm64 }
-          - { name: darwin-arm64,  runner: macos-latest,     os: darwin,  arch: arm64 }
+          - { name: linux-amd64,   runner: ubuntu-latest,    os: linux,   arch: amd64, rollup_bin: "@rollup/rollup-linux-x64-gnu" }
+          - { name: linux-arm64,   runner: ubuntu-24.04-arm, os: linux,   arch: arm64, rollup_bin: "@rollup/rollup-linux-arm64-gnu" }
+          - { name: windows-amd64, runner: windows-latest,   os: windows, arch: amd64, rollup_bin: "@rollup/rollup-win32-x64-msvc" }
+          - { name: windows-arm64, runner: windows-11-arm,   os: windows, arch: arm64, rollup_bin: "@rollup/rollup-win32-arm64-msvc" }
+          - { name: darwin-arm64,  runner: macos-latest,     os: darwin,  arch: arm64, rollup_bin: "@rollup/rollup-darwin-arm64" }
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -73,18 +73,23 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
-      - name: Fresh frontend install (npm/cli#4828 — install direct optional cleanly)
+      - name: Build frontend (force platform rollup binary — npm/cli#4828)
         shell: bash
-        run: rm -f frontend/package-lock.json
+        working-directory: frontend
+        run: |
+          rm -f package-lock.json
+          npm install
+          npm install ${{ matrix.rollup_bin }}@4.62.2 --no-save
+          npm run build
 
       - name: Build (linux)
         if: matrix.os == 'linux'
-        run: wails build -tags webkit2_41 -platform linux/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
+        run: wails build -s -tags webkit2_41 -platform linux/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
 
       - name: Build (windows / macos)
         if: matrix.os != 'linux'
         shell: bash
-        run: wails build -platform ${{ matrix.os }}/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
+        run: wails build -s -platform ${{ matrix.os }}/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
 
       - name: Package (unix)
         if: matrix.os != 'windows'
