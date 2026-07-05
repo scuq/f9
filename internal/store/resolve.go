@@ -27,5 +27,11 @@ func overlay(base, o SessionOptions) SessionOptions {
 	if o.AuditScope != nil {
 		base.AuditScope = o.AuditScope
 	}
+	if o.KeyFile != nil {
+		base.KeyFile = o.KeyFile
+	}
+	if o.UseAgent != nil {
+		base.UseAgent = o.UseAgent
+	}
 	return base
 }

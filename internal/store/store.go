@@ -14,6 +14,8 @@ type SessionOptions struct {
 	JumpChain         []JumpHop      `yaml:"jump_chain,omitempty"` // non-nil overrides
 	ScrollbackLines   *int           `yaml:"scrollback_lines,omitempty"`
 	AuditScope        *string        `yaml:"audit_scope,omitempty"` // off|events|events+input|full-io
+	KeyFile           *string        `yaml:"key_file,omitempty"`    // per-session private key (overrides global)
+	UseAgent          *bool          `yaml:"use_agent,omitempty"`   // per-session agent toggle (overrides global)
 }
 
 // JumpHop is one hop of a jump chain. Mode "proxyjump" (TCP forward) or

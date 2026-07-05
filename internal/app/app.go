@@ -474,6 +474,20 @@ func (a *App) optionFields(s store.Session, eff store.SessionOptions, chain []st
 			func(o store.SessionOptions) bool { return o.AuditScope != nil },
 			s.Options.AuditScope != nil),
 	}
+	out["keyFile"] = OptionField{
+		Value:     strPtr(s.Options.KeyFile),
+		Effective: strPtr(eff.KeyFile),
+		Source: a.sourceOf(chain,
+			func(o store.SessionOptions) bool { return o.KeyFile != nil },
+			s.Options.KeyFile != nil),
+	}
+	out["useAgent"] = OptionField{
+		Value:     boolPtr(s.Options.UseAgent),
+		Effective: boolPtr(eff.UseAgent),
+		Source: a.sourceOf(chain,
+			func(o store.SessionOptions) bool { return o.UseAgent != nil },
+			s.Options.UseAgent != nil),
+	}
 	return out
 }
 
@@ -514,6 +528,14 @@ func parseOptions(in map[string]string) (store.SessionOptions, error) {
 				return o, fmt.Errorf("app: auditScope %q: want off|events|events+input|full-io", v)
 			}
 			o.AuditScope = &v
+		case "keyFile":
+			o.KeyFile = &v
+		case "useAgent":
+			if v != "true" && v != "false" {
+				return o, fmt.Errorf("app: useAgent %q: want true|false", v)
+			}
+			b := v == "true"
+			o.UseAgent = &b
 		default:
 			return o, fmt.Errorf("app: unknown option %q", k)
 		}
@@ -549,6 +571,16 @@ func intPtr(p *int) string {
 		return ""
 	}
 	return strconv.Itoa(*p)
+}
+
+func boolPtr(p *bool) string {
+	if p == nil {
+		return ""
+	}
+	if *p {
+		return "true"
+	}
+	return "false"
 }
 
 // storeRoot mirrors the CLI's resolution (F9_STORE override, XDG default).

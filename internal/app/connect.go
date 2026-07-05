@@ -181,11 +181,19 @@ func (a *App) ConnectSessions(ids []string) error {
 		if err != nil {
 			return err
 		}
+		keyFiles := gs.KeyFiles
+		if eff.KeyFile != nil && *eff.KeyFile != "" {
+			keyFiles = []string{*eff.KeyFile}
+		}
+		noAgent := gs.DisableAgent
+		if eff.UseAgent != nil {
+			noAgent = !*eff.UseAgent
+		}
 		t := connmgr.Target{
 			SessionID: s.ID, Name: s.Name, Host: s.Host, Port: s.Port, User: s.User,
 			Keepalive: 30 * time.Second,
-			KeyFiles:  gs.KeyFiles,
-			NoAgent:   gs.DisableAgent,
+			KeyFiles:  keyFiles,
+			NoAgent:   noAgent,
 		}
 		if eff.KeepaliveInterval != nil {
 			t.Keepalive = *eff.KeepaliveInterval

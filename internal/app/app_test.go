@@ -150,7 +150,7 @@ func TestDeleteSession(t *testing.T) {
 // TestProvenanceFieldGuard forces optionFields/parseOptions updates when
 // store.SessionOptions grows — same pattern as the 00a overlay guard.
 func TestProvenanceFieldGuard(t *testing.T) {
-	const covered = 7 // 6 scalar options + JumpChain (rendered separately)
+	const covered = 9 // 8 scalar options + JumpChain (rendered separately)
 	n := reflect.TypeOf(store.SessionOptions{}).NumField()
 	if n != covered {
 		t.Fatalf("store.SessionOptions has %d fields, provenance covers %d — "+
