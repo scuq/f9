@@ -1,0 +1,138 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "version to release, e.g. 1.2.3"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        description: "version to release, e.g. 1.2.3"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.version || github.ref }}
+  cancel-in-progress: false
+
+env:
+  WAILS_VERSION: v2.12.0
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-amd64,   runner: ubuntu-latest,    os: linux,   arch: amd64 }
+          - { name: linux-arm64,   runner: ubuntu-24.04-arm, os: linux,   arch: arm64 }
+          - { name: windows-amd64, runner: windows-latest,   os: windows, arch: amd64 }
+          - { name: windows-arm64, runner: windows-11-arm,   os: windows, arch: arm64 }
+          - { name: darwin-arm64,  runner: macos-latest,     os: darwin,  arch: arm64 }
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Linux GUI deps
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Build (linux)
+        if: matrix.os == 'linux'
+        run: wails build -tags webkit2_41 -platform linux/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
+
+      - name: Build (windows / macos)
+        if: matrix.os != 'linux'
+        shell: bash
+        run: wails build -platform ${{ matrix.os }}/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
+
+      - name: Package (unix)
+        if: matrix.os != 'windows'
+        shell: bash
+        run: |
+          V="${{ steps.ver.outputs.version }}"
+          if [ "${{ matrix.os }}" = "linux" ]; then
+            tar czf "f9-$V-${{ matrix.name }}.tar.gz" -C build/bin f9-gui
+          else
+            ditto -c -k --keepParent build/bin/f9-gui.app "f9-$V-${{ matrix.name }}.zip"
+          fi
+
+      - name: Package (windows)
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          $V = "${{ steps.ver.outputs.version }}"
+          Compress-Archive -Path build/bin/f9-gui.exe -DestinationPath "f9-$V-${{ matrix.name }}.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: |
+            f9-*.tar.gz
+            f9-*.zip
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          name: f9 v${{ steps.ver.outputs.version }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: dist/**
