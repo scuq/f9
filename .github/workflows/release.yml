@@ -77,7 +77,7 @@ jobs:
         shell: bash
         working-directory: frontend
         run: |
-          rm -f package-lock.json
+          rm -rf node_modules package-lock.json
           npm install
           npm install ${{ matrix.rollup_bin }}@4.62.2 --no-save
           npm run build
