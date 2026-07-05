@@ -730,7 +730,7 @@ function FolderCtxMenu(props: {
   onImport: () => void; onRefresh: () => void; onClear: () => void;
 }) {
   return (
-    <div class="ctxmenu" style={{ left: `${props.x}px`, top: `${props.y}px` }} onClick={(e) => e.stopPropagation()}>
+    <div class="ctxmenu" style={{ left: `${props.x + 2}px`, top: `${props.y + 6}px` }} onClick={(e) => e.stopPropagation()}>
       <div class="mitem" onClick={props.onImport}>{props.hasSource ? "edit import source\u2026" : "import source\u2026"}</div>
       {props.hasSource && <div class="mitem" onClick={props.onRefresh}>refresh source</div>}
       {props.hasSource && <div class="mitem danger" onClick={props.onClear}>clear source</div>}
@@ -750,7 +750,7 @@ function ImportSourceModal(props: {
   const fm = dto.fieldMap ?? {};
   const mappedOk = dto.format !== "mapped" || Object.keys(fm).length > 0;
   const secretOk = dto.auth === "none" || st.secret !== "" || dto.hasSecret;
-  const canSave = httpsOk && mappedOk && secretOk;
+  const canSave = httpsOk && mappedOk && secretOk && !!(st.test && st.test.ok);
   const secretLabel = dto.auth === "basic" ? "user:password" : dto.auth === "mtls" ? "cert+key PEM" : "token";
   return (
     <div class="modal-overlay">
@@ -804,6 +804,7 @@ function ImportSourceModal(props: {
         </div>
         {st.err && <div class="imp-err">{st.err}</div>}
         <div class="modal-actions">
+          {httpsOk && mappedOk && secretOk && !(st.test && st.test.ok) && <span class="import-hint">test the connection before saving</span>}
           <button onClick={onClose}>close</button>
           <button class="primary" onClick={onSave} disabled={!canSave}>save</button>
         </div>
@@ -1493,8 +1494,8 @@ export function App() {
       )}
       {imp && (
         <ImportSourceModal st={imp}
-          onChange={(patch) => setImp((c) => c ? { ...c, ...patch } : c)}
-          onDTO={(patch) => setImp((c) => c ? { ...c, dto: { ...c.dto, ...patch } } : c)}
+          onChange={(patch) => setImp((c) => c ? { ...c, ...patch, test: null } : c)}
+          onDTO={(patch) => setImp((c) => c ? { ...c, dto: { ...c.dto, ...patch }, test: null } : c)}
           onTest={testImport} onSave={doSaveImport} onClose={() => setImp(null)} />
       )}
       {credPrompt && (

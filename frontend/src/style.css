@@ -528,3 +528,6 @@ select, input, textarea, option { color-scheme: dark; }
 .imp-ok { color: #2ea043; font-size: 12px; }
 .imp-err { color: var(--danger); font-size: 12px; }
 .imp-note { color: var(--folder-fg); font-size: 12px; margin-bottom: 8px; }
+
+/* --- import UX: test-before-save hint --- */
+.import-hint { margin-right: auto; align-self: center; color: var(--folder-fg); font-size: 12px; }
