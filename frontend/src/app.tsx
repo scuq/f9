@@ -861,6 +861,7 @@ export function App() {
   const [imp, setImp] = useState<ImportState | null>(null);
   const [credPrompt, setCredPrompt] = useState<{ mode: "create" | "unlock"; run: () => void } | null>(null);
   const [credErr, setCredErr] = useState("");
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [themeList, setThemeList] = useState<string[]>([]);
   const [settings, setSettings] = useState<UISettings>(EMPTY_SETTINGS);
   const [settingsModal, setSettingsModal] = useState(false);
@@ -1015,6 +1016,10 @@ export function App() {
     const suppress = (e: MouseEvent) => e.preventDefault();
     window.addEventListener("contextmenu", suppress);
     return () => window.removeEventListener("contextmenu", suppress);
+  }, []);
+
+  useEffect(() => {
+    api().CheckForUpdate().then((u) => { if (u && u.newer) setUpdateInfo(u); }).catch(() => {});
   }, []);
 
   const isConnected = (id: string) => conns.some((c) => c.sessionId === id && c.state === "connected");
@@ -1545,6 +1550,13 @@ export function App() {
           onMarkAll={markAll} onClear={clearMarks} onUnmark={toggleMsMark}
           onDryRun={doDryRun} onSend={doMultiSend} onCancel={doMultiCancel} onClose={() => setMsOpen(false)}
           confirm={msConfirm} onConfirmSend={confirmMultiSend} onConfirmCancel={() => setMsConfirm(null)} onJump={jumpToTerm} />
+      )}
+      {updateInfo && (
+        <div class="update-toast">
+          <span class="update-msg">f9 {updateInfo.latest} is available</span>
+          <button class="primary" onClick={() => api().OpenURL(updateInfo.url)}>download</button>
+          <button onClick={() => setUpdateInfo(null)}>dismiss</button>
+        </div>
       )}
       </div>
     </div>

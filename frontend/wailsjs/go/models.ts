@@ -857,3 +857,30 @@ export namespace theme {
 
 }
 
+export namespace updater {
+	
+	export class Info {
+	    current: string;
+	    latest: string;
+	    newer: boolean;
+	    url: string;
+	    notes: string;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Info(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.current = source["current"];
+	        this.latest = source["latest"];
+	        this.newer = source["newer"];
+	        this.url = source["url"];
+	        this.notes = source["notes"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+

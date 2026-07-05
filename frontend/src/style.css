@@ -536,3 +536,9 @@ select, input, textarea, option { color-scheme: dark; }
 .genmark { margin-left: 6px; font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: 0 4px; opacity: 0.85; }
 .genbadge { margin-left: 8px; font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: 1px 6px; vertical-align: middle; }
 .gen-note { color: var(--folder-fg); font-size: 12px; align-self: center; }
+
+/* --- ci slice 2: update toast --- */
+.update-toast { position: fixed; right: 16px; bottom: 16px; z-index: 300; display: flex; align-items: center; gap: 10px; background: var(--bg-raised); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 14px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); }
+.update-msg { color: var(--fg); font-size: 13px; }
+.update-toast button { background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 4px 12px; cursor: pointer; }
+.update-toast button.primary { border-color: var(--accent); color: var(--accent); }

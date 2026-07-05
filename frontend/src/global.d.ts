@@ -53,6 +53,7 @@ declare global {
           BarImport(folderId: string, yamlText: string): Promise<void>;
           LaunchApp(args: string[]): Promise<void>;
           OpenURL(url: string): Promise<void>;
+          CheckForUpdate(): Promise<UpdateInfo>;
           SnippetFolders(): Promise<SnippetFolder[] | null>;
           SnippetList(): Promise<Snippet[] | null>;
           SnippetGet(id: string): Promise<Snippet | null>;
@@ -138,6 +139,7 @@ declare global {
   interface SourceDTO { url: string; format: string; auth: string; header: string; reconcileBy: string; insecure: boolean; fieldMap: Record<string, string> | null; hasSecret: boolean; }
   interface TestResult { ok: boolean; count: number; sample: string[] | null; error: string; }
   interface RefreshResult { added: number; updated: number; removed: number; error: string; }
+  interface UpdateInfo { current: string; latest: string; newer: boolean; url: string; notes: string; error: string; }
   interface ThemeData {
     name: string;
     ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };
