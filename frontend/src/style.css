@@ -542,3 +542,12 @@ select, input, textarea, option { color-scheme: dark; }
 .update-msg { color: var(--fg); font-size: 13px; }
 .update-toast button { background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 4px 12px; cursor: pointer; }
 .update-toast button.primary { border-color: var(--accent); color: var(--accent); }
+
+/* --- ssh settings section --- */
+.ssh-block { margin: 4px 0 8px; }
+.ssh-note { color: var(--folder-fg); font-size: 12px; margin: 3px 0; }
+.ssh-keys { list-style: none; padding: 0; margin: 4px 0; }
+.ssh-keys li { font-size: 12px; color: var(--fg); padding: 2px 0; word-break: break-all; }
+.ssh-fp { color: var(--folder-fg); font-size: 11px; }
+.ssh-mono { font-family: var(--font-mono); }
+.ssh-del { background: var(--bg); border: 1px solid var(--border); color: var(--danger); border-radius: 4px; padding: 4px 10px; cursor: pointer; flex: none; }

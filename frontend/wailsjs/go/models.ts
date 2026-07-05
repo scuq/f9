@@ -1,5 +1,41 @@
 export namespace app {
 	
+	export class AgentStatus {
+	    available: boolean;
+	    socket: string;
+	    keys: sshx.AgentKey[];
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AgentStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.available = source["available"];
+	        this.socket = source["socket"];
+	        this.keys = this.convertValues(source["keys"], sshx.AgentKey);
+	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class CredState {
 	    initialized: boolean;
 	    locked: boolean;
@@ -455,6 +491,8 @@ export namespace app {
 	    barVertical: boolean;
 	    barUnpinned: boolean;
 	    showMultiSend: boolean;
+	    keyFiles: string[];
+	    disableAgent: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UISettings(source);
@@ -475,6 +513,8 @@ export namespace app {
 	        this.barVertical = source["barVertical"];
 	        this.barUnpinned = source["barUnpinned"];
 	        this.showMultiSend = source["showMultiSend"];
+	        this.keyFiles = source["keyFiles"];
+	        this.disableAgent = source["disableAgent"];
 	    }
 	}
 	export class VarsScopeDTO {
@@ -687,6 +727,27 @@ export namespace snippets {
 	        this.os = source["os"];
 	        this.delayMs = source["delayMs"];
 	        this.bracketed = source["bracketed"];
+	    }
+	}
+
+}
+
+export namespace sshx {
+	
+	export class AgentKey {
+	    comment: string;
+	    format: string;
+	    fingerprint: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AgentKey(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.comment = source["comment"];
+	        this.format = source["format"];
+	        this.fingerprint = source["fingerprint"];
 	    }
 	}
 

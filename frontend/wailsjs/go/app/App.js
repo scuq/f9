@@ -162,6 +162,10 @@ export function ResolvePrompt(arg1, arg2) {
   return window['go']['app']['App']['ResolvePrompt'](arg1, arg2);
 }
 
+export function SSHAgentStatus() {
+  return window['go']['app']['App']['SSHAgentStatus']();
+}
+
 export function SaveFolder(arg1) {
   return window['go']['app']['App']['SaveFolder'](arg1);
 }

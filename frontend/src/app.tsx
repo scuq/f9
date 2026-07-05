@@ -226,6 +226,11 @@ function SettingsModal(props: {
 }) {
   const { settings, themeList, defInd, onChangeTheme, onImport, onSave, onDefInd, onClose } = props;
   const numOrZero = (v: string) => parseInt(v, 10) || 0;
+  const [agent, setAgent] = useState<AgentStatus | null>(null);
+  const refreshAgent = () => api().SSHAgentStatus().then(setAgent).catch(() => setAgent(null));
+  useEffect(() => { refreshAgent(); }, []);
+  const keyFiles = settings.keyFiles ?? [];
+  const setKeyFiles = (next: string[]) => onSave({ keyFiles: next });
   return (
     <div class="modal-overlay" onClick={onClose}>
       <div class="modal settings-modal" onClick={(e) => e.stopPropagation()}>
@@ -281,6 +286,37 @@ function SettingsModal(props: {
           </select>
         </div>
         <label class="checkrow"><input type="checkbox" checked={!settings.barUnpinned} onChange={(e) => onSave({ barUnpinned: !(e.target as HTMLInputElement).checked })} /> pin vertical bar (uncheck = auto-collapse)</label>
+
+        <div class="opthead">SSH agent</div>
+        <div class="ssh-block">
+          {agent === null
+            ? <div class="ssh-note">checking…</div>
+            : agent.available
+              ? (<>
+                  <div class="ssh-note">connected · <span class="ssh-mono">{agent.socket}</span></div>
+                  {(agent.keys ?? []).length === 0
+                    ? <div class="ssh-note">no keys loaded in the agent</div>
+                    : (<ul class="ssh-keys">
+                        {(agent.keys ?? []).map((k, i) => (
+                          <li key={i}><span class="ssh-mono">{k.format}</span> {k.comment || "(no comment)"} <span class="ssh-fp">{k.fingerprint}</span></li>
+                        ))}
+                      </ul>)}
+                </>)
+              : <div class="ssh-note">not connected{agent.error ? " — " + agent.error : " (no SSH_AUTH_SOCK)"}</div>}
+          <button class="importbtn" onClick={refreshAgent}>refresh agent</button>
+        </div>
+        <label class="checkrow"><input type="checkbox" checked={!settings.disableAgent} onChange={(e) => onSave({ disableAgent: !(e.target as HTMLInputElement).checked })} /> use SSH agent when available</label>
+
+        <div class="opthead">SSH key files (used when no agent, or alongside it)</div>
+        <div class="ssh-note">empty = auto-discover ~/.ssh/id_ed25519, id_ecdsa, id_rsa. Encrypted keys prompt for a passphrase on connect.</div>
+        {keyFiles.map((kf, i) => (
+          <div class="formrow" key={i}>
+            <label></label>
+            <input value={kf} placeholder="~/.ssh/id_ed25519" onInput={(e) => { const next = keyFiles.slice(); next[i] = (e.target as HTMLInputElement).value; setKeyFiles(next); }} />
+            <button class="ssh-del" onClick={() => setKeyFiles(keyFiles.filter((_, j) => j !== i))}>remove</button>
+          </div>
+        ))}
+        <div class="formrow"><label></label><button class="importbtn" onClick={() => setKeyFiles([...keyFiles, ""])}>add key file…</button></div>
 
         <div class="modal-actions"><button class="primary" onClick={onClose}>done</button></div>
       </div>

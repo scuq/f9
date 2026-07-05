@@ -87,6 +87,8 @@ export function RenderTemplate(arg1:string,arg2:string,arg3:Record<string, strin
 
 export function ResolvePrompt(arg1:string,arg2:app.PromptReply):Promise<void>;
 
+export function SSHAgentStatus():Promise<app.AgentStatus>;
+
 export function SaveFolder(arg1:app.FolderInput):Promise<string>;
 
 export function SaveSession(arg1:app.SessionInput):Promise<string>;
