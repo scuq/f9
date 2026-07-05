@@ -502,3 +502,10 @@ select, input, textarea, option { color-scheme: dark; }
 .ms-error { color: var(--danger); }
 .ms-timeout { color: #d29922; }
 .ms-pending { color: var(--folder-fg); }
+
+/* --- 06c-2: confirm + jump --- */
+.ms-confirm { display: flex; align-items: center; gap: 10px; margin: 4px 0 8px; padding: 6px 10px; background: var(--bg); border: 1px solid #d29922; border-radius: 4px; }
+.ms-confirm button { background: var(--bg-raised); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 3px 12px; cursor: pointer; }
+.ms-confirm .danger { border-color: var(--danger); color: var(--danger); }
+.ms-row.clickable { cursor: pointer; }
+.ms-row.clickable:hover { background: var(--bg); }

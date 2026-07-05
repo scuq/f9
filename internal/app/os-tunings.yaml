@@ -1,0 +1,24 @@
+# Per-OS-family tuning profiles, consumed once osdetect has a confident guess.
+# Data, not code: extend without recompiling.
+families:
+  ios:
+    prompt_regex: '^[\w.()-]+[>#]\s?$'
+    error_regex: '^%\s'
+    pager_regex: '^ --More-- '
+    newline: "\r"
+    default_highlights: [network-core]
+  nxos:
+    prompt_regex: '^[\w.()-]+#\s?$'
+    error_regex: '^%\s|Invalid command'
+    newline: "\r"
+    default_highlights: [network-core]
+  panos:
+    prompt_regex: '^[\w.-]+[>#]\s?$'
+    error_regex: '^(Invalid syntax|Unknown command)'
+    newline: "\n"
+  linux:
+    prompt_regex: '[$#]\s?$'
+    newline: "\n"
+  openbsd:
+    prompt_regex: '[$#]\s?$'
+    newline: "\n"

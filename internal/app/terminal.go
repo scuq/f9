@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/base64"
 	"fmt"
 	"os"
@@ -35,6 +36,9 @@ type terminal struct {
 
 const outputThrottle = 250 * time.Millisecond
 
+//go:embed os-tunings.yaml
+var embeddedTunings []byte
+
 func loadTunings() map[osdetect.Family]osdetect.Tuning {
 	paths := []string{"configs/os-tunings.yaml"}
 	if home, err := os.UserHomeDir(); err == nil {
@@ -44,6 +48,9 @@ func loadTunings() map[osdetect.Family]osdetect.Tuning {
 		if t, err := osdetect.LoadTunings(p); err == nil && len(t) > 0 {
 			return t
 		}
+	}
+	if t, err := osdetect.ParseTunings(embeddedTunings); err == nil && len(t) > 0 {
+		return t
 	}
 	return map[osdetect.Family]osdetect.Tuning{}
 }

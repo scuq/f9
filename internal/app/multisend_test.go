@@ -81,3 +81,11 @@ func TestMultiSendBusyAndCancel(t *testing.T) {
 	}
 	a.MultiSendCancel()
 }
+
+func TestLoadTuningsEmbedded(t *testing.T) {
+	// cwd for the app package has no configs/os-tunings.yaml, so this exercises
+	// the embedded fallback (or a user's ~/.config); either way it is non-empty.
+	if m := loadTunings(); len(m) == 0 {
+		t.Fatal("expected tunings (embedded fallback) to be non-empty")
+	}
+}

@@ -30,3 +30,14 @@ func TestLoadShippedTunings(t *testing.T) {
 		}
 	}
 }
+
+func TestParseTunings(t *testing.T) {
+	data := []byte("families:\n  linux:\n    prompt_regex: '[#>$]\\\\s*$'\n    error_regex: ''\n")
+	m, err := ParseTunings(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := m["linux"]; !ok {
+		t.Fatalf("want linux family, got %v", m)
+	}
+}

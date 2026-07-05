@@ -4,6 +4,7 @@ import { setTheme as applyThemeColors, setSettings as applyOverrides } from "./t
 import { onFindRequested, onPickerRequested, setPickerEnabled } from "./termsearch";
 
 const api = () => window.go.app.App;
+const MS_CONFIRM_THRESHOLD = 10;
 
 const BAR_TEMPLATE = `rows:
   - buttons:
@@ -656,13 +657,14 @@ function MultiSendModal(props: {
   onLine: (v: string) => void; onSeq: (v: boolean) => void; onTimeout: (v: number) => void;
   onMarkAll: () => void; onClear: () => void; onUnmark: (id: string) => void;
   onDryRun: () => void; onSend: () => void; onCancel: () => void; onClose: () => void;
+  confirm: string | null; onConfirmSend: () => void; onConfirmCancel: () => void; onJump: (id: string) => void;
 }) {
-  const { targets, line, seq, timeout, preview, results, running, onLine, onSeq, onTimeout, onMarkAll, onClear, onUnmark, onDryRun, onSend, onCancel, onClose } = props;
+  const { targets, line, seq, timeout, preview, results, running, onLine, onSeq, onTimeout, onMarkAll, onClear, onUnmark, onDryRun, onSend, onCancel, onClose, confirm, onConfirmSend, onConfirmCancel, onJump } = props;
   const tail1 = (r?: MSResult) => (r?.errText || (r?.tail ?? "").split("\n").filter(Boolean).slice(-1)[0] || "").slice(0, 70);
   return (
     <div class="modal-overlay">
       <div class="modal multisend">
-        <h2>multi-send \u2014 {targets.length} target{targets.length === 1 ? "" : "s"}</h2>
+        <h2>multi-send {"\u2014"} {targets.length} target{targets.length === 1 ? "" : "s"}</h2>
         <div class="ms-markctl"><button onClick={onMarkAll}>mark all open</button><button onClick={onClear}>clear</button></div>
         {targets.length === 0 && <div class="ms-empty">mark terminals with the checkbox in the tab strip.</div>}
         <div class="ms-targets">
@@ -678,13 +680,18 @@ function MultiSendModal(props: {
           <button onClick={onDryRun} disabled={targets.length === 0}>dry-run</button>
           {running
             ? <button class="danger" onClick={onCancel}>cancel</button>
-            : <button class="primary" onClick={onSend} disabled={targets.length === 0 || line.trim() === ""}>send</button>}
+            : confirm
+              ? null
+              : <button class="primary" onClick={onSend} disabled={targets.length === 0 || line.trim() === ""}>send</button>}
         </div>
+        {confirm && !running && (
+          <div class="ms-confirm"><span class="ms-warn">heads up: {confirm}</span><button class="danger" onClick={onConfirmSend}>send anyway</button><button onClick={onConfirmCancel}>cancel</button></div>
+        )}
         {preview && (
           <div class="ms-grid preview">
             <div class="ms-gridhead"><span>session</span><span>os</span><span>rendered</span></div>
             {preview.map((p) => (
-              <div class="ms-row" key={p.termId}>
+              <div class="ms-row clickable" key={p.termId} onClick={() => onJump(p.termId)}>
                 <span>{p.name || p.termId}</span>
                 <span class="ms-os">{p.osFamily || "?"}</span>
                 <span class="ms-line">{p.err ? <span class="ms-err">{p.err}</span> : p.line}{(p.unresolved ?? []).length > 0 ? <span class="ms-warn"> \u00b7 needs: {(p.unresolved ?? []).join(", ")}</span> : null}</span>
@@ -698,7 +705,7 @@ function MultiSendModal(props: {
             {targets.map((t) => {
               const r = results[t.termId];
               return (
-                <div class="ms-row" key={t.termId}>
+                <div class="ms-row clickable" key={t.termId} onClick={() => onJump(t.termId)}>
                   <span>{t.name}</span>
                   <span class={"msstate ms-" + (r?.state ?? "pending")}>{r?.state ?? "-"}</span>
                   <span class="ms-ms">{r?.millis ?? ""}</span>
@@ -751,6 +758,7 @@ export function App() {
   const [msPreview, setMsPreview] = useState<MSPreview[] | null>(null);
   const [msResults, setMsResults] = useState<Record<string, MSResult>>({});
   const [msRunning, setMsRunning] = useState(false);
+  const [msConfirm, setMsConfirm] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [searchIC, setSearchIC] = useState(false);
@@ -1019,12 +1027,26 @@ export function App() {
     if (ids.length === 0) return;
     api().MultiSendPreview(ids, msLine).then((p) => setMsPreview(p ?? [])).catch((e) => setErr(String(e)));
   };
+  const reallyMultiSend = (ids: string[]) => {
+    setMsConfirm(null); setMsResults({}); setMsRunning(true);
+    api().MultiSendStart(ids, msLine, {}, msSeq, msTimeout).catch((e) => { setErr(String(e)); setMsRunning(false); });
+  };
   const doMultiSend = () => {
     const ids = markedTargets().map((t) => t.termId);
     if (ids.length === 0 || msLine.trim() === "") return;
-    setMsResults({}); setMsRunning(true);
-    api().MultiSendStart(ids, msLine, {}, msSeq, msTimeout).catch((e) => { setErr(String(e)); setMsRunning(false); });
+    api().MultiSendPreview(ids, msLine).then((preview) => {
+      const p = preview ?? [];
+      setMsPreview(p);
+      const fams = Array.from(new Set(p.map((x) => x.osFamily).filter(Boolean)));
+      const reasons: string[] = [];
+      if (ids.length > MS_CONFIRM_THRESHOLD) reasons.push(ids.length + " targets");
+      if (fams.length > 1) reasons.push("mixed OS families: " + fams.join(", "));
+      if (reasons.length > 0) setMsConfirm(reasons.join("; "));
+      else reallyMultiSend(ids);
+    }).catch((e) => setErr(String(e)));
   };
+  const confirmMultiSend = () => reallyMultiSend(markedTargets().map((t) => t.termId));
+  const jumpToTerm = (termId: string) => { setMsOpen(false); activateTerm(termId); };
   const doMultiCancel = () => { api().MultiSendCancel().catch(() => {}); setMsRunning(false); };
   useEffect(() => { setPickerEnabled(settings.showSnippets); }, [settings.showSnippets]);
   useEffect(() => {
@@ -1319,7 +1341,8 @@ export function App() {
           preview={msPreview} results={msResults} running={msRunning}
           onLine={setMsLine} onSeq={setMsSeq} onTimeout={setMsTimeout}
           onMarkAll={markAll} onClear={clearMarks} onUnmark={toggleMsMark}
-          onDryRun={doDryRun} onSend={doMultiSend} onCancel={doMultiCancel} onClose={() => setMsOpen(false)} />
+          onDryRun={doDryRun} onSend={doMultiSend} onCancel={doMultiCancel} onClose={() => setMsOpen(false)}
+          confirm={msConfirm} onConfirmSend={confirmMultiSend} onConfirmCancel={() => setMsConfirm(null)} onJump={jumpToTerm} />
       )}
       </div>
     </div>

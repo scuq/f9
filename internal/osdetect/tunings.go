@@ -45,6 +45,11 @@ func LoadTunings(path string) (map[Family]Tuning, error) {
 	if err != nil {
 		return nil, fmt.Errorf("osdetect: read tunings: %w", err)
 	}
+	return ParseTunings(data)
+}
+
+// ParseTunings parses tunings YAML from bytes (used for the embedded default).
+func ParseTunings(data []byte) (map[Family]Tuning, error) {
 	var doc struct {
 		Families map[string]Tuning `yaml:"families"`
 	}
