@@ -37,17 +37,19 @@ type Folder struct {
 }
 
 type Session struct {
-	ID        string         `yaml:"id"` // ULID
-	Name      string         `yaml:"name"`
-	FolderID  string         `yaml:"folder_id"`
-	Host      string         `yaml:"host"`
-	Port      int            `yaml:"port"`
-	User      string         `yaml:"user,omitempty"`
-	Proto     string         `yaml:"proto"` // ssh (serial/telnet later)
-	Tags      []string       `yaml:"tags,omitempty"`
-	Options   SessionOptions `yaml:"options,omitempty"`
-	Revision  uint64         `yaml:"revision"`
-	UpdatedAt time.Time      `yaml:"updated_at"`
+	ID         string         `yaml:"id"` // ULID
+	Name       string         `yaml:"name"`
+	FolderID   string         `yaml:"folder_id"`
+	Host       string         `yaml:"host"`
+	Port       int            `yaml:"port"`
+	User       string         `yaml:"user,omitempty"`
+	Proto      string         `yaml:"proto"` // ssh (serial/telnet later)
+	Tags       []string       `yaml:"tags,omitempty"`
+	Options    SessionOptions `yaml:"options,omitempty"`
+	Source     string         `yaml:"source,omitempty"`      // source folder id (generated)
+	ExternalID string         `yaml:"external_id,omitempty"` // stable id from the source
+	Revision   uint64         `yaml:"revision"`
+	UpdatedAt  time.Time      `yaml:"updated_at"`
 }
 
 // SessionMeta is machine-written sidecar state (never user-edited).
