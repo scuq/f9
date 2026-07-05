@@ -1,4 +1,7 @@
-.PHONY: build vet fmt test check
+.PHONY: build vet fmt test check bump
+
+VERSION := $(shell cat VERSION 2>/dev/null || echo dev)
+LDFLAGS := -X github.com/scuq/f9/internal/app.Version=$(VERSION)
 
 build:
 	go build ./...
@@ -24,7 +27,11 @@ matrix:
 GUI_TAGS := gui,webkit2_41
 
 gui-dev:
-	WEBKIT_DISABLE_DMABUF_RENDERER=1 wails dev -tags "$(GUI_TAGS)"
+	WEBKIT_DISABLE_DMABUF_RENDERER=1 wails dev -tags "$(GUI_TAGS)" -ldflags "$(LDFLAGS)"
 
 gui-build:
-	WEBKIT_DISABLE_DMABUF_RENDERER=1 wails build -tags "$(GUI_TAGS)"
+	WEBKIT_DISABLE_DMABUF_RENDERER=1 wails build -tags "$(GUI_TAGS)" -ldflags "$(LDFLAGS)"
+
+# bump the version, commit, and tag:  make bump V=1.2.3
+bump:
+	@bash scripts/bump.sh $(V)

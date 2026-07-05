@@ -27,8 +27,10 @@ import (
 	"github.com/scuq/f9/internal/vars"
 )
 
-// Version is the GUI-facing version string.
-const Version = "0.7.8-phase07c2c"
+// Version is the GUI-facing version string, injected at build time via
+// -ldflags "-X github.com/scuq/f9/internal/app.Version=<version>" (see the
+// Makefile LDFLAGS + the VERSION file). Defaults to "dev" for un-stamped builds.
+var Version = "dev"
 
 // ---- tree ----
 
