@@ -158,3 +158,32 @@ func TestProvenanceFieldGuard(t *testing.T) {
 	}
 	_ = time.Second // keep time imported alongside future duration fields
 }
+
+func TestTreeSourceFlags(t *testing.T) {
+	a, st, labID := newTestApp(t)
+	if err := st.SetFolderSource(labID, store.FolderSource{URL: "https://nb/", Format: "netbox", Auth: "none", ReconcileBy: "hostname"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Put(store.Session{Name: "g1", FolderID: labID, Host: "1.1.1.1", Source: labID}); err != nil {
+		t.Fatal(err)
+	}
+	root, err := a.Tree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lab *FolderNode
+	for _, f := range root.Folders {
+		if f.ID == labID {
+			lab = f
+		}
+	}
+	if lab == nil {
+		t.Fatal("lab node missing from tree")
+	}
+	if !lab.HasSource {
+		t.Fatal("lab.HasSource should be true")
+	}
+	if len(lab.Sessions) != 1 || !lab.Sessions[0].Generated {
+		t.Fatalf("generated flag wrong: %+v", lab.Sessions)
+	}
+}

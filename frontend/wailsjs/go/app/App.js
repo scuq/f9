@@ -46,6 +46,18 @@ export function ConnectSessions(arg1) {
   return window['go']['app']['App']['ConnectSessions'](arg1);
 }
 
+export function CredSetPassphrase(arg1) {
+  return window['go']['app']['App']['CredSetPassphrase'](arg1);
+}
+
+export function CredStatus() {
+  return window['go']['app']['App']['CredStatus']();
+}
+
+export function CredUnlock(arg1) {
+  return window['go']['app']['App']['CredUnlock'](arg1);
+}
+
 export function CurrentTheme() {
   return window['go']['app']['App']['CurrentTheme']();
 }
@@ -68,6 +80,26 @@ export function DisconnectAll() {
 
 export function Filter(arg1) {
   return window['go']['app']['App']['Filter'](arg1);
+}
+
+export function FolderSourceClear(arg1) {
+  return window['go']['app']['App']['FolderSourceClear'](arg1);
+}
+
+export function FolderSourceGet(arg1) {
+  return window['go']['app']['App']['FolderSourceGet'](arg1);
+}
+
+export function FolderSourceRefresh(arg1) {
+  return window['go']['app']['App']['FolderSourceRefresh'](arg1);
+}
+
+export function FolderSourceSet(arg1, arg2, arg3) {
+  return window['go']['app']['App']['FolderSourceSet'](arg1, arg2, arg3);
+}
+
+export function FolderSourceTest(arg1, arg2, arg3) {
+  return window['go']['app']['App']['FolderSourceTest'](arg1, arg2, arg3);
 }
 
 export function GetVersion() {

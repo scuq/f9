@@ -1,5 +1,19 @@
 export namespace app {
 	
+	export class CredState {
+	    initialized: boolean;
+	    locked: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new CredState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.initialized = source["initialized"];
+	        this.locked = source["locked"];
+	    }
+	}
 	export class FilterHit {
 	    id: string;
 	    name: string;
@@ -10,6 +24,7 @@ export namespace app {
 	    detectedOs: string;
 	    osPinned: boolean;
 	    pinned: boolean;
+	    generated: boolean;
 	    path: string;
 	    score: number;
 	
@@ -28,6 +43,7 @@ export namespace app {
 	        this.detectedOs = source["detectedOs"];
 	        this.osPinned = source["osPinned"];
 	        this.pinned = source["pinned"];
+	        this.generated = source["generated"];
 	        this.path = source["path"];
 	        this.score = source["score"];
 	    }
@@ -58,6 +74,7 @@ export namespace app {
 	    detectedOs: string;
 	    osPinned: boolean;
 	    pinned: boolean;
+	    generated: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new SessionNode(source);
@@ -74,12 +91,14 @@ export namespace app {
 	        this.detectedOs = source["detectedOs"];
 	        this.osPinned = source["osPinned"];
 	        this.pinned = source["pinned"];
+	        this.generated = source["generated"];
 	    }
 	}
 	export class FolderNode {
 	    id: string;
 	    name: string;
 	    path: string;
+	    hasSource: boolean;
 	    folders: FolderNode[];
 	    sessions: SessionNode[];
 	
@@ -92,6 +111,7 @@ export namespace app {
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.path = source["path"];
+	        this.hasSource = source["hasSource"];
 	        this.folders = this.convertValues(source["folders"], FolderNode);
 	        this.sessions = this.convertValues(source["sessions"], SessionNode);
 	    }
@@ -282,6 +302,24 @@ export namespace app {
 	        this.cancel = source["cancel"];
 	    }
 	}
+	export class RefreshResult {
+	    added: number;
+	    updated: number;
+	    removed: number;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RefreshResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.added = source["added"];
+	        this.updated = source["updated"];
+	        this.removed = source["removed"];
+	        this.error = source["error"];
+	    }
+	}
 	export class SessionDetail {
 	    id: string;
 	    name: string;
@@ -359,6 +397,50 @@ export namespace app {
 	    }
 	}
 	
+	export class SourceDTO {
+	    url: string;
+	    format: string;
+	    auth: string;
+	    header: string;
+	    reconcileBy: string;
+	    insecure: boolean;
+	    fieldMap: Record<string, string>;
+	    hasSecret: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new SourceDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.format = source["format"];
+	        this.auth = source["auth"];
+	        this.header = source["header"];
+	        this.reconcileBy = source["reconcileBy"];
+	        this.insecure = source["insecure"];
+	        this.fieldMap = source["fieldMap"];
+	        this.hasSecret = source["hasSecret"];
+	    }
+	}
+	export class TestResult {
+	    ok: boolean;
+	    count: number;
+	    sample: string[];
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TestResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ok = source["ok"];
+	        this.count = source["count"];
+	        this.sample = source["sample"];
+	        this.error = source["error"];
+	    }
+	}
 	export class UISettings {
 	    theme: string;
 	    zoom: number;

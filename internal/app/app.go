@@ -28,7 +28,7 @@ import (
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.7.3-phase07c1"
+const Version = "0.7.4-phase07c2a"
 
 // ---- tree ----
 
@@ -42,14 +42,16 @@ type SessionNode struct {
 	DetectedOS string `json:"detectedOs"`
 	OSPinned   bool   `json:"osPinned"`
 	Pinned     bool   `json:"pinned"`
+	Generated  bool   `json:"generated"`
 }
 
 type FolderNode struct {
-	ID       string        `json:"id"`
-	Name     string        `json:"name"`
-	Path     string        `json:"path"`
-	Folders  []*FolderNode `json:"folders"`
-	Sessions []SessionNode `json:"sessions"`
+	ID        string        `json:"id"`
+	Name      string        `json:"name"`
+	Path      string        `json:"path"`
+	HasSource bool          `json:"hasSource"`
+	Folders   []*FolderNode `json:"folders"`
+	Sessions  []SessionNode `json:"sessions"`
 }
 
 // ---- filter ----
@@ -200,7 +202,7 @@ func (a *App) Tree() (*FolderNode, error) {
 	nodes := map[string]*FolderNode{}
 	var root *FolderNode
 	for _, f := range a.st.Folders() { // sorted by (ParentID, Name)
-		nodes[f.ID] = &FolderNode{ID: f.ID, Name: f.Name, Path: a.st.FolderPath(f.ID)}
+		nodes[f.ID] = &FolderNode{ID: f.ID, Name: f.Name, Path: a.st.FolderPath(f.ID), HasSource: f.Source != nil}
 	}
 	for _, f := range a.st.Folders() {
 		n := nodes[f.ID]
@@ -374,6 +376,7 @@ func (a *App) sessionNode(s store.Session) SessionNode {
 		ID: s.ID, Name: s.Name, Host: s.Host, Port: s.Port,
 		User: s.User, Proto: s.Proto,
 	}
+	sn.Generated = s.Source != ""
 	if m, err := a.st.Meta(s.ID); err == nil {
 		sn.DetectedOS = m.DetectedOS
 		sn.OSPinned = m.OSPinned

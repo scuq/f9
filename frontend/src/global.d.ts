@@ -64,6 +64,14 @@ declare global {
           MultiSendPreview(termIds: string[], body: string): Promise<MSPreview[] | null>;
           MultiSendStart(termIds: string[], body: string, extra: Record<string, string>, sequential: boolean, timeoutMs: number): Promise<void>;
           MultiSendCancel(): Promise<void>;
+          CredStatus(): Promise<CredState>;
+          CredSetPassphrase(pass: string): Promise<void>;
+          CredUnlock(pass: string): Promise<void>;
+          FolderSourceGet(folderId: string): Promise<SourceDTO | null>;
+          FolderSourceSet(folderId: string, dto: SourceDTO, secret: string): Promise<void>;
+          FolderSourceClear(folderId: string): Promise<void>;
+          FolderSourceTest(folderId: string, dto: SourceDTO, secret: string): Promise<TestResult>;
+          FolderSourceRefresh(folderId: string): Promise<RefreshResult>;
         };
       };
     };
@@ -78,10 +86,10 @@ declare global {
 
   interface SessionNode {
     id: string; name: string; host: string; port: number;
-    user: string; proto: string; detectedOs: string; osPinned: boolean; pinned: boolean;
+    user: string; proto: string; detectedOs: string; osPinned: boolean; pinned: boolean; generated: boolean;
   }
   interface FolderNode {
-    id: string; name: string; path: string;
+    id: string; name: string; path: string; hasSource: boolean;
     folders: FolderNode[] | null; sessions: SessionNode[] | null;
   }
   interface FilterHit extends SessionNode { path: string; score: number; }
@@ -126,6 +134,10 @@ declare global {
   interface Snippet { id: string; folderId?: string; name: string; body: string; os?: string; delayMs?: number; bracketed?: boolean; }
   interface MSPreview { termId: string; sessionId: string; name: string; host: string; osFamily: string; line: string; unresolved: string[] | null; err: string; }
   interface MSResult { id: string; state: string; line: string; tail: string; errText: string; millis: number; }
+  interface CredState { initialized: boolean; locked: boolean; }
+  interface SourceDTO { url: string; format: string; auth: string; header: string; reconcileBy: string; insecure: boolean; fieldMap: Record<string, string> | null; hasSecret: boolean; }
+  interface TestResult { ok: boolean; count: number; sample: string[] | null; error: string; }
+  interface RefreshResult { added: number; updated: number; removed: number; error: string; }
   interface ThemeData {
     name: string;
     ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };

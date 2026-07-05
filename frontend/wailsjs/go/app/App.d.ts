@@ -28,6 +28,12 @@ export function ConnectFolder(arg1:string):Promise<void>;
 
 export function ConnectSessions(arg1:Array<string>):Promise<void>;
 
+export function CredSetPassphrase(arg1:string):Promise<void>;
+
+export function CredStatus():Promise<app.CredState>;
+
+export function CredUnlock(arg1:string):Promise<void>;
+
 export function CurrentTheme():Promise<string>;
 
 export function DeleteFolder(arg1:string):Promise<void>;
@@ -39,6 +45,16 @@ export function Disconnect(arg1:string):Promise<void>;
 export function DisconnectAll():Promise<void>;
 
 export function Filter(arg1:string):Promise<Array<app.FilterHit>>;
+
+export function FolderSourceClear(arg1:string):Promise<void>;
+
+export function FolderSourceGet(arg1:string):Promise<app.SourceDTO>;
+
+export function FolderSourceRefresh(arg1:string):Promise<app.RefreshResult>;
+
+export function FolderSourceSet(arg1:string,arg2:app.SourceDTO,arg3:string):Promise<void>;
+
+export function FolderSourceTest(arg1:string,arg2:app.SourceDTO,arg3:string):Promise<app.TestResult>;
 
 export function GetVersion():Promise<string>;
 
