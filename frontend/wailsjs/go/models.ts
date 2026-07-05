@@ -208,6 +208,32 @@ export namespace app {
 	        this.userOverride = source["userOverride"];
 	    }
 	}
+	export class MSPreview {
+	    termId: string;
+	    sessionId: string;
+	    name: string;
+	    host: string;
+	    osFamily: string;
+	    line: string;
+	    unresolved: string[];
+	    err: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MSPreview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.termId = source["termId"];
+	        this.sessionId = source["sessionId"];
+	        this.name = source["name"];
+	        this.host = source["host"];
+	        this.osFamily = source["osFamily"];
+	        this.line = source["line"];
+	        this.unresolved = source["unresolved"];
+	        this.err = source["err"];
+	    }
+	}
 	export class OptionField {
 	    value: string;
 	    effective: string;
@@ -346,6 +372,7 @@ export namespace app {
 	    showSnippets: boolean;
 	    barVertical: boolean;
 	    barUnpinned: boolean;
+	    showMultiSend: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UISettings(source);
@@ -365,6 +392,7 @@ export namespace app {
 	        this.showSnippets = source["showSnippets"];
 	        this.barVertical = source["barVertical"];
 	        this.barUnpinned = source["barUnpinned"];
+	        this.showMultiSend = source["showMultiSend"];
 	    }
 	}
 	export class VarsScopeDTO {

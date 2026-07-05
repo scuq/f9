@@ -28,6 +28,7 @@ type UISettings struct {
 	ShowSnippets  bool    `yaml:"show_snippets,omitempty" json:"showSnippets"`
 	BarVertical   bool    `yaml:"bar_vertical,omitempty" json:"barVertical"`
 	BarUnpinned   bool    `yaml:"bar_unpinned,omitempty" json:"barUnpinned"`
+	ShowMultiSend bool    `yaml:"show_multisend,omitempty" json:"showMultiSend"`
 }
 
 func (a *App) Themes() []string {

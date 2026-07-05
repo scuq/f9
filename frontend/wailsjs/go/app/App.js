@@ -90,6 +90,18 @@ export function LaunchApp(arg1) {
   return window['go']['app']['App']['LaunchApp'](arg1);
 }
 
+export function MultiSendCancel() {
+  return window['go']['app']['App']['MultiSendCancel']();
+}
+
+export function MultiSendPreview(arg1, arg2) {
+  return window['go']['app']['App']['MultiSendPreview'](arg1, arg2);
+}
+
+export function MultiSendStart(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['app']['App']['MultiSendStart'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function OpenTerminal(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['OpenTerminal'](arg1, arg2, arg3, arg4);
 }

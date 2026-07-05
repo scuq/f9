@@ -467,3 +467,38 @@ select, input, textarea, option { color-scheme: dark; }
 .barrail-btn { width: 100%; justify-content: flex-start; }
 .barrail-collapsed { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0; height: 100%; }
 .barrail-handle { color: var(--folder-fg); font-size: 12px; margin-top: auto; }
+
+/* --- 06c-1: multi-send --- */
+.tabmark { display: inline-flex; align-items: center; margin-right: 4px; color: var(--folder-fg); cursor: pointer; font-size: 13px; }
+.tabmark.on { color: var(--accent); }
+.gear.busy { color: var(--accent); }
+.multisend { width: 720px; max-width: 94vw; }
+.ms-empty { color: var(--folder-fg); font-size: 12px; margin-bottom: 8px; }
+.ms-markctl { display: flex; gap: 8px; margin-bottom: 6px; }
+.ms-markctl button, .ms-opts button { background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 3px 12px; cursor: pointer; }
+.ms-opts .primary { border-color: var(--accent); color: var(--accent); }
+.ms-opts .danger { border-color: var(--danger); color: var(--danger); }
+.ms-targets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ms-chip { display: inline-flex; align-items: center; gap: 5px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 2px 9px; font-size: 12px; color: var(--fg); }
+.ms-chipx { color: var(--folder-fg); cursor: pointer; }
+.ms-chipx:hover { color: var(--danger); }
+.ms-input { width: 100%; min-height: 60px; resize: vertical; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 6px 8px; outline: none; font-family: var(--font-mono); font-size: 12px; }
+.ms-input:focus { border-color: var(--accent); }
+.ms-opts { display: flex; align-items: center; gap: 14px; margin: 8px 0; }
+.ms-opts input[type="number"] { width: 78px; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 3px 4px; }
+.ms-grid { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; max-height: 260px; overflow-y: auto; font-family: var(--font-mono); font-size: 12px; }
+.ms-gridhead, .ms-row { display: grid; gap: 8px; padding: 2px 4px; align-items: baseline; }
+.ms-grid.preview .ms-gridhead, .ms-grid.preview .ms-row { grid-template-columns: 130px 60px 1fr; }
+.ms-grid.results .ms-gridhead, .ms-grid.results .ms-row { grid-template-columns: 130px 100px 50px 1fr; }
+.ms-gridhead { color: var(--folder-fg); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+.ms-os, .ms-ms, .ms-tail { color: var(--folder-fg); }
+.ms-line { white-space: pre-wrap; word-break: break-all; }
+.ms-err { color: var(--danger); }
+.ms-warn { color: #d29922; }
+.ms-tail { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msstate { font-weight: 600; }
+.ms-sent, .ms-echoed { color: var(--accent); }
+.ms-ok { color: #2ea043; }
+.ms-error { color: var(--danger); }
+.ms-timeout { color: #d29922; }
+.ms-pending { color: var(--folder-fg); }

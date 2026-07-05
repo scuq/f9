@@ -267,6 +267,7 @@ function SettingsModal(props: {
         <label class="checkrow"><input type="checkbox" checked={settings.showFolderBar} onChange={(e) => onSave({ showFolderBar: (e.target as HTMLInputElement).checked })} /> C-Bar (context: folder / OS)</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showTemplates} onChange={(e) => onSave({ showTemplates: (e.target as HTMLInputElement).checked })} /> template composer</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showSnippets} onChange={(e) => onSave({ showSnippets: (e.target as HTMLInputElement).checked })} /> snippet library (Ctrl+P)</label>
+        <label class="checkrow"><input type="checkbox" checked={settings.showMultiSend} onChange={(e) => onSave({ showMultiSend: (e.target as HTMLInputElement).checked })} /> multi-send (broadcast to marked tabs)</label>
 
         <div class="opthead">button bar layout</div>
         <div class="formrow"><label>layout</label>
@@ -335,7 +336,7 @@ function SearchPanel(props: {
 }
 
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
-const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false };
+const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false, showMultiSend: false };
 
 function UnresolvedModal(props: {
   names: string[];
@@ -648,6 +649,71 @@ function BarRail(props: {
   );
 }
 
+function MultiSendModal(props: {
+  targets: { termId: string; name: string }[];
+  line: string; seq: boolean; timeout: number;
+  preview: MSPreview[] | null; results: Record<string, MSResult>; running: boolean;
+  onLine: (v: string) => void; onSeq: (v: boolean) => void; onTimeout: (v: number) => void;
+  onMarkAll: () => void; onClear: () => void; onUnmark: (id: string) => void;
+  onDryRun: () => void; onSend: () => void; onCancel: () => void; onClose: () => void;
+}) {
+  const { targets, line, seq, timeout, preview, results, running, onLine, onSeq, onTimeout, onMarkAll, onClear, onUnmark, onDryRun, onSend, onCancel, onClose } = props;
+  const tail1 = (r?: MSResult) => (r?.errText || (r?.tail ?? "").split("\n").filter(Boolean).slice(-1)[0] || "").slice(0, 70);
+  return (
+    <div class="modal-overlay">
+      <div class="modal multisend">
+        <h2>multi-send \u2014 {targets.length} target{targets.length === 1 ? "" : "s"}</h2>
+        <div class="ms-markctl"><button onClick={onMarkAll}>mark all open</button><button onClick={onClear}>clear</button></div>
+        {targets.length === 0 && <div class="ms-empty">mark terminals with the checkbox in the tab strip.</div>}
+        <div class="ms-targets">
+          {targets.map((t) => (
+            <span class="ms-chip" key={t.termId}>{t.name}<span class="ms-chipx" onClick={() => onUnmark(t.termId)}>{"\u2715"}</span></span>
+          ))}
+        </div>
+        <textarea class="ms-input" placeholder="command or template - {{ vlan_id }}, {% if %} ..." value={line}
+          onInput={(e) => onLine((e.target as HTMLTextAreaElement).value)} />
+        <div class="ms-opts">
+          <label class="sopt"><input type="checkbox" checked={seq} onChange={(e) => onSeq((e.target as HTMLInputElement).checked)} /> sequential</label>
+          <label class="sopt">timeout <input type="number" min="1000" max="120000" step="500" value={timeout} onInput={(e) => onTimeout(parseInt((e.target as HTMLInputElement).value, 10) || 15000)} /> ms</label>
+          <button onClick={onDryRun} disabled={targets.length === 0}>dry-run</button>
+          {running
+            ? <button class="danger" onClick={onCancel}>cancel</button>
+            : <button class="primary" onClick={onSend} disabled={targets.length === 0 || line.trim() === ""}>send</button>}
+        </div>
+        {preview && (
+          <div class="ms-grid preview">
+            <div class="ms-gridhead"><span>session</span><span>os</span><span>rendered</span></div>
+            {preview.map((p) => (
+              <div class="ms-row" key={p.termId}>
+                <span>{p.name || p.termId}</span>
+                <span class="ms-os">{p.osFamily || "?"}</span>
+                <span class="ms-line">{p.err ? <span class="ms-err">{p.err}</span> : p.line}{(p.unresolved ?? []).length > 0 ? <span class="ms-warn"> \u00b7 needs: {(p.unresolved ?? []).join(", ")}</span> : null}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {Object.keys(results).length > 0 && (
+          <div class="ms-grid results">
+            <div class="ms-gridhead"><span>session</span><span>state</span><span>ms</span><span>tail</span></div>
+            {targets.map((t) => {
+              const r = results[t.termId];
+              return (
+                <div class="ms-row" key={t.termId}>
+                  <span>{t.name}</span>
+                  <span class={"msstate ms-" + (r?.state ?? "pending")}>{r?.state ?? "-"}</span>
+                  <span class="ms-ms">{r?.millis ?? ""}</span>
+                  <span class="ms-tail" title={r?.tail ?? ""}>{tail1(r)}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div class="modal-actions"><button onClick={onClose}>close</button></div>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const [tree, setTree] = useState<FolderNode | null>(null);
   const [err, setErr] = useState("");
@@ -677,6 +743,14 @@ export function App() {
   const [snList, setSnList] = useState<Snippet[]>([]);
   const [snErr, setSnErr] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [marks, setMarks] = useState<Set<string>>(new Set());
+  const [msOpen, setMsOpen] = useState(false);
+  const [msLine, setMsLine] = useState("");
+  const [msSeq, setMsSeq] = useState(false);
+  const [msTimeout, setMsTimeout] = useState(15000);
+  const [msPreview, setMsPreview] = useState<MSPreview[] | null>(null);
+  const [msResults, setMsResults] = useState<Record<string, MSResult>>({});
+  const [msRunning, setMsRunning] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [searchIC, setSearchIC] = useState(false);
@@ -732,6 +806,7 @@ export function App() {
       setTabs((t) => t.filter((x) => x.termId !== termId));
       setView((v) => (v.kind === "term" && v.id === termId ? { kind: "empty", id: "" } : v));
       setActivity((a) => { if (!a[termId]) return a; const n = { ...a }; delete n[termId]; return n; });
+      setMarks((m) => { if (!m.has(termId)) return m; const n = new Set(m); n.delete(termId); return n; });
     });
     const offA = window.runtime.EventsOn("f9:termactivity", (ev: { termId: string; kind: IndKind }) => {
       if (activeTermRef.current === ev.termId) return;
@@ -747,7 +822,9 @@ export function App() {
       api().Themes().then((ts) => setThemeList(ts ?? [])).catch(() => {});
       api().Settings().then((s) => api().Theme(s.theme)).then((t) => applyThemeColors(t)).catch(() => {});
     });
-    return () => { offC?.(); offP?.(); offT?.(); offA?.(); offTh?.(); };
+    const offMS = window.runtime.EventsOn("f9:multisend", (r: MSResult) => setMsResults((prev) => ({ ...prev, [r.id]: r })));
+    const offMSD = window.runtime.EventsOn("f9:multisenddone", () => setMsRunning(false));
+    return () => { offC?.(); offP?.(); offT?.(); offA?.(); offTh?.(); offMS?.(); offMSD?.(); };
   }, []);
 
   const isConnected = (id: string) => conns.some((c) => c.sessionId === id && c.state === "connected");
@@ -933,6 +1010,22 @@ export function App() {
     api().SnippetGet(id).then((sn) => { if (sn) runSnippetObj(sn); else setErr("snippet not found"); }).catch((e) => setErr(String(e)));
   };
   const openPicker = () => { refreshSnips(); setPickerOpen(true); };
+  const toggleMsMark = (termId: string) => setMarks((m) => { const n = new Set(m); n.has(termId) ? n.delete(termId) : n.add(termId); return n; });
+  const markAll = () => setMarks(new Set(tabs.map((t) => t.termId)));
+  const clearMarks = () => setMarks(new Set());
+  const markedTargets = () => tabs.filter((t) => marks.has(t.termId)).map((t) => ({ termId: t.termId, name: t.name }));
+  const doDryRun = () => {
+    const ids = markedTargets().map((t) => t.termId);
+    if (ids.length === 0) return;
+    api().MultiSendPreview(ids, msLine).then((p) => setMsPreview(p ?? [])).catch((e) => setErr(String(e)));
+  };
+  const doMultiSend = () => {
+    const ids = markedTargets().map((t) => t.termId);
+    if (ids.length === 0 || msLine.trim() === "") return;
+    setMsResults({}); setMsRunning(true);
+    api().MultiSendStart(ids, msLine, {}, msSeq, msTimeout).catch((e) => { setErr(String(e)); setMsRunning(false); });
+  };
+  const doMultiCancel = () => { api().MultiSendCancel().catch(() => {}); setMsRunning(false); };
   useEffect(() => { setPickerEnabled(settings.showSnippets); }, [settings.showSnippets]);
   useEffect(() => {
     const off = onPickerRequested((termId) => { if (activeTermRef.current === termId) openPicker(); });
@@ -1075,6 +1168,7 @@ export function App() {
         <div class="statusbar">
           <span>f9 {ver}</span>
           {settings.showSnippets && <span class="gear" title="snippet library" onClick={openSnippetLib}>{"\u2261"}</span>}
+          {settings.showMultiSend && <span class={"gear" + (msRunning ? " busy" : "")} title="multi-send" onClick={() => setMsOpen(true)}>{"\u21c9"}</span>}
           <span class="gear" title="settings" onClick={() => setSettingsModal(true)}>{"\u2699"}</span>
         </div>
       </div>
@@ -1087,6 +1181,10 @@ export function App() {
                 onClick={() => activateTerm(d.tab.termId)}
                 onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ termId: d.tab.termId, x: e.clientX, y: e.clientY }); }}>
                 {(() => { const dc = dotClass(activity[d.tab.termId]); return dc ? <span class={"actdot " + dc} /> : null; })()}
+                {settings.showMultiSend && (
+                  <span class={"tabmark" + (marks.has(d.tab.termId) ? " on" : "")} title="mark for multi-send"
+                    onClick={(e) => { e.stopPropagation(); toggleMsMark(d.tab.termId); }}>{marks.has(d.tab.termId) ? "\u2611" : "\u2610"}</span>
+                )}
                 <span class={"pin" + (d.pinned ? " filled" : "")} title={d.pinned ? "unpin" : "pin"}
                   onClick={(e) => { e.stopPropagation(); togglePin(d.tab.sessionId, d.pinned); }}>{d.pinned ? "\u2605" : "\u2606"}</span>
                 <span class="tabname">{d.tab.name}</span>
@@ -1215,6 +1313,13 @@ export function App() {
           onRun={(s) => { setPickerOpen(false); runSnippetObj(s); }}
           onClose={() => setPickerOpen(false)}
           onEdit={() => { setPickerOpen(false); openSnippetLib(); }} />
+      )}
+      {msOpen && (
+        <MultiSendModal targets={markedTargets()} line={msLine} seq={msSeq} timeout={msTimeout}
+          preview={msPreview} results={msResults} running={msRunning}
+          onLine={setMsLine} onSeq={setMsSeq} onTimeout={setMsTimeout}
+          onMarkAll={markAll} onClear={clearMarks} onUnmark={toggleMsMark}
+          onDryRun={doDryRun} onSend={doMultiSend} onCancel={doMultiCancel} onClose={() => setMsOpen(false)} />
       )}
       </div>
     </div>

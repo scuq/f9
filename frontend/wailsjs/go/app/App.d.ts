@@ -50,6 +50,12 @@ export function ImportITermTheme():Promise<string>;
 
 export function LaunchApp(arg1:Array<string>):Promise<void>;
 
+export function MultiSendCancel():Promise<void>;
+
+export function MultiSendPreview(arg1:Array<string>,arg2:string):Promise<Array<app.MSPreview>>;
+
+export function MultiSendStart(arg1:Array<string>,arg2:string,arg3:Record<string, string>,arg4:boolean,arg5:number):Promise<void>;
+
 export function OpenTerminal(arg1:string,arg2:string,arg3:number,arg4:number):Promise<void>;
 
 export function OpenURL(arg1:string):Promise<void>;

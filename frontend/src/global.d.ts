@@ -61,6 +61,9 @@ declare global {
           SnippetSave(s: Snippet): Promise<Snippet | null>;
           SnippetDelete(id: string): Promise<void>;
           SnippetRun(termId: string, snippetId: string, extra: Record<string, string>): Promise<void>;
+          MultiSendPreview(termIds: string[], body: string): Promise<MSPreview[] | null>;
+          MultiSendStart(termIds: string[], body: string, extra: Record<string, string>, sequential: boolean, timeoutMs: number): Promise<void>;
+          MultiSendCancel(): Promise<void>;
         };
       };
     };
@@ -108,7 +111,7 @@ declare global {
     theme: string; zoom: number;
     fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
     showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean; showSnippets: boolean;
-    barVertical: boolean; barUnpinned: boolean;
+    barVertical: boolean; barUnpinned: boolean; showMultiSend: boolean;
   }
   interface GrepOptsInput { invert: boolean; ignoreCase: boolean; before: number; after: number; maxMatches: number; }
   interface GrepMatch { lineNo: number; line: string; before: string[] | null; after: string[] | null; }
@@ -121,6 +124,8 @@ declare global {
   interface Bar { rows: BarRow[] | null; }
   interface SnippetFolder { id: string; parentId?: string; name: string; }
   interface Snippet { id: string; folderId?: string; name: string; body: string; os?: string; delayMs?: number; bracketed?: boolean; }
+  interface MSPreview { termId: string; sessionId: string; name: string; host: string; osFamily: string; line: string; unresolved: string[] | null; err: string; }
+  interface MSResult { id: string; state: string; line: string; tail: string; errText: string; millis: number; }
   interface ThemeData {
     name: string;
     ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };
