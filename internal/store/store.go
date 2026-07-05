@@ -33,6 +33,7 @@ type Folder struct {
 	Options   SessionOptions `yaml:"options,omitempty"`
 	Revision  uint64         `yaml:"revision"`
 	UpdatedAt time.Time      `yaml:"updated_at"`
+	Source    *FolderSource  `yaml:"source,omitempty"`
 }
 
 type Session struct {

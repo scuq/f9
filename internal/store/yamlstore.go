@@ -538,6 +538,10 @@ func sanitizeName(name string) string {
 }
 
 // writeYAML writes v atomically: temp file in the same directory, then rename.
+func joinDir(dir string) string {
+	return filepath.Join(dir, folderFile)
+}
+
 func writeYAML(path string, v any) error {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".f9-*")
