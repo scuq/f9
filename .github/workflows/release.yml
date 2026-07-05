@@ -73,6 +73,10 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@${WAILS_VERSION}
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
 
+      - name: Clean frontend lockfile (rollup optional-dep workaround, npm/cli#4828)
+        shell: bash
+        run: rm -f frontend/package-lock.json
+
       - name: Build (linux)
         if: matrix.os == 'linux'
         run: wails build -tags webkit2_41 -platform linux/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
