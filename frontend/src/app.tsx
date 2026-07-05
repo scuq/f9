@@ -77,13 +77,15 @@ function SessionRow(props: {
 function Folder(props: {
   node: FolderNode; depth: number; selected: string; selectedFolder: string; marked: Record<string, true>;
   onSelect: (s: SessionNode) => void; onSelectFolder: (f: FolderNode) => void; onToggleMark: (id: string) => void;
+  onFolderCtx: (node: FolderNode, x: number, y: number) => void;
 }) {
-  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark } = props;
+  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx } = props;
   const [open, setOpen] = useState(depth < 2);
   return (
     <div>
       <div class={"row folder" + (node.id === selectedFolder ? " selected" : "")} style={{ paddingLeft: `${depth * 14}px` }}
-        onClick={() => onSelectFolder(node)}>
+        onClick={() => onSelectFolder(node)}
+        onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onFolderCtx(node, e.clientX, e.clientY); }}>
         <span class="twist" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{open ? "\u25be" : "\u25b8"}</span>
         <span class="fname">{node.name}</span>
       </div>
@@ -93,7 +95,7 @@ function Folder(props: {
       ))}
       {open && (node.folders ?? []).map((c) => (
         <Folder key={c.id} node={c} depth={depth + 1} selected={selected} selectedFolder={selectedFolder}
-          marked={marked} onSelect={onSelect} onSelectFolder={onSelectFolder} onToggleMark={onToggleMark} />
+          marked={marked} onSelect={onSelect} onSelectFolder={onSelectFolder} onToggleMark={onToggleMark} onFolderCtx={onFolderCtx} />
       ))}
     </div>
   );
@@ -721,6 +723,117 @@ function MultiSendModal(props: {
   );
 }
 
+type ImportState = { folderId: string; dto: SourceDTO; secret: string; test: TestResult | null; testing: boolean; err: string };
+
+function FolderCtxMenu(props: {
+  x: number; y: number; hasSource: boolean;
+  onImport: () => void; onRefresh: () => void; onClear: () => void;
+}) {
+  return (
+    <div class="ctxmenu" style={{ left: `${props.x}px`, top: `${props.y}px` }} onClick={(e) => e.stopPropagation()}>
+      <div class="mitem" onClick={props.onImport}>{props.hasSource ? "edit import source\u2026" : "import source\u2026"}</div>
+      {props.hasSource && <div class="mitem" onClick={props.onRefresh}>refresh source</div>}
+      {props.hasSource && <div class="mitem danger" onClick={props.onClear}>clear source</div>}
+    </div>
+  );
+}
+
+function ImportSourceModal(props: {
+  st: ImportState;
+  onChange: (patch: Partial<ImportState>) => void;
+  onDTO: (patch: Partial<SourceDTO>) => void;
+  onTest: () => void; onSave: () => void; onClose: () => void;
+}) {
+  const { st, onChange, onDTO, onTest, onSave, onClose } = props;
+  const dto = st.dto;
+  const httpsOk = /^https:\/\/.+/.test(dto.url);
+  const fm = dto.fieldMap ?? {};
+  const mappedOk = dto.format !== "mapped" || Object.keys(fm).length > 0;
+  const secretOk = dto.auth === "none" || st.secret !== "" || dto.hasSecret;
+  const canSave = httpsOk && mappedOk && secretOk;
+  const secretLabel = dto.auth === "basic" ? "user:password" : dto.auth === "mtls" ? "cert+key PEM" : "token";
+  return (
+    <div class="modal-overlay">
+      <div class="modal import-src">
+        <h2>import source</h2>
+        <div class="formrow"><label>URL</label><input placeholder="https://netbox.example/api/dcim/devices/" value={dto.url} onInput={(e) => onDTO({ url: (e.target as HTMLInputElement).value })} /></div>
+        {!httpsOk && dto.url !== "" && <div class="imp-warn">URL must start with https://</div>}
+        <div class="formrow"><label>format</label>
+          <select value={dto.format} onChange={(e) => onDTO({ format: (e.target as HTMLSelectElement).value })}>
+            <option value="f9-native">f9-native</option>
+            <option value="netbox">NetBox</option>
+            <option value="mapped">mapped JSON</option>
+          </select>
+        </div>
+        <div class="formrow"><label>reconcile by</label>
+          <select value={dto.reconcileBy} onChange={(e) => onDTO({ reconcileBy: (e.target as HTMLSelectElement).value })}>
+            <option value="hostname">hostname</option>
+            <option value="externalId">external id</option>
+          </select>
+        </div>
+        <div class="formrow"><label>auth</label>
+          <select value={dto.auth} onChange={(e) => onDTO({ auth: (e.target as HTMLSelectElement).value })}>
+            <option value="none">none</option>
+            <option value="bearer">bearer / token header</option>
+            <option value="basic">HTTP basic</option>
+            <option value="mtls">mTLS client cert</option>
+          </select>
+        </div>
+        {dto.auth === "bearer" && (
+          <div class="formrow"><label>header</label><input placeholder="Authorization (blank = Bearer <token>)" value={dto.header} onInput={(e) => onDTO({ header: (e.target as HTMLInputElement).value })} /></div>
+        )}
+        {dto.auth !== "none" && (dto.auth === "mtls"
+          ? <div class="formrow"><label>{secretLabel}</label><textarea class="imp-pem" placeholder={dto.hasSecret ? "(stored, leave blank to keep)" : "-----BEGIN CERTIFICATE-----\n...\n-----BEGIN EC PRIVATE KEY-----\n..."} value={st.secret} onInput={(e) => onChange({ secret: (e.target as HTMLTextAreaElement).value })} /></div>
+          : <div class="formrow"><label>{secretLabel}</label><input type="password" placeholder={dto.hasSecret ? "(stored, leave blank to keep)" : ""} value={st.secret} onInput={(e) => onChange({ secret: (e.target as HTMLInputElement).value })} /></div>
+        )}
+        {dto.format === "mapped" && (
+          <div class="imp-map">
+            <div class="imp-maphead">field map (f9 field {"\u2190"} source key)</div>
+            {["name", "host", "port", "user", "proto", "externalId"].map((f) => (
+              <div class="formrow" key={f}><label>{f}</label><input placeholder={"source key for " + f} value={fm[f] ?? ""}
+                onInput={(e) => { const next = { ...fm }; const v = (e.target as HTMLInputElement).value; if (v) next[f] = v; else delete next[f]; onDTO({ fieldMap: next }); }} /></div>
+            ))}
+          </div>
+        )}
+        <label class="checkrow"><input type="checkbox" checked={dto.insecure} onChange={(e) => onDTO({ insecure: (e.target as HTMLInputElement).checked })} /> skip TLS verification (lab / self-signed only)</label>
+        <div class="imp-actions">
+          <button onClick={onTest} disabled={!httpsOk || st.testing}>{st.testing ? "testing\u2026" : "test connection"}</button>
+          {st.test && (st.test.ok
+            ? <span class="imp-ok">ok {"\u2014"} {st.test.count} session{st.test.count === 1 ? "" : "s"}{(st.test.sample ?? []).length > 0 ? ": " + (st.test.sample ?? []).join(", ") : ""}</span>
+            : <span class="imp-err">{st.test.error}</span>)}
+        </div>
+        {st.err && <div class="imp-err">{st.err}</div>}
+        <div class="modal-actions">
+          <button onClick={onClose}>close</button>
+          <button class="primary" onClick={onSave} disabled={!canSave}>save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CredPromptModal(props: { mode: "create" | "unlock"; err: string; onSubmit: (pass: string) => void; onCancel: () => void }) {
+  const [pass, setPass] = useState("");
+  return (
+    <div class="modal-overlay">
+      <div class="modal">
+        <h2>{props.mode === "create" ? "set credential passphrase" : "unlock credentials"}</h2>
+        <div class="imp-note">{props.mode === "create"
+          ? "encrypts stored source credentials at rest; it is never saved anywhere."
+          : "unlocks stored source credentials for this session."}</div>
+        <div class="formrow"><input type="password" autoFocus value={pass}
+          onInput={(e) => setPass((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && pass) props.onSubmit(pass); }} /></div>
+        {props.err && <div class="imp-err">{props.err}</div>}
+        <div class="modal-actions">
+          <button onClick={props.onCancel}>cancel</button>
+          <button class="primary" disabled={pass === ""} onClick={() => props.onSubmit(pass)}>{props.mode === "create" ? "set" : "unlock"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function App() {
   const [tree, setTree] = useState<FolderNode | null>(null);
   const [err, setErr] = useState("");
@@ -742,6 +855,10 @@ export function App() {
   const [tabCfg, setTabCfg] = useState<Record<string, TabCfg>>({});
   const [defInd, setDefInd] = useState<DefInd>({ output: true, prompt: true, match: true });
   const [ctxMenu, setCtxMenu] = useState<{ termId: string; x: number; y: number } | null>(null);
+  const [folderCtx, setFolderCtx] = useState<{ node: FolderNode; x: number; y: number } | null>(null);
+  const [imp, setImp] = useState<ImportState | null>(null);
+  const [credPrompt, setCredPrompt] = useState<{ mode: "create" | "unlock"; run: () => void } | null>(null);
+  const [credErr, setCredErr] = useState("");
   const [themeList, setThemeList] = useState<string[]>([]);
   const [settings, setSettings] = useState<UISettings>(EMPTY_SETTINGS);
   const [settingsModal, setSettingsModal] = useState(false);
@@ -793,6 +910,61 @@ export function App() {
   useEffect(() => { defIndRef.current = defInd; }, [defInd]);
 
   const load = () => api().Tree().then((t) => { setTree(t); if (!selFolder) setSelFolder({ id: t.id, path: t.path }); }).catch((e) => setErr(String(e)));
+
+  const openFolderCtx = (node: FolderNode, x: number, y: number) => setFolderCtx({ node, x, y });
+  const blankDTO = (): SourceDTO => ({ url: "", format: "f9-native", auth: "none", header: "", reconcileBy: "hostname", insecure: false, fieldMap: {}, hasSecret: false });
+  const openImport = (folderId: string) => {
+    setFolderCtx(null);
+    api().FolderSourceGet(folderId).then((got) => {
+      const dto = got ?? blankDTO();
+      setImp({ folderId, dto: { ...dto, fieldMap: dto.fieldMap ?? {} }, secret: "", test: null, testing: false, err: "" });
+    }).catch((e) => setErr(String(e)));
+  };
+  const testImport = () => {
+    const s = imp;
+    if (!s) return;
+    setImp((cur) => cur ? { ...cur, testing: true, test: null, err: "" } : cur);
+    api().FolderSourceTest(s.folderId, s.dto, s.secret)
+      .then((tr) => setImp((cur) => cur ? { ...cur, testing: false, test: tr } : cur))
+      .catch((e) => setImp((cur) => cur ? { ...cur, testing: false, err: String(e) } : cur));
+  };
+  const doSaveImport = () => {
+    const s = imp;
+    if (!s) return;
+    const finish = () => api().FolderSourceSet(s.folderId, s.dto, s.secret)
+      .then(() => { setImp(null); load(); })
+      .catch((e) => setImp((cur) => cur ? { ...cur, err: String(e) } : cur));
+    if (s.dto.auth !== "none" && s.secret !== "") {
+      api().CredStatus().then((cs) => {
+        if (!cs.initialized) { setCredErr(""); setCredPrompt({ mode: "create", run: finish }); return; }
+        if (cs.locked) { setCredErr(""); setCredPrompt({ mode: "unlock", run: finish }); return; }
+        finish();
+      }).catch((e) => setImp((cur) => cur ? { ...cur, err: String(e) } : cur));
+    } else {
+      finish();
+    }
+  };
+  const refreshFolder = (folderId: string) => {
+    setFolderCtx(null);
+    const finish = () => api().FolderSourceRefresh(folderId).then((rr) => {
+      if (rr.error) {
+        if (rr.error.toLowerCase().includes("unlock")) { setCredErr(""); setCredPrompt({ mode: "unlock", run: finish }); return; }
+        setErr(rr.error); return;
+      }
+      load();
+    }).catch((e) => setErr(String(e)));
+    finish();
+  };
+  const clearImport = (folderId: string) => {
+    setFolderCtx(null);
+    api().FolderSourceClear(folderId).then(() => load()).catch((e) => setErr(String(e)));
+  };
+  const submitCredPrompt = (pass: string) => {
+    const cp = credPrompt;
+    if (!cp) return;
+    const p = cp.mode === "create" ? api().CredSetPassphrase(pass) : api().CredUnlock(pass);
+    p.then(() => { setCredPrompt(null); setCredErr(""); cp.run(); }).catch((e) => setCredErr(String(e)));
+  };
   const refreshConns = () => api().ActiveConnections().then(setConns).catch(() => {});
   const refreshPinned = () => api().PinnedSessions().then((p) => setPinned(p ?? [])).catch(() => {});
 
@@ -1151,7 +1323,7 @@ export function App() {
           <button class="tb-btn tb-close" title="close" onClick={() => window.runtime.Quit?.()}>{"\u2715"}</button>
         </div>
       </div>
-      <div class="layout" onClick={() => { if (ctxMenu) setCtxMenu(null); }}>
+      <div class="layout" onClick={() => { if (ctxMenu) setCtxMenu(null); if (folderCtx) setFolderCtx(null); }}>
       <div class="sidebar">
         <div class="toolbar">
           <button onClick={() => setModal("session-new")} disabled={!selFolder}>+ session</button>
@@ -1175,7 +1347,7 @@ export function App() {
               ))
           ) : (
             tree && <Folder node={tree} depth={0} selected={sel?.id ?? ""} selectedFolder={selFolder?.id ?? ""} marked={marked}
-              onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} />
+              onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} onFolderCtx={openFolderCtx} />
           )}
         </div>
         {conns.length > 0 && (
@@ -1312,6 +1484,22 @@ export function App() {
               onInput={(e) => setCfg(ctxMenu.termId, { watch: (e.target as HTMLInputElement).value })} />
           </div>
         </div>
+      )}
+      {folderCtx && (
+        <FolderCtxMenu x={folderCtx.x} y={folderCtx.y} hasSource={folderCtx.node.hasSource}
+          onImport={() => openImport(folderCtx.node.id)}
+          onRefresh={() => refreshFolder(folderCtx.node.id)}
+          onClear={() => clearImport(folderCtx.node.id)} />
+      )}
+      {imp && (
+        <ImportSourceModal st={imp}
+          onChange={(patch) => setImp((c) => c ? { ...c, ...patch } : c)}
+          onDTO={(patch) => setImp((c) => c ? { ...c, dto: { ...c.dto, ...patch } } : c)}
+          onTest={testImport} onSave={doSaveImport} onClose={() => setImp(null)} />
+      )}
+      {credPrompt && (
+        <CredPromptModal mode={credPrompt.mode} err={credErr}
+          onSubmit={submitCredPrompt} onCancel={() => { setCredPrompt(null); setCredErr(""); }} />
       )}
 
       {modal === "session-new" && selFolder && <SessionModal folder={selFolder} detail={null} onClose={() => setModal("")} onSaved={afterMutation} />}

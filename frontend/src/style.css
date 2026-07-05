@@ -509,3 +509,22 @@ select, input, textarea, option { color-scheme: dark; }
 .ms-confirm .danger { border-color: var(--danger); color: var(--danger); }
 .ms-row.clickable { cursor: pointer; }
 .ms-row.clickable:hover { background: var(--bg); }
+
+/* --- 07c-2b: import source UI --- */
+.mitem { padding: 6px 14px; cursor: pointer; color: var(--fg); font-size: 13px; white-space: nowrap; }
+.mitem:hover { background: var(--bg); }
+.mitem.danger { color: var(--danger); }
+.import-src { width: 560px; max-width: 94vw; max-height: 82vh; overflow-y: auto; }
+.import-src .formrow { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+.import-src .formrow label { width: 96px; flex: none; color: var(--folder-fg); font-size: 12px; text-align: right; }
+.import-src .formrow input, .import-src .formrow select, .import-src .formrow textarea { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 5px 8px; outline: none; }
+.import-src .formrow input:focus, .import-src .formrow textarea:focus, .import-src .formrow select:focus { border-color: var(--accent); }
+.imp-pem { min-height: 92px; resize: vertical; font-family: var(--font-mono); font-size: 11px; }
+.imp-map { border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; margin: 8px 0; }
+.imp-maphead { color: var(--folder-fg); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.imp-warn { color: #d29922; font-size: 11px; margin: 2px 0 6px 106px; }
+.imp-actions { display: flex; align-items: center; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+.imp-actions button { background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 5px 12px; cursor: pointer; }
+.imp-ok { color: #2ea043; font-size: 12px; }
+.imp-err { color: var(--danger); font-size: 12px; }
+.imp-note { color: var(--folder-fg); font-size: 12px; margin-bottom: 8px; }
