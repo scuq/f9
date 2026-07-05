@@ -84,12 +84,12 @@ jobs:
 
       - name: Build (linux)
         if: matrix.os == 'linux'
-        run: wails build -s -tags webkit2_41 -platform linux/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
+        run: wails build -s -tags gui,webkit2_41 -platform linux/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
 
       - name: Build (windows / macos)
         if: matrix.os != 'linux'
         shell: bash
-        run: wails build -s -platform ${{ matrix.os }}/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
+        run: wails build -s -tags gui -platform ${{ matrix.os }}/${{ matrix.arch }} -ldflags "-X github.com/scuq/f9/internal/app.Version=${{ steps.ver.outputs.version }}"
 
       - name: Package (unix)
         if: matrix.os != 'windows'
