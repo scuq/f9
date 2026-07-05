@@ -10,11 +10,13 @@ import (
 	"embed"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 
 	"github.com/scuq/f9/internal/app"
 )
@@ -24,6 +26,20 @@ var assets embed.FS
 
 //go:embed build/appicon.png
 var appIcon []byte
+
+// webviewDataPath picks where WebView2 stores its user data on Windows. The
+// default %APPDATA%\\f9-gui.exe path is often blocked by locked-down AV/EDR, so
+// f9 (a portable single-exe) defaults to a folder next to the executable,
+// overridable via the F9_WEBVIEW_DATA environment variable. Ignored elsewhere.
+func webviewDataPath() string {
+	if p := os.Getenv("F9_WEBVIEW_DATA"); p != "" {
+		return p
+	}
+	if exe, err := os.Executable(); err == nil {
+		return filepath.Join(filepath.Dir(exe), "f9-webview2")
+	}
+	return ""
+}
 
 func main() {
 	// WebKitGTK renders blurry through the DMABUF path on virtio/VM GPUs;
@@ -47,6 +63,9 @@ func main() {
 		Bind:             []interface{}{a},
 		Linux: &linux.Options{
 			Icon: appIcon,
+		},
+		Windows: &windows.Options{
+			WebviewUserDataPath: webviewDataPath(),
 		},
 	})
 	if err != nil {
