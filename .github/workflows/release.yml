@@ -99,7 +99,9 @@ jobs:
           if [ "${{ matrix.os }}" = "linux" ]; then
             tar czf "f9-$V-${{ matrix.name }}.tar.gz" -C build/bin f9-gui
           else
-            ditto -c -k --keepParent build/bin/f9-gui.app "f9-$V-${{ matrix.name }}.zip"
+            app=$(ls -d build/bin/*.app 2>/dev/null | head -1)
+            if [ -z "$app" ]; then echo "no .app bundle in build/bin:"; ls -la build/bin; exit 1; fi
+            ditto -c -k --keepParent "$app" "f9-$V-${{ matrix.name }}.zip"
           fi
 
       - name: Package (windows)
