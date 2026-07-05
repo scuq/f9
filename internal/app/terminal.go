@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/scuq/f9/internal/osdetect"
@@ -25,6 +26,8 @@ type terminal struct {
 	sessionID string
 	session   sshx.Session
 	sb        scrollback.Buffer
+
+	closing atomic.Bool
 
 	mu       sync.Mutex
 	promptRe *regexp.Regexp
@@ -118,7 +121,7 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 		delete(a.terms, termID)
 		a.tmu.Unlock()
 		t.sb.Close()
-		a.emitEvent("f9:termclosed", termID)
+		a.emitEvent("f9:termclosed", map[string]interface{}{"termId": termID, "died": !t.closing.Load()})
 	}()
 	return nil
 }
@@ -190,6 +193,7 @@ func (a *App) CloseTerminal(termID string) {
 	delete(a.terms, termID)
 	a.tmu.Unlock()
 	if ok {
+		t.closing.Store(true)
 		_ = t.session.Close()
 		t.sb.Close()
 	}

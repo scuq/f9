@@ -61,6 +61,9 @@ type Client interface {
 	// ServerVersion returns the SSH server version string (osdetect evidence).
 	// For shell-hop clients this is the hop's version, not the target's.
 	ServerVersion() string
+	// Wait blocks until the underlying connection closes (server death,
+	// keepalive failure, or Close), returning the reason if any.
+	Wait() error
 	Close() error
 }
 

@@ -59,7 +59,12 @@ func (c *fakeTermClient) NewSession(context.Context, string, int, int) (sshx.Ses
 	return c.sess, nil
 }
 func (c *fakeTermClient) ServerVersion() string { return "SSH-2.0-fake" }
-func (c *fakeTermClient) Close() error          { return nil }
+func (c *fakeTermClient) Wait() error {
+	var never chan struct{}
+	<-never // block forever; client death isn't exercised in these tests
+	return nil
+}
+func (c *fakeTermClient) Close() error { return nil }
 
 func setupConnectedTerminal(t *testing.T) (*App, string, *fakeSession) {
 	t.Helper()
@@ -117,8 +122,10 @@ func TestTerminalLifecycle(t *testing.T) {
 		if ev == "f9:term:T1" {
 			emitted = append(emitted, data.(string))
 		}
-		if ev == "f9:termclosed" && data.(string) == "T1" {
-			closed++
+		if ev == "f9:termclosed" {
+			if mm, ok := data.(map[string]interface{}); ok && mm["termId"] == "T1" {
+				closed++
+			}
 		}
 	}
 	if err := a.OpenTerminal("T1", id, 80, 24); err != nil {

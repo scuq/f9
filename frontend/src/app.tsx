@@ -918,6 +918,7 @@ export function App() {
   const [ver, setVer] = useState("");
   const [modal, setModal] = useState<"" | "session-new" | "session-edit" | "folder">("");
   const [tabs, setTabs] = useState<Tab[]>([]);
+  const [dead, setDead] = useState<Set<string>>(new Set());
   const [view, setView] = useState<View>({ kind: "empty", id: "" });
   const [pinned, setPinned] = useState<SessionNode[]>([]);
   const [pendingOpen, setPendingOpen] = useState<{ id: string; name: string }[]>([]);
@@ -1053,7 +1054,14 @@ export function App() {
 
     const offC = window.runtime.EventsOn("f9:conns", () => refreshConns());
     const offP = window.runtime.EventsOn("f9:prompt", (req: PromptRequest) => setPromptQ((qs) => [...qs, req]));
-    const offT = window.runtime.EventsOn("f9:termclosed", (termId: string) => {
+    const offT = window.runtime.EventsOn("f9:termclosed", (ev: { termId: string; died: boolean }) => {
+      const termId = ev.termId;
+      if (ev.died) {
+        // Unexpected disconnect: keep the tab and its scrollback, just mark it
+        // disconnected (red bar). The user closes it explicitly when done.
+        setDead((d) => { const n = new Set(d); n.add(termId); return n; });
+        return;
+      }
       setTabs((t) => t.filter((x) => x.termId !== termId));
       setView((v) => (v.kind === "term" && v.id === termId ? { kind: "empty", id: "" } : v));
       setActivity((a) => { if (!a[termId]) return a; const n = { ...a }; delete n[termId]; return n; });
@@ -1198,6 +1206,7 @@ export function App() {
   };
   const closeTab = (termId: string) => {
     api().CloseTerminal(termId).catch(() => {});
+    setDead((d) => { if (!d.has(termId)) return d; const n = new Set(d); n.delete(termId); return n; });
     setTabs((t) => t.filter((x) => x.termId !== termId));
     setView((v) => (v.kind === "term" && v.id === termId ? { kind: "empty", id: "" } : v));
     setActivity((a) => { if (!a[termId]) return a; const n = { ...a }; delete n[termId]; return n; });
@@ -1454,9 +1463,10 @@ export function App() {
         {displayTabs.length > 0 && (
           <div class="tabstrip">
             {displayTabs.map((d) => d.type === "term" ? (
-              <div key={d.tab.termId} class={"tab" + (view.kind === "term" && view.id === d.tab.termId ? " active" : "")}
+              <div key={d.tab.termId} class={"tab" + (view.kind === "term" && view.id === d.tab.termId ? " active" : "") + (dead.has(d.tab.termId) ? " down" : "")}
                 onClick={() => activateTerm(d.tab.termId)}
                 onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ termId: d.tab.termId, x: e.clientX, y: e.clientY }); }}>
+                <span class={"tabconn " + (dead.has(d.tab.termId) ? "down" : "up")} title={dead.has(d.tab.termId) ? "disconnected" : "connected"} />
                 {(() => { const dc = dotClass(activity[d.tab.termId]); return dc ? <span class={"actdot " + dc} /> : null; })()}
                 {settings.showMultiSend && (
                   <span class={"tabmark" + (marks.has(d.tab.termId) ? " on" : "")} title="mark for multi-send"

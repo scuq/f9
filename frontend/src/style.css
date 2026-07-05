@@ -555,3 +555,9 @@ select, input, textarea, option { color-scheme: dark; }
 
 /* --- ssh agent endpoints --- */
 .ssh-ep { margin: 6px 0; padding-left: 8px; border-left: 2px solid var(--border); }
+
+/* --- per-tab connection state bar (green=connected, red=disconnected) --- */
+.tab .tabconn { width: 3px; align-self: stretch; border-radius: 2px; margin-right: 4px; flex: none; }
+.tab .tabconn.up { background: var(--accent); }
+.tab .tabconn.down { background: var(--danger); }
+.tab.down .tabname { opacity: 0.6; }

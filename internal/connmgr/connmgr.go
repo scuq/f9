@@ -151,6 +151,25 @@ func (m *Manager) settle(id string, client sshx.Client, err error) {
 	}
 	m.mu.Unlock()
 	m.onChange()
+	if err == nil && client != nil {
+		go m.watch(id, client)
+	}
+}
+
+// watch blocks until the client's connection closes (server death, keepalive
+// failure) and then removes the entry, mirroring an explicit Disconnect. If the
+// entry was already removed (user disconnect) or replaced, it does nothing.
+func (m *Manager) watch(id string, client sshx.Client) {
+	_ = client.Wait()
+	m.mu.Lock()
+	e, ok := m.conns[id]
+	if !ok || e.client != client {
+		m.mu.Unlock()
+		return
+	}
+	delete(m.conns, id)
+	m.mu.Unlock()
+	m.onChange()
 }
 
 // Active returns a snapshot of all tracked connections, oldest first.

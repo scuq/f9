@@ -11,13 +11,60 @@ import (
 	"github.com/scuq/f9/internal/sshx"
 )
 
-type fakeClient struct{ closed atomic.Bool }
+type fakeClient struct {
+	closed atomic.Bool
+	mu     sync.Mutex
+	done   chan struct{}
+}
 
 func (f *fakeClient) NewSession(_ context.Context, _ string, _, _ int) (sshx.Session, error) {
 	return nil, nil
 }
 func (f *fakeClient) ServerVersion() string { return "SSH-2.0-fake" }
-func (f *fakeClient) Close() error          { f.closed.Store(true); return nil }
+func (f *fakeClient) Wait() error {
+	f.mu.Lock()
+	if f.done == nil {
+		f.done = make(chan struct{})
+	}
+	ch := f.done
+	f.mu.Unlock()
+	<-ch
+	return nil
+}
+func (f *fakeClient) Close() error {
+	f.closed.Store(true)
+	f.mu.Lock()
+	if f.done == nil {
+		f.done = make(chan struct{})
+	}
+	select {
+	case <-f.done:
+	default:
+		close(f.done)
+	}
+	f.mu.Unlock()
+	return nil
+}
+
+func TestWatchRemovesOnClientDeath(t *testing.T) {
+	fc := &fakeClient{}
+	dial := func(_ context.Context, _ string, _ int, _ string, _ sshx.Prompter, _ sshx.DialOpts) (sshx.Client, error) {
+		return fc, nil
+	}
+	m := New(0, dial, func() {})
+	<-m.ConnectBatch(context.Background(), []Target{{SessionID: "s1", Host: "h"}}, nil)
+	if len(m.Active()) != 1 {
+		t.Fatalf("want 1 active, got %d", len(m.Active()))
+	}
+	fc.Close() // simulate host death -> Wait() returns
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) && len(m.Active()) != 0 {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if n := len(m.Active()); n != 0 {
+		t.Fatalf("dead connection should be removed, got %d", n)
+	}
+}
 
 func targets(n int) []Target {
 	out := make([]Target, n)

@@ -81,7 +81,12 @@ func (fakeGUIClient) NewSession(_ context.Context, _ string, _, _ int) (sshx.Ses
 	return nil, nil
 }
 func (fakeGUIClient) ServerVersion() string { return "SSH-2.0-fake" }
-func (fakeGUIClient) Close() error          { return nil }
+func (fakeGUIClient) Wait() error {
+	var never chan struct{}
+	<-never // block forever; this fake connection never dies on its own
+	return nil
+}
+func (fakeGUIClient) Close() error { return nil }
 
 // TestConnectSessionsSharedPassword drives the full app path: a fake dial that
 // invokes the batch prompter, an onEmit hook that auto-answers with
