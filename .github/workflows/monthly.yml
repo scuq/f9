@@ -1,0 +1,41 @@
+name: monthly
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"   # 1st of every month, 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  compute:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.next.outputs.version }}
+    steps:
+      - name: Compute next patch version
+        id: next
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if latest=$(gh api "repos/${{ github.repository }}/releases/latest" --jq .tag_name 2>/dev/null); then
+            v="${latest#v}"
+            IFS=. read -r maj min pat <<< "$v"
+            next="${maj}.${min}.$((pat + 1))"
+          else
+            next="1.0.0"   # no release yet
+          fi
+          echo "next version: $next"
+          echo "version=$next" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: compute
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.compute.outputs.version }}
+    permissions:
+      contents: write
+    secrets: inherit
