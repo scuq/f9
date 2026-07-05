@@ -12,12 +12,10 @@ import (
 // (lazy, passphrase via Prompter), password callback, keyboard-interactive.
 // Nothing is persisted (ADR-0005); prompts fire only if the server offers the
 // method and earlier methods failed.
-func buildAuth(user, host string, keyFiles []string, useAgent bool, p Prompter) []ssh.AuthMethod {
+func buildAuth(user, host string, keyFiles []string, agentSockets []string, p Prompter) []ssh.AuthMethod {
 	var methods []ssh.AuthMethod
-	if useAgent {
-		if sig := agentSigners(); sig != nil {
-			methods = append(methods, ssh.PublicKeysCallback(sig))
-		}
+	for _, sock := range agentSockets {
+		methods = append(methods, ssh.PublicKeysCallback(agentSignersFor(sock)))
 	}
 	methods = append(methods, ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
 		return loadKeySigners(keyFiles, p)

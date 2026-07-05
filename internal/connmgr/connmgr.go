@@ -22,15 +22,16 @@ const (
 
 // Target is a resolved session ready to dial.
 type Target struct {
-	SessionID string
-	Name      string
-	Host      string
-	Port      int
-	User      string
-	JumpChain []sshx.Hop
-	Keepalive time.Duration
-	KeyFiles  []string
-	NoAgent   bool
+	SessionID    string
+	Name         string
+	Host         string
+	Port         int
+	User         string
+	JumpChain    []sshx.Hop
+	Keepalive    time.Duration
+	KeyFiles     []string
+	NoAgent      bool
+	AgentSockets []string
 }
 
 // Conn is the UI-facing snapshot of one connection.
@@ -120,6 +121,7 @@ func (m *Manager) ConnectBatch(ctx context.Context, targets []Target, p sshx.Pro
 				JumpChain:         t.JumpChain,
 				KeyFiles:          t.KeyFiles,
 				NoAgent:           t.NoAgent,
+				AgentSockets:      t.AgentSockets,
 			})
 			m.settle(t.SessionID, client, err)
 		}(t)

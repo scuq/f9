@@ -31,6 +31,7 @@ type UISettings struct {
 	ShowMultiSend bool     `yaml:"show_multisend,omitempty" json:"showMultiSend"`
 	KeyFiles      []string `yaml:"key_files,omitempty" json:"keyFiles"`
 	DisableAgent  bool     `yaml:"disable_agent,omitempty" json:"disableAgent"`
+	AgentSockets  []string `yaml:"agent_sockets,omitempty" json:"agentSockets"`
 }
 
 func (a *App) Themes() []string {

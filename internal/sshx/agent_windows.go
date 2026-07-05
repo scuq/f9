@@ -2,17 +2,26 @@
 
 package sshx
 
-import "golang.org/x/crypto/ssh"
+import (
+	"errors"
 
-// agentSigners on Windows: the OpenSSH agent listens on the named pipe
-// \\.\pipe\openssh-ssh-agent, which requires go-winio to dial.
-// TODO(00c follow-up): add go-winio-backed agent support. Until then key
-// files and interactive auth work; agent auth is simply skipped.
-func agentSigners() func() ([]ssh.Signer, error) { return nil }
+	"golang.org/x/crypto/ssh"
+)
 
-// AgentAvailable reports agent availability. Windows agent support is not yet
-// implemented (see agentSigners), so this is always false.
-func AgentAvailable() (bool, string) { return false, "" }
+// errAgentUnsupported: the Windows OpenSSH agent uses a named pipe, which needs
+// go-winio to dial. Until that lands, agent auth is unavailable on Windows.
+var errAgentUnsupported = errors.New("ssh-agent not supported on Windows")
 
-// AgentKeys lists agent keys; empty on Windows until named-pipe support lands.
-func AgentKeys() ([]AgentKey, error) { return nil, nil }
+func agentSignersFor(_ string) func() ([]ssh.Signer, error) {
+	return func() ([]ssh.Signer, error) { return nil, errAgentUnsupported }
+}
+
+// AgentEndpoints reports configured sockets as unavailable on Windows.
+func AgentEndpoints(configured []string) []AgentEndpoint {
+	sockets := resolveAgentSockets(configured)
+	out := make([]AgentEndpoint, 0, len(sockets))
+	for _, sock := range sockets {
+		out = append(out, AgentEndpoint{Socket: sock, Keys: []AgentKey{}, Error: "ssh-agent not supported on Windows yet"})
+	}
+	return out
+}

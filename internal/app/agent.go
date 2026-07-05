@@ -2,29 +2,19 @@ package app
 
 import "github.com/scuq/f9/internal/sshx"
 
-// AgentStatus reports ssh-agent availability and its loaded keys.
+// AgentStatus reports the ssh-agent endpoints (configured sockets, or
+// SSH_AUTH_SOCK) and the keys each holds.
 type AgentStatus struct {
-	Available bool            `json:"available"`
-	Socket    string          `json:"socket"`
-	Keys      []sshx.AgentKey `json:"keys"`
-	Error     string          `json:"error"`
+	Endpoints []sshx.AgentEndpoint `json:"endpoints"`
 }
 
-// SSHAgentStatus returns the current ssh-agent status and loaded keys. Safe to
-// call any time; a missing/unreachable agent yields Available=false, not an error.
+// SSHAgentStatus returns the status of each configured agent socket. Safe to
+// call any time; unreachable sockets are reported, not raised as errors.
 func (a *App) SSHAgentStatus() AgentStatus {
-	avail, sock := sshx.AgentAvailable()
-	st := AgentStatus{Available: avail, Socket: sock, Keys: []sshx.AgentKey{}}
-	if !avail {
-		return st
+	gs := a.Settings()
+	eps := sshx.AgentEndpoints(gs.AgentSockets)
+	if eps == nil {
+		eps = []sshx.AgentEndpoint{}
 	}
-	keys, err := sshx.AgentKeys()
-	if err != nil {
-		st.Error = err.Error()
-		return st
-	}
-	if keys != nil {
-		st.Keys = keys
-	}
-	return st
+	return AgentStatus{Endpoints: eps}
 }

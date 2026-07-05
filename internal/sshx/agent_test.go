@@ -12,7 +12,7 @@ import (
 	"golang.org/x/crypto/ssh/agent"
 )
 
-func TestAgentAvailableAndKeys(t *testing.T) {
+func TestAgentEndpoints(t *testing.T) {
 	dir := t.TempDir()
 	sock := filepath.Join(dir, "agent.sock")
 	ln, err := net.Listen("unix", sock)
@@ -39,28 +39,27 @@ func TestAgentAvailableAndKeys(t *testing.T) {
 		}
 	}()
 
-	t.Setenv("SSH_AUTH_SOCK", sock)
+	eps := AgentEndpoints([]string{sock})
+	if len(eps) != 1 || !eps[0].Available || len(eps[0].Keys) != 1 || eps[0].Keys[0].Comment != "test@f9" {
+		t.Fatalf("endpoints = %+v", eps)
+	}
 
-	avail, gotSock := AgentAvailable()
-	if !avail || gotSock != sock {
-		t.Fatalf("AgentAvailable() = %v, %q", avail, gotSock)
-	}
-	keys, err := AgentKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(keys) != 1 || keys[0].Comment != "test@f9" || keys[0].Fingerprint == "" {
-		t.Fatalf("keys = %+v", keys)
+	bad := AgentEndpoints([]string{filepath.Join(dir, "nope.sock")})
+	if len(bad) != 1 || bad[0].Available || bad[0].Error == "" {
+		t.Fatalf("bad endpoint = %+v", bad)
 	}
 }
 
-func TestAgentUnavailable(t *testing.T) {
-	t.Setenv("SSH_AUTH_SOCK", "")
-	if avail, _ := AgentAvailable(); avail {
-		t.Fatal("expected unavailable with empty SSH_AUTH_SOCK")
+func TestResolveAgentSockets(t *testing.T) {
+	t.Setenv("SSH_AUTH_SOCK", "/env/sock")
+	if got := resolveAgentSockets([]string{"/a", "", "/b"}); len(got) != 2 || got[0] != "/a" || got[1] != "/b" {
+		t.Fatalf("configured wins: %+v", got)
 	}
-	keys, err := AgentKeys()
-	if err != nil || keys != nil {
-		t.Fatalf("keys=%v err=%v", keys, err)
+	if got := resolveAgentSockets(nil); len(got) != 1 || got[0] != "/env/sock" {
+		t.Fatalf("env fallback: %+v", got)
+	}
+	t.Setenv("SSH_AUTH_SOCK", "")
+	if got := resolveAgentSockets(nil); got != nil {
+		t.Fatalf("no agent: %+v", got)
 	}
 }

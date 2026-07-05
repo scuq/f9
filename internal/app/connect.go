@@ -191,9 +191,10 @@ func (a *App) ConnectSessions(ids []string) error {
 		}
 		t := connmgr.Target{
 			SessionID: s.ID, Name: s.Name, Host: s.Host, Port: s.Port, User: s.User,
-			Keepalive: 30 * time.Second,
-			KeyFiles:  keyFiles,
-			NoAgent:   noAgent,
+			Keepalive:    30 * time.Second,
+			KeyFiles:     keyFiles,
+			NoAgent:      noAgent,
+			AgentSockets: gs.AgentSockets,
 		}
 		if eff.KeepaliveInterval != nil {
 			t.Keepalive = *eff.KeepaliveInterval

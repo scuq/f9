@@ -39,6 +39,7 @@ type DialOpts struct {
 
 	KeyFiles       []string     // default: existing ~/.ssh/{id_ed25519,id_ecdsa,id_rsa}
 	NoAgent        bool         // skip the ssh-agent (key files / password only)
+	AgentSockets   []string     // explicit agent sockets (empty = $SSH_AUTH_SOCK)
 	KnownHostsPath string       // default: ~/.config/f9/known_hosts
 	OnBanner       func(string) // login banner tap (osdetect consumer, 00d)
 }

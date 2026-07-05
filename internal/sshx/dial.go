@@ -52,6 +52,10 @@ func Dial(ctx context.Context, host string, port int, user string, p Prompter, o
 	if keyFiles == nil {
 		keyFiles = defaultKeyFiles()
 	}
+	var agentSockets []string
+	if !o.NoAgent {
+		agentSockets = resolveAgentSockets(o.AgentSockets)
+	}
 	dialer := &net.Dialer{Timeout: o.Timeout}
 
 	connect := func(h string, prt int, usr string, via *ssh.Client) (*ssh.Client, error) {
@@ -68,7 +72,7 @@ func Dial(ctx context.Context, host string, port int, user string, p Prompter, o
 		}
 		cfg := &ssh.ClientConfig{
 			User:            usr,
-			Auth:            buildAuth(usr, addr, keyFiles, !o.NoAgent, p),
+			Auth:            buildAuth(usr, addr, keyFiles, agentSockets, p),
 			HostKeyCallback: tf.check,
 			Timeout:         o.Timeout,
 		}

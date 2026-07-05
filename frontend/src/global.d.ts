@@ -122,7 +122,7 @@ declare global {
     fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
     showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean; showSnippets: boolean;
     barVertical: boolean; barUnpinned: boolean; showMultiSend: boolean;
-    keyFiles: string[] | null; disableAgent: boolean;
+    keyFiles: string[] | null; disableAgent: boolean; agentSockets: string[] | null;
   }
   interface GrepOptsInput { invert: boolean; ignoreCase: boolean; before: number; after: number; maxMatches: number; }
   interface GrepMatch { lineNo: number; line: string; before: string[] | null; after: string[] | null; }
@@ -143,7 +143,8 @@ declare global {
   interface RefreshResult { added: number; updated: number; removed: number; error: string; }
   interface UpdateInfo { current: string; latest: string; newer: boolean; url: string; notes: string; error: string; }
   interface AgentKey { comment: string; format: string; fingerprint: string; }
-  interface AgentStatus { available: boolean; socket: string; keys: AgentKey[] | null; error: string; }
+  interface AgentEndpoint { socket: string; available: boolean; keys: AgentKey[] | null; error: string; }
+  interface AgentStatus { endpoints: AgentEndpoint[] | null; }
   interface ThemeData {
     name: string;
     ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };

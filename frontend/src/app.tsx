@@ -233,6 +233,8 @@ function SettingsModal(props: {
   useEffect(() => { refreshAgent(); }, []);
   const keyFiles = settings.keyFiles ?? [];
   const setKeyFiles = (next: string[]) => onSave({ keyFiles: next });
+  const agentSockets = settings.agentSockets ?? [];
+  const setAgentSockets = (next: string[]) => onSave({ agentSockets: next });
   return (
     <div class="modal-overlay" onClick={onClose}>
       <div class="modal settings-modal" onClick={(e) => e.stopPropagation()}>
@@ -289,22 +291,33 @@ function SettingsModal(props: {
         </div>
         <label class="checkrow"><input type="checkbox" checked={!settings.barUnpinned} onChange={(e) => onSave({ barUnpinned: !(e.target as HTMLInputElement).checked })} /> pin vertical bar (uncheck = auto-collapse)</label>
 
-        <div class="opthead">SSH agent</div>
+        <div class="opthead">SSH agent sockets</div>
+        <div class="ssh-note">GUI apps don't inherit a shell's SSH_AUTH_SOCK (macOS hands them the launchd agent). Add socket paths to point f9 at your agent(s) — e.g. gpg-agent or Secretive. Empty = use SSH_AUTH_SOCK.</div>
+        {agentSockets.map((sk, i) => (
+          <div class="formrow" key={i}>
+            <label></label>
+            <input value={sk} placeholder="/path/to/agent.sock" onInput={(e) => { const next = agentSockets.slice(); next[i] = (e.target as HTMLInputElement).value; setAgentSockets(next); }} />
+            <button class="ssh-del" onClick={() => setAgentSockets(agentSockets.filter((_, j) => j !== i))}>remove</button>
+          </div>
+        ))}
+        <div class="formrow"><label></label><button class="importbtn" onClick={() => setAgentSockets([...agentSockets, ""])}>add agent socket…</button></div>
         <div class="ssh-block">
           {agent === null
             ? <div class="ssh-note">checking…</div>
-            : agent.available
-              ? (<>
-                  <div class="ssh-note">connected · <span class="ssh-mono">{agent.socket}</span></div>
-                  {(agent.keys ?? []).length === 0
-                    ? <div class="ssh-note">no keys loaded in the agent</div>
-                    : (<ul class="ssh-keys">
-                        {(agent.keys ?? []).map((k, i) => (
-                          <li key={i}><span class="ssh-mono">{k.format}</span> {k.comment || "(no comment)"} <span class="ssh-fp">{k.fingerprint}</span></li>
-                        ))}
-                      </ul>)}
-                </>)
-              : <div class="ssh-note">not connected{agent.error ? " — " + agent.error : " (no SSH_AUTH_SOCK)"}</div>}
+            : (agent.endpoints ?? []).length === 0
+              ? <div class="ssh-note">no agent configured (no SSH_AUTH_SOCK and no sockets above)</div>
+              : (agent.endpoints ?? []).map((ep, i) => (
+                  <div class="ssh-ep" key={i}>
+                    <div class="ssh-note">{ep.available ? "connected" : "not connected"} · <span class="ssh-mono">{ep.socket}</span>{ep.error ? " — " + ep.error : ""}</div>
+                    {ep.available && ((ep.keys ?? []).length === 0
+                      ? <div class="ssh-note">no keys loaded</div>
+                      : (<ul class="ssh-keys">
+                          {(ep.keys ?? []).map((k, j) => (
+                            <li key={j}><span class="ssh-mono">{k.format}</span> {k.comment || "(no comment)"} <span class="ssh-fp">{k.fingerprint}</span></li>
+                          ))}
+                        </ul>))}
+                  </div>
+                ))}
           <button class="importbtn" onClick={refreshAgent}>refresh agent</button>
         </div>
         <label class="checkrow"><input type="checkbox" checked={!settings.disableAgent} onChange={(e) => onSave({ disableAgent: !(e.target as HTMLInputElement).checked })} /> use SSH agent when available</label>
