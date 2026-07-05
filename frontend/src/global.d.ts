@@ -54,6 +54,7 @@ declare global {
           LaunchApp(args: string[]): Promise<void>;
           OpenURL(url: string): Promise<void>;
           CheckForUpdate(): Promise<UpdateInfo>;
+          SSHAgentStatus(): Promise<AgentStatus>;
           SnippetFolders(): Promise<SnippetFolder[] | null>;
           SnippetList(): Promise<Snippet[] | null>;
           SnippetGet(id: string): Promise<Snippet | null>;
@@ -140,6 +141,8 @@ declare global {
   interface TestResult { ok: boolean; count: number; sample: string[] | null; error: string; }
   interface RefreshResult { added: number; updated: number; removed: number; error: string; }
   interface UpdateInfo { current: string; latest: string; newer: boolean; url: string; notes: string; error: string; }
+  interface AgentKey { comment: string; format: string; fingerprint: string; }
+  interface AgentStatus { available: boolean; socket: string; keys: AgentKey[] | null; error: string; }
   interface ThemeData {
     name: string;
     ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string };
