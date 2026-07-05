@@ -29,6 +29,8 @@ type Target struct {
 	User      string
 	JumpChain []sshx.Hop
 	Keepalive time.Duration
+	KeyFiles  []string
+	NoAgent   bool
 }
 
 // Conn is the UI-facing snapshot of one connection.
@@ -116,6 +118,8 @@ func (m *Manager) ConnectBatch(ctx context.Context, targets []Target, p sshx.Pro
 			client, err := m.dial(ctx, t.Host, t.Port, t.User, p, sshx.DialOpts{
 				KeepaliveInterval: t.Keepalive,
 				JumpChain:         t.JumpChain,
+				KeyFiles:          t.KeyFiles,
+				NoAgent:           t.NoAgent,
 			})
 			m.settle(t.SessionID, client, err)
 		}(t)

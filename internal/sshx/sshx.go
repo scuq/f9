@@ -38,6 +38,7 @@ type DialOpts struct {
 	JumpChain         []Hop         // applied in order
 
 	KeyFiles       []string     // default: existing ~/.ssh/{id_ed25519,id_ecdsa,id_rsa}
+	NoAgent        bool         // skip the ssh-agent (key files / password only)
 	KnownHostsPath string       // default: ~/.config/f9/known_hosts
 	OnBanner       func(string) // login banner tap (osdetect consumer, 00d)
 }

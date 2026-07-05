@@ -174,6 +174,7 @@ func (a *App) emitConns() { a.emitEvent("f9:conns", nil) }
 
 // ConnectSessions dials the given session IDs as one batch (shared prompter).
 func (a *App) ConnectSessions(ids []string) error {
+	gs := a.Settings()
 	targets := make([]connmgr.Target, 0, len(ids))
 	for _, id := range ids {
 		s, eff, err := a.st.Resolve(id)
@@ -183,6 +184,8 @@ func (a *App) ConnectSessions(ids []string) error {
 		t := connmgr.Target{
 			SessionID: s.ID, Name: s.Name, Host: s.Host, Port: s.Port, User: s.User,
 			Keepalive: 30 * time.Second,
+			KeyFiles:  gs.KeyFiles,
+			NoAgent:   gs.DisableAgent,
 		}
 		if eff.KeepaliveInterval != nil {
 			t.Keepalive = *eff.KeepaliveInterval

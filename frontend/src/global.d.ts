@@ -122,6 +122,7 @@ declare global {
     fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
     showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean; showSnippets: boolean;
     barVertical: boolean; barUnpinned: boolean; showMultiSend: boolean;
+    keyFiles: string[] | null; disableAgent: boolean;
   }
   interface GrepOptsInput { invert: boolean; ignoreCase: boolean; before: number; after: number; maxMatches: number; }
   interface GrepMatch { lineNo: number; line: string; before: string[] | null; after: string[] | null; }

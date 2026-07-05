@@ -68,7 +68,7 @@ func Dial(ctx context.Context, host string, port int, user string, p Prompter, o
 		}
 		cfg := &ssh.ClientConfig{
 			User:            usr,
-			Auth:            buildAuth(usr, addr, keyFiles, p),
+			Auth:            buildAuth(usr, addr, keyFiles, !o.NoAgent, p),
 			HostKeyCallback: tf.check,
 			Timeout:         o.Timeout,
 		}
