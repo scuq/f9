@@ -16,6 +16,7 @@ import (
 
 	"github.com/scuq/f9/internal/buttonbar"
 	"github.com/scuq/f9/internal/connmgr"
+	"github.com/scuq/f9/internal/cred"
 	"github.com/scuq/f9/internal/filter"
 	"github.com/scuq/f9/internal/multisend"
 	"github.com/scuq/f9/internal/osdetect"
@@ -27,7 +28,7 @@ import (
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.7.2-phase07b2"
+const Version = "0.7.3-phase07c1"
 
 // ---- tree ----
 
@@ -119,6 +120,7 @@ type App struct {
 	varStore *vars.YAMLStore
 	bars     *buttonbar.YAMLStore
 	snips    *snippets.Store
+	creds    *cred.Store
 	mgr      *connmgr.Manager
 
 	pmu     sync.Mutex
@@ -174,6 +176,11 @@ func New() (*App, error) {
 		return nil, err
 	}
 	a.snips = sstore
+	cstore, err := cred.Open(filepath.Join(root, ".secrets.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	a.creds = cstore
 	return a, nil
 }
 

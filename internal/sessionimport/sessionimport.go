@@ -32,7 +32,9 @@ func Fetch(ctx context.Context, src store.FolderSource, secret string) ([]byte, 
 }
 
 func fetch(ctx context.Context, src store.FolderSource, secret string, roots *x509.CertPool) ([]byte, error) {
-	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots}
+	// InsecureSkipVerify is an explicit per-source opt-in for untrusted remote
+	// certificates; it is never the default.
+	tlsCfg := &tls.Config{MinVersion: tls.VersionTLS12, RootCAs: roots, InsecureSkipVerify: src.Insecure} //nolint:gosec
 	if src.Auth == "mtls" {
 		cert, err := tls.X509KeyPair([]byte(secret), []byte(secret))
 		if err != nil {

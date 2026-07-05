@@ -18,6 +18,7 @@ type FolderSource struct {
 	Header      string            `yaml:"header,omitempty"`    // custom auth header (default Authorization)
 	ReconcileBy string            `yaml:"reconcile_by"`        // externalId | hostname
 	FieldMap    map[string]string `yaml:"field_map,omitempty"` // for the mapped format
+	Insecure    bool              `yaml:"insecure,omitempty"`  // skip TLS verification (untrusted remote cert)
 	UpdatedAt   time.Time         `yaml:"updated_at,omitempty"`
 }
 
@@ -27,7 +28,7 @@ var (
 	validSourceReconcile = map[string]bool{"externalId": true, "hostname": true}
 )
 
-func (src FolderSource) validate() error {
+func (src FolderSource) Validate() error {
 	u, err := url.Parse(src.URL)
 	if err != nil || u.Scheme != "https" || u.Host == "" {
 		return errors.New("store: source url must be https://host/...")
@@ -48,7 +49,7 @@ func (src FolderSource) validate() error {
 // and enforces that no ancestor or descendant folder already carries a source
 // (one source per subtree).
 func (s *YAMLStore) SetFolderSource(folderID string, src FolderSource) error {
-	if err := src.validate(); err != nil {
+	if err := src.Validate(); err != nil {
 		return err
 	}
 	s.mu.Lock()
