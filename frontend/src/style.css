@@ -312,7 +312,8 @@ select, input, textarea, option { color-scheme: dark; }
   height: 30px; flex: none; padding: 0 6px 0 12px; user-select: none;
   background: var(--bg-raised); border-bottom: 1px solid var(--border);
 }
-.tb-brand { font-weight: 700; color: var(--accent); font-size: 13px; letter-spacing: 0.03em; }
+.tb-brand { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; color: var(--accent); font-size: 13px; letter-spacing: 0.03em; }
+.tb-logo { width: 18px; height: 18px; display: block; flex: none; }
 .tb-controls { display: flex; gap: 2px; }
 .tb-btn {
   background: none; border: none; color: var(--folder-fg); cursor: pointer;

@@ -24,7 +24,12 @@ func TestScopedResolution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	must := func(e error) { t.Helper(); if e != nil { t.Fatal(e) } }
+	must := func(e error) {
+		t.Helper()
+		if e != nil {
+			t.Fatal(e)
+		}
+	}
 
 	must(s.Put(Scope{}, "region", "eu", "all"))
 	must(s.Put(Scope{}, "domain", "kages.local", "all"))
@@ -120,7 +125,7 @@ func TestDeleteSelectorAndKey(t *testing.T) {
 func TestPersistenceRoundtrip(t *testing.T) {
 	dir := t.TempDir()
 	s, _ := Open(dir, testChain)
-	_ = s.Put(Scope{}, "domain", "kages.local", "all")             // scalar form
+	_ = s.Put(Scope{}, "domain", "kages.local", "all") // scalar form
 	_ = s.Put(Scope{FolderID: "A"}, "save_cmd", "write memory", "all")
 	_ = s.Put(Scope{FolderID: "A"}, "save_cmd", "copy run start", "nxos") // map form
 

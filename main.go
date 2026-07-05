@@ -14,12 +14,16 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/linux"
 
 	"github.com/scuq/f9/internal/app"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+//go:embed build/appicon.png
+var appIcon []byte
 
 func main() {
 	// WebKitGTK renders blurry through the DMABUF path on virtio/VM GPUs;
@@ -41,6 +45,9 @@ func main() {
 		AssetServer:      &assetserver.Options{Assets: assets},
 		OnStartup:        a.Startup,
 		Bind:             []interface{}{a},
+		Linux: &linux.Options{
+			Icon: appIcon,
+		},
 	})
 	if err != nil {
 		log.Fatalf("f9-gui: %v", err)

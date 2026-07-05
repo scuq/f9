@@ -874,6 +874,23 @@ function CredPromptModal(props: { mode: "create" | "unlock"; err: string; onSubm
   );
 }
 
+function Logo() {
+  return (
+    <svg class="tb-logo" viewBox="0 0 1024 1024" width="18" height="18" aria-hidden="true">
+      <rect x="0" y="0" width="1024" height="1024" rx="224" fill="#0D1218" />
+      <rect x="64" y="64" width="896" height="896" rx="184" fill="#1A2330" stroke="#2E3B4B" stroke-width="8" />
+      <path d="M 260 152 Q 512 128 764 152" fill="none" stroke="#38485C" stroke-width="10" stroke-linecap="round" />
+      <g fill="#3DDE7C">
+        <rect x="264" y="300" width="92" height="424" />
+        <rect x="264" y="300" width="230" height="92" />
+        <rect x="264" y="478" width="190" height="92" />
+      </g>
+      <circle cx="614" cy="446" r="100" fill="none" stroke="#3DDE7C" stroke-width="92" />
+      <rect x="668" y="446" width="92" height="278" fill="#3DDE7C" />
+    </svg>
+  );
+}
+
 export function App() {
   const [tree, setTree] = useState<FolderNode | null>(null);
   const [err, setErr] = useState("");
@@ -1362,7 +1379,7 @@ export function App() {
     <div class="approot">
       <div class="titlebar" style={{ "--wails-draggable": "drag" } as any}
         onDblClick={() => window.runtime.WindowToggleMaximise?.()}>
-        <span class="tb-brand">f9</span>
+        <span class="tb-brand"><Logo /></span>
         <div class="tb-controls" style={{ "--wails-draggable": "no-drag" } as any}>
           <button class="tb-btn" title="minimise" onClick={() => window.runtime.WindowMinimise?.()}>{"\u2013"}</button>
           <button class="tb-btn tb-close" title="close" onClick={() => window.runtime.Quit?.()}>{"\u2715"}</button>
