@@ -835,6 +835,14 @@ export function App() {
     return () => { offC?.(); offP?.(); offT?.(); offA?.(); offTh?.(); offMS?.(); offMSD?.(); };
   }, []);
 
+  // Suppress the default WebKit context menu everywhere; custom menus (set via
+  // onContextMenu handlers) still open because they run before this bubbles.
+  useEffect(() => {
+    const suppress = (e: MouseEvent) => e.preventDefault();
+    window.addEventListener("contextmenu", suppress);
+    return () => window.removeEventListener("contextmenu", suppress);
+  }, []);
+
   const isConnected = (id: string) => conns.some((c) => c.sessionId === id && c.state === "connected");
 
   useEffect(() => { setSearchRes(null); setSearchStats(null); setPeek({}); }, [view.kind === "term" ? view.id : ""]);

@@ -28,7 +28,7 @@ import (
 )
 
 // Version is the GUI-facing version string.
-const Version = "0.7.4-phase07c2a"
+const Version = "0.7.5-noctxmenu"
 
 // ---- tree ----
 
