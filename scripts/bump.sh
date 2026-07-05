@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Bump the f9 version: write VERSION, commit, and create an annotated tag.
-# Usage: make bump V=1.2.3   (or: bash scripts/bump.sh 1.2.3)
+# Bump the f9 version: write VERSION, commit (if changed), and create an
+# annotated tag. Usage: make bump V=1.2.3   (or: bash scripts/bump.sh 1.2.3)
 set -euo pipefail
 
 NEW="${1:-}"
@@ -23,9 +23,13 @@ fi
 
 printf '%s\n' "$NEW" > VERSION
 git add VERSION
-git commit -m "release: v$NEW" -- VERSION
+if git diff --cached --quiet -- VERSION; then
+  echo "VERSION already $NEW; no commit needed, tagging current HEAD."
+else
+  git commit -m "release: v$NEW" -- VERSION
+fi
 git tag -a "v$NEW" -m "f9 v$NEW"
 
-echo "bumped to v$NEW (committed + annotated tag v$NEW)."
+echo "tagged v$NEW."
 echo "push to trigger the release workflow:"
 echo "  git push --follow-tags"
