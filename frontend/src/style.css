@@ -531,3 +531,8 @@ select, input, textarea, option { color-scheme: dark; }
 
 /* --- import UX: test-before-save hint --- */
 .import-hint { margin-right: auto; align-self: center; color: var(--folder-fg); font-size: 12px; }
+
+/* --- 07c-2c: generated (source-owned) session markers --- */
+.genmark { margin-left: 6px; font-size: 10px; color: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: 0 4px; opacity: 0.85; }
+.genbadge { margin-left: 8px; font-size: 11px; color: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: 1px 6px; vertical-align: middle; }
+.gen-note { color: var(--folder-fg); font-size: 12px; align-self: center; }
