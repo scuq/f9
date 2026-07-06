@@ -435,6 +435,7 @@ export namespace app {
 	    reconcileBy: string;
 	    insecure: boolean;
 	    fieldMap: Record<string, string>;
+	    filter?: store.FilterGroup;
 	    hasSecret: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -450,8 +451,27 @@ export namespace app {
 	        this.reconcileBy = source["reconcileBy"];
 	        this.insecure = source["insecure"];
 	        this.fieldMap = source["fieldMap"];
+	        this.filter = this.convertValues(source["filter"], store.FilterGroup);
 	        this.hasSecret = source["hasSecret"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class TestResult {
 	    ok: boolean;
@@ -762,6 +782,63 @@ export namespace sshx {
 	        this.available = source["available"];
 	        this.keys = this.convertValues(source["keys"], AgentKey);
 	        this.error = source["error"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace store {
+	
+	export class FilterRule {
+	    field: string;
+	    kind: string;
+	    value: string;
+	    negate: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FilterRule(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.field = source["field"];
+	        this.kind = source["kind"];
+	        this.value = source["value"];
+	        this.negate = source["negate"];
+	    }
+	}
+	export class FilterGroup {
+	    op: string;
+	    rules: FilterRule[];
+	    groups: FilterGroup[];
+	
+	    static createFrom(source: any = {}) {
+	        return new FilterGroup(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.op = source["op"];
+	        this.rules = this.convertValues(source["rules"], FilterRule);
+	        this.groups = this.convertValues(source["groups"], FilterGroup);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

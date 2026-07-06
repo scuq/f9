@@ -34,8 +34,9 @@ type SourceDTO struct {
 	Header      string            `json:"header"`
 	ReconcileBy string            `json:"reconcileBy"`
 	Insecure    bool              `json:"insecure"`
-	FieldMap    map[string]string `json:"fieldMap"`
-	HasSecret   bool              `json:"hasSecret"`
+	FieldMap    map[string]string  `json:"fieldMap"`
+	Filter      *store.FilterGroup `json:"filter"`
+	HasSecret   bool               `json:"hasSecret"`
 }
 
 func credIDFor(folderID string) string { return "src:" + folderID }
@@ -44,6 +45,7 @@ func (dto SourceDTO) toSource(folderID string) store.FolderSource {
 	return store.FolderSource{
 		URL: dto.URL, Format: dto.Format, Auth: dto.Auth, Header: dto.Header,
 		ReconcileBy: dto.ReconcileBy, Insecure: dto.Insecure, FieldMap: dto.FieldMap,
+		Filter: dto.Filter,
 		CredID: credIDFor(folderID),
 	}
 }
@@ -57,6 +59,7 @@ func (a *App) FolderSourceGet(folderID string) *SourceDTO {
 	return &SourceDTO{
 		URL: src.URL, Format: src.Format, Auth: src.Auth, Header: src.Header,
 		ReconcileBy: src.ReconcileBy, Insecure: src.Insecure, FieldMap: src.FieldMap,
+		Filter: src.Filter,
 		HasSecret: a.creds.Has(src.CredID),
 	}
 }

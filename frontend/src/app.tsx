@@ -807,6 +807,50 @@ function combineSourceUrl(base: string, path: string): string {
   return b + (path.startsWith("/") ? path : "/" + path);
 }
 
+function isEmptyFilter(g: FilterGroup): boolean {
+  return (g.rules ?? []).length === 0 && (g.groups ?? []).length === 0;
+}
+
+function FilterGroupEditor(props: { group: FilterGroup; depth: number; onChange: (g: FilterGroup) => void; onRemove?: () => void }) {
+  const { group: g, depth, onChange, onRemove } = props;
+  const rules = g.rules ?? [];
+  const groups = g.groups ?? [];
+  const setRule = (i: number, patch: Partial<FilterRule>) => onChange({ ...g, rules: rules.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
+  return (
+    <div class="filt-group">
+      <div class="filt-head">
+        <select value={g.op || "and"} onChange={(e) => onChange({ ...g, op: (e.target as HTMLSelectElement).value })}>
+          <option value="and">match ALL (AND)</option>
+          <option value="or">match ANY (OR)</option>
+        </select>
+        {onRemove && <button class="filt-del" onClick={onRemove}>remove group</button>}
+      </div>
+      {rules.map((r, i) => (
+        <div class="filt-rule" key={i}>
+          <select value={r.field} onChange={(e) => setRule(i, { field: (e.target as HTMLSelectElement).value })}>
+            {["status", "role", "hostname", "manufacturer", "model", "tenant", "site"].map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+          <select value={r.kind} onChange={(e) => setRule(i, { kind: (e.target as HTMLSelectElement).value })}>
+            <option value="eq">is</option>
+            <option value="contains">contains</option>
+            <option value="regex">regex</option>
+          </select>
+          <input value={r.value} placeholder="value" onInput={(e) => setRule(i, { value: (e.target as HTMLInputElement).value })} />
+          <label class="filt-neg"><input type="checkbox" checked={r.negate} onChange={(e) => setRule(i, { negate: (e.target as HTMLInputElement).checked })} /> not</label>
+          <button class="filt-del" onClick={() => onChange({ ...g, rules: rules.filter((_, j) => j !== i) })}>{"\u00d7"}</button>
+        </div>
+      ))}
+      {groups.map((sub, i) => (
+        <FilterGroupEditor key={i} group={sub} depth={depth + 1} onChange={(x) => onChange({ ...g, groups: groups.map((y, j) => (j === i ? x : y)) })} onRemove={() => onChange({ ...g, groups: groups.filter((_, j) => j !== i) })} />
+      ))}
+      <div class="filt-actions">
+        <button class="importbtn" onClick={() => onChange({ ...g, rules: [...rules, { field: "role", kind: "eq", value: "", negate: false }] })}>+ rule</button>
+        {depth < 3 && <button class="importbtn" onClick={() => onChange({ ...g, groups: [...groups, { op: "and", rules: [], groups: [] }] })}>+ group</button>}
+      </div>
+    </div>
+  );
+}
+
 function ImportSourceModal(props: {
   st: ImportState;
   onChange: (patch: Partial<ImportState>) => void;
@@ -870,6 +914,12 @@ function ImportSourceModal(props: {
           </div>
         )}
         <label class="checkrow"><input type="checkbox" checked={dto.insecure} onChange={(e) => onDTO({ insecure: (e.target as HTMLInputElement).checked })} /> skip TLS verification (lab / self-signed only)</label>
+        {dto.format === "netbox" && (
+          <div class="filt-block">
+            <div class="imp-maphead">filter (optional \u2014 empty imports all; test shows the filtered count)</div>
+            <FilterGroupEditor group={dto.filter ?? { op: "and", rules: [], groups: [] }} depth={0} onChange={(g) => onDTO({ filter: isEmptyFilter(g) ? null : g })} />
+          </div>
+        )}
         <div class="imp-actions">
           <button onClick={onTest} disabled={!httpsOk || st.testing}>{st.testing ? "testing\u2026" : "test connection"}</button>
           {st.test && (st.test.ok
@@ -1006,7 +1056,7 @@ export function App() {
   const load = () => api().Tree().then((t) => { setTree(t); if (!selFolder) setSelFolder({ id: t.id, path: t.path }); }).catch((e) => setErr(String(e)));
 
   const openFolderCtx = (node: FolderNode, x: number, y: number) => setFolderCtx({ node, x, y });
-  const blankDTO = (): SourceDTO => ({ url: "", format: "f9-native", auth: "none", header: "", reconcileBy: "hostname", insecure: false, fieldMap: {}, hasSecret: false });
+  const blankDTO = (): SourceDTO => ({ url: "", format: "f9-native", auth: "none", header: "", reconcileBy: "hostname", insecure: false, fieldMap: {}, filter: null, hasSecret: false });
   const openImport = (folderId: string) => {
     setFolderCtx(null);
     api().FolderSourceGet(folderId).then((got) => {

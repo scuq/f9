@@ -140,7 +140,9 @@ declare global {
   interface MSPreview { termId: string; sessionId: string; name: string; host: string; osFamily: string; line: string; unresolved: string[] | null; err: string; }
   interface MSResult { id: string; state: string; line: string; tail: string; errText: string; millis: number; }
   interface CredState { initialized: boolean; locked: boolean; }
-  interface SourceDTO { url: string; format: string; auth: string; header: string; reconcileBy: string; insecure: boolean; fieldMap: Record<string, string> | null; hasSecret: boolean; }
+  interface FilterRule { field: string; kind: string; value: string; negate: boolean; }
+  interface FilterGroup { op: string; rules: FilterRule[] | null; groups: FilterGroup[] | null; }
+  interface SourceDTO { url: string; format: string; auth: string; header: string; reconcileBy: string; insecure: boolean; fieldMap: Record<string, string> | null; filter: FilterGroup | null; hasSecret: boolean; }
   interface TestResult { ok: boolean; count: number; sample: string[] | null; error: string; }
   interface RefreshResult { added: number; updated: number; removed: number; error: string; }
   interface UpdateInfo { current: string; latest: string; newer: boolean; url: string; notes: string; error: string; }
