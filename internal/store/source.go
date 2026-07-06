@@ -19,6 +19,7 @@ type FolderSource struct {
 	ReconcileBy string            `yaml:"reconcile_by"`        // externalId | hostname
 	FieldMap    map[string]string `yaml:"field_map,omitempty"` // for the mapped format
 	Insecure    bool              `yaml:"insecure,omitempty"`  // skip TLS verification (untrusted remote cert)
+	Filter      *FilterGroup      `yaml:"filter,omitempty"`    // client-side record filter (netbox)
 	UpdatedAt   time.Time         `yaml:"updated_at,omitempty"`
 }
 

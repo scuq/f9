@@ -12,6 +12,7 @@ type ImportRecord struct {
 	User       string
 	Proto      string
 	Tags       []string
+	Attrs      map[string]string // filterable attributes (status, role, manufacturer, model, hostname, tenant, site)
 }
 
 // ReconcileResult reports what a reconcile changed.

@@ -132,8 +132,29 @@ func decodeNetBoxPage(body []byte) ([]store.ImportRecord, string, error) {
 	var doc struct {
 		Next    string `json:"next"`
 		Results []struct {
-			ID        int    `json:"id"`
-			Name      string `json:"name"`
+			ID     int    `json:"id"`
+			Name   string `json:"name"`
+			Status *struct {
+				Value string `json:"value"`
+			} `json:"status"`
+			Role *struct {
+				Name string `json:"name"`
+			} `json:"role"`
+			DeviceRole *struct {
+				Name string `json:"name"`
+			} `json:"device_role"`
+			DeviceType *struct {
+				Model        string `json:"model"`
+				Manufacturer *struct {
+					Name string `json:"name"`
+				} `json:"manufacturer"`
+			} `json:"device_type"`
+			Tenant *struct {
+				Name string `json:"name"`
+			} `json:"tenant"`
+			Site *struct {
+				Name string `json:"name"`
+			} `json:"site"`
 			PrimaryIP *struct {
 				Address string `json:"address"`
 			} `json:"primary_ip"`
@@ -151,8 +172,29 @@ func decodeNetBoxPage(body []byte) ([]store.ImportRecord, string, error) {
 				host = host[:i]
 			}
 		}
+		attrs := map[string]string{"hostname": d.Name}
+		if d.Status != nil {
+			attrs["status"] = d.Status.Value
+		}
+		if d.Role != nil {
+			attrs["role"] = d.Role.Name
+		} else if d.DeviceRole != nil {
+			attrs["role"] = d.DeviceRole.Name
+		}
+		if d.DeviceType != nil {
+			attrs["model"] = d.DeviceType.Model
+			if d.DeviceType.Manufacturer != nil {
+				attrs["manufacturer"] = d.DeviceType.Manufacturer.Name
+			}
+		}
+		if d.Tenant != nil {
+			attrs["tenant"] = d.Tenant.Name
+		}
+		if d.Site != nil {
+			attrs["site"] = d.Site.Name
+		}
 		out = append(out, store.ImportRecord{
-			ExternalID: strconv.Itoa(d.ID), Name: d.Name, Host: host, Port: 22, Proto: "ssh",
+			ExternalID: strconv.Itoa(d.ID), Name: d.Name, Host: host, Port: 22, Proto: "ssh", Attrs: attrs,
 		})
 	}
 	return out, doc.Next, nil
@@ -209,7 +251,17 @@ func FetchAll(ctx context.Context, src store.FolderSource, secret string, fieldM
 		all = append(all, recs...)
 		next = nx
 	}
-	return all, nil
+	match, err := store.CompileFilter(src.Filter)
+	if err != nil {
+		return nil, err
+	}
+	filtered := all[:0]
+	for _, r := range all {
+		if match(r.Attrs) {
+			filtered = append(filtered, r)
+		}
+	}
+	return filtered, nil
 }
 
 func decodeMapped(fieldMap map[string]string, body []byte) ([]store.ImportRecord, error) {
