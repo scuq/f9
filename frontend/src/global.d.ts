@@ -83,6 +83,8 @@ declare global {
       WindowMinimise?: () => void;
       WindowToggleMaximise?: () => void;
       Quit?: () => void;
+      ClipboardGetText?: () => Promise<string>;
+      ClipboardSetText?: (text: string) => Promise<boolean>;
     };
   }
 

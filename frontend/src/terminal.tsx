@@ -21,6 +21,7 @@ export function TerminalView(
   const termRef = useRef<XTerm | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const lastSize = useRef({ cols: 0, rows: 0 });
+  const primaryRef = useRef("");
 
   const fitAndSync = () => {
     const fit = fitRef.current, term = termRef.current;
@@ -58,6 +59,20 @@ export function TerminalView(
     // Intercept Ctrl/Cmd+F before xterm forwards it to the shell; open the
     // scrollback search panel instead.
     term.attachCustomKeyEventHandler((e) => {
+      // Ctrl/Cmd+Shift+C: copy the selection to the clipboard.
+      if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "c" || e.key === "C")) {
+        const sel = term.getSelection();
+        if (sel) window.runtime.ClipboardSetText?.(sel);
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl/Cmd+Shift+V: paste the clipboard into the terminal.
+      if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "v" || e.key === "V")) {
+        e.preventDefault();
+        const p = window.runtime.ClipboardGetText?.();
+        if (p) p.then((t) => { if (t) term.paste(t); }).catch(() => {});
+        return false;
+      }
       if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "f" || e.key === "F")) {
         e.preventDefault();
         requestFind(termId);
@@ -70,6 +85,41 @@ export function TerminalView(
       }
       return true;
     });
+
+    // Linux-style primary selection: remember the current selection and paste
+    // it on middle-click.
+    const primaryHost = hostRef.current!;
+    const offSel = term.onSelectionChange(() => {
+      const sel = term.getSelection();
+      if (sel) primaryRef.current = sel;
+    });
+    // Middle-click pastes the terminal selection (Linux primary style). The
+    // WebView also runs its own native middle-click paste; we can't cancel the
+    // mousedown default, but the native paste still fires a DOM `paste` event —
+    // suppress that so the content isn't pasted twice. Our term.paste() below
+    // does not dispatch a DOM paste event, so it is unaffected.
+    let suppressNativePaste = false;
+    let suppressTimer: number | undefined;
+    const onMiddlePaste = (e: MouseEvent) => {
+      if (e.button === 1) {
+        e.preventDefault();
+        suppressNativePaste = true;
+        window.clearTimeout(suppressTimer);
+        suppressTimer = window.setTimeout(() => { suppressNativePaste = false; }, 200);
+        const prim = primaryRef.current;
+        if (prim) term.paste(prim);
+      }
+    };
+    const onNativePaste = (e: ClipboardEvent) => {
+      if (suppressNativePaste) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        suppressNativePaste = false;
+        window.clearTimeout(suppressTimer);
+      }
+    };
+    primaryHost.addEventListener("mousedown", onMiddlePaste, true);
+    primaryHost.addEventListener("paste", onNativePaste, true);
 
     const offCfg = onTermConfig((cfg) => {
       term.options.theme = cfg.theme;
@@ -85,6 +135,10 @@ export function TerminalView(
     return () => {
       window.clearTimeout(timer);
       offData?.(); offCfg(); ro.disconnect();
+      window.clearTimeout(suppressTimer);
+      offSel.dispose();
+      primaryHost.removeEventListener("mousedown", onMiddlePaste, true);
+      primaryHost.removeEventListener("paste", onNativePaste, true);
       api().CloseTerminal(termId).catch(() => {});
       term.dispose();
     };
