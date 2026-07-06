@@ -572,3 +572,6 @@ select, input, textarea, option { color-scheme: dark; }
 .filt-neg { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; color: var(--folder-fg); flex: none; }
 .filt-del { background: var(--bg); border: 1px solid var(--border); color: var(--danger); border-radius: 4px; padding: 2px 8px; cursor: pointer; flex: none; }
 .filt-actions { display: flex; gap: 6px; margin-top: 4px; }
+
+/* --- import filter: custom-field key input --- */
+.filt-cfkey { flex: none; width: 150px; }

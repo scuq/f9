@@ -158,6 +158,7 @@ func decodeNetBoxPage(body []byte) ([]store.ImportRecord, string, error) {
 			PrimaryIP *struct {
 				Address string `json:"address"`
 			} `json:"primary_ip"`
+			CustomFields map[string]interface{} `json:"custom_fields"`
 		} `json:"results"`
 	}
 	if err := json.Unmarshal(body, &doc); err != nil {
@@ -192,6 +193,22 @@ func decodeNetBoxPage(body []byte) ([]store.ImportRecord, string, error) {
 		}
 		if d.Site != nil {
 			attrs["site"] = d.Site.Name
+		}
+		for k, cv := range d.CustomFields {
+			switch val := cv.(type) {
+			case string:
+				attrs["cf:"+k] = val
+			case bool:
+				attrs["cf:"+k] = strconv.FormatBool(val)
+			case float64:
+				attrs["cf:"+k] = strconv.FormatFloat(val, 'f', -1, 64)
+			case map[string]interface{}:
+				if sv, ok := val["value"].(string); ok {
+					attrs["cf:"+k] = sv
+				} else if lv, ok := val["label"].(string); ok {
+					attrs["cf:"+k] = lv
+				}
+			}
 		}
 		out = append(out, store.ImportRecord{
 			ExternalID: strconv.Itoa(d.ID), Name: d.Name, Host: host, Port: 22, Proto: "ssh", Attrs: attrs,

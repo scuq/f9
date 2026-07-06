@@ -827,9 +827,11 @@ function FilterGroupEditor(props: { group: FilterGroup; depth: number; onChange:
       </div>
       {rules.map((r, i) => (
         <div class="filt-rule" key={i}>
-          <select value={r.field} onChange={(e) => setRule(i, { field: (e.target as HTMLSelectElement).value })}>
+          <select value={(r.field || "").startsWith("cf:") ? "__cf" : r.field} onChange={(e) => { const v = (e.target as HTMLSelectElement).value; setRule(i, { field: v === "__cf" ? "cf:" : v }); }}>
             {["status", "role", "hostname", "manufacturer", "model", "tenant", "site"].map((f) => <option key={f} value={f}>{f}</option>)}
+            <option value="__cf">custom field\u2026</option>
           </select>
+          {(r.field || "").startsWith("cf:") && <input class="filt-cfkey" placeholder="cf key (e.g. cmdbSupportTeam)" value={(r.field || "").slice(3)} onInput={(e) => setRule(i, { field: "cf:" + (e.target as HTMLInputElement).value })} />}
           <select value={r.kind} onChange={(e) => setRule(i, { kind: (e.target as HTMLSelectElement).value })}>
             <option value="eq">is</option>
             <option value="contains">contains</option>
@@ -1067,10 +1069,22 @@ export function App() {
   const testImport = () => {
     const s = imp;
     if (!s) return;
-    setImp((cur) => cur ? { ...cur, testing: true, test: null, err: "" } : cur);
-    api().FolderSourceTest(s.folderId, s.dto, s.secret)
-      .then((tr) => setImp((cur) => cur ? { ...cur, testing: false, test: tr } : cur))
-      .catch((e) => setImp((cur) => cur ? { ...cur, testing: false, err: String(e) } : cur));
+    const run = () => {
+      setImp((cur) => cur ? { ...cur, testing: true, test: null, err: "" } : cur);
+      api().FolderSourceTest(s.folderId, s.dto, s.secret)
+        .then((tr) => setImp((cur) => cur ? { ...cur, testing: false, test: tr } : cur))
+        .catch((e) => setImp((cur) => cur ? { ...cur, testing: false, err: String(e) } : cur));
+    };
+    // Relying on a stored secret (editing without re-entering it) needs the
+    // cred store unlocked; surface the unlock prompt instead of a raw error.
+    if (s.dto.auth !== "none" && s.secret === "" && s.dto.hasSecret) {
+      api().CredStatus().then((cs) => {
+        if (cs.locked) { setCredErr(""); setCredPrompt({ mode: "unlock", run }); return; }
+        run();
+      }).catch(() => run());
+    } else {
+      run();
+    }
   };
   const doSaveImport = () => {
     const s = imp;
