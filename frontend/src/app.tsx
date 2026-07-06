@@ -1095,6 +1095,7 @@ export function App() {
         if (rr.error.toLowerCase().includes("unlock")) { setCredErr(""); setCredPrompt({ mode: "unlock", run: finish }); return; }
         setErr(rr.error); return;
       }
+      if (rr.skipped > 0) setErr("import: added " + rr.added + ", skipped " + rr.skipped + " duplicate name(s)");
       load();
     }).catch((e) => setErr(String(e)));
     finish();

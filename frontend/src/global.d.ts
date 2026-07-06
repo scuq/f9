@@ -144,7 +144,7 @@ declare global {
   interface FilterGroup { op: string; rules: FilterRule[] | null; groups: FilterGroup[] | null; }
   interface SourceDTO { url: string; format: string; auth: string; header: string; reconcileBy: string; insecure: boolean; fieldMap: Record<string, string> | null; filter: FilterGroup | null; hasSecret: boolean; }
   interface TestResult { ok: boolean; count: number; sample: string[] | null; error: string; }
-  interface RefreshResult { added: number; updated: number; removed: number; error: string; }
+  interface RefreshResult { added: number; updated: number; removed: number; skipped: number; error: string; }
   interface UpdateInfo { current: string; latest: string; newer: boolean; url: string; notes: string; error: string; }
   interface AgentKey { comment: string; format: string; fingerprint: string; }
   interface AgentEndpoint { socket: string; available: boolean; keys: AgentKey[] | null; error: string; }

@@ -336,6 +336,7 @@ export namespace app {
 	    added: number;
 	    updated: number;
 	    removed: number;
+	    skipped: number;
 	    error: string;
 	
 	    static createFrom(source: any = {}) {
@@ -347,6 +348,7 @@ export namespace app {
 	        this.added = source["added"];
 	        this.updated = source["updated"];
 	        this.removed = source["removed"];
+	        this.skipped = source["skipped"];
 	        this.error = source["error"];
 	    }
 	}

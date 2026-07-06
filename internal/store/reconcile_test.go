@@ -79,3 +79,24 @@ func TestReconcileByHostname(t *testing.T) {
 		t.Fatalf("hostname reconcile = %+v", res)
 	}
 }
+
+func TestReconcileSkipsDuplicateNames(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := mkFolder(t, s, "nb", s.RootID())
+	// Two devices with the same name but distinct external IDs (NetBox allows
+	// per-site duplicate names). One imports; the other is skipped, not fatal.
+	recs := []ImportRecord{
+		{ExternalID: "1", Name: "dup", Host: "10.0.0.1"},
+		{ExternalID: "2", Name: "dup", Host: "10.0.0.2"},
+	}
+	res, err := s.ReconcileFolderSessions(f.ID, recs, "externalId")
+	if err != nil {
+		t.Fatalf("reconcile must not abort on a duplicate name: %v", err)
+	}
+	if res.Added != 1 || res.Skipped != 1 {
+		t.Fatalf("added=%d skipped=%d (want 1/1)", res.Added, res.Skipped)
+	}
+}

@@ -1,6 +1,9 @@
 package store
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // ImportRecord is a decoded, source-shaped session, produced by
 // internal/sessionimport and consumed by ReconcileFolderSessions.
@@ -20,6 +23,7 @@ type ReconcileResult struct {
 	Added   int
 	Updated int
 	Removed int
+	Skipped int // records dropped due to a name collision (import continued)
 }
 
 // ReconcileFolderSessions makes the generated sessions under folderID match
@@ -68,6 +72,10 @@ func (s *YAMLStore) ReconcileFolderSessions(folderID string, records []ImportRec
 			cur.ExternalID = r.ExternalID
 			cur.Source = folderID
 			if err := s.Put(cur); err != nil {
+				if errors.Is(err, ErrDuplicateName) {
+					res.Skipped++
+					continue
+				}
 				return res, fmt.Errorf("store: reconcile update %q: %w", r.Name, err)
 			}
 			res.Updated++
@@ -85,6 +93,10 @@ func (s *YAMLStore) ReconcileFolderSessions(folderID string, records []ImportRec
 			ExternalID: r.ExternalID,
 		}
 		if err := s.Put(ns); err != nil {
+			if errors.Is(err, ErrDuplicateName) {
+				res.Skipped++
+				continue
+			}
 			return res, fmt.Errorf("store: reconcile add %q: %w", r.Name, err)
 		}
 		res.Added++

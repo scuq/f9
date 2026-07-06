@@ -21,6 +21,10 @@ const (
 // ErrNotFound is returned when an ID does not resolve to a stored object.
 var ErrNotFound = errors.New("store: not found")
 
+// ErrDuplicateName wraps a name-collision (session or folder) so callers can
+// errors.Is it and choose to skip rather than abort.
+var ErrDuplicateName = errors.New("store: name already exists")
+
 // YAMLStore implements Store over a directory tree of YAML files: every
 // directory is a Folder (described by its folder.yaml), every other *.yaml
 // file in it is a Session. Directory structure is authoritative for
@@ -279,7 +283,7 @@ func (s *YAMLStore) Put(in Session) error {
 			continue
 		}
 		if strings.EqualFold(other.Name, in.Name) || s.sessionFile[id] == target {
-			return fmt.Errorf("store: session name %q already exists in folder", in.Name)
+			return fmt.Errorf("store: session name %q already exists in folder: %w", in.Name, ErrDuplicateName)
 		}
 	}
 

@@ -28,12 +28,12 @@ func (a *App) CredUnlock(pass string) error { return a.creds.Unlock(pass) }
 
 // SourceDTO is the non-secret folder-source config exchanged with the UI.
 type SourceDTO struct {
-	URL         string            `json:"url"`
-	Format      string            `json:"format"`
-	Auth        string            `json:"auth"`
-	Header      string            `json:"header"`
-	ReconcileBy string            `json:"reconcileBy"`
-	Insecure    bool              `json:"insecure"`
+	URL         string             `json:"url"`
+	Format      string             `json:"format"`
+	Auth        string             `json:"auth"`
+	Header      string             `json:"header"`
+	ReconcileBy string             `json:"reconcileBy"`
+	Insecure    bool               `json:"insecure"`
 	FieldMap    map[string]string  `json:"fieldMap"`
 	Filter      *store.FilterGroup `json:"filter"`
 	HasSecret   bool               `json:"hasSecret"`
@@ -59,7 +59,7 @@ func (a *App) FolderSourceGet(folderID string) *SourceDTO {
 	return &SourceDTO{
 		URL: src.URL, Format: src.Format, Auth: src.Auth, Header: src.Header,
 		ReconcileBy: src.ReconcileBy, Insecure: src.Insecure, FieldMap: src.FieldMap,
-		Filter: src.Filter,
+		Filter:    src.Filter,
 		HasSecret: a.creds.Has(src.CredID),
 	}
 }
@@ -141,6 +141,7 @@ type RefreshResult struct {
 	Added   int    `json:"added"`
 	Updated int    `json:"updated"`
 	Removed int    `json:"removed"`
+	Skipped int    `json:"skipped"`
 	Error   string `json:"error"`
 }
 
@@ -165,7 +166,7 @@ func (a *App) FolderSourceRefresh(folderID string) RefreshResult {
 	if err != nil {
 		return RefreshResult{Error: err.Error()}
 	}
-	return RefreshResult{Added: res.Added, Updated: res.Updated, Removed: res.Removed}
+	return RefreshResult{Added: res.Added, Updated: res.Updated, Removed: res.Removed, Skipped: res.Skipped}
 }
 
 // resolveSecret returns the credential for a source: the override, the stored
