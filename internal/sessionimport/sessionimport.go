@@ -158,9 +158,12 @@ func decodeNetBoxPage(body []byte) ([]store.ImportRecord, string, error) {
 	return out, doc.Next, nil
 }
 
-// maxPages bounds pagination so a misbehaving endpoint can't loop forever
-// (500 pages x NetBox's default 50 = 25k devices).
+// maxPages bounds pagination so a misbehaving endpoint can't loop forever.
 const maxPages = 500
+
+// netboxPageSize is the requested page size. NetBox caps it at its own
+// MAX_PAGE_SIZE (default 1000); a large value keeps the round-trip count low.
+const netboxPageSize = 1000
 
 // FetchAll fetches all records for a source. The netbox format follows the
 // paginated `next` links (same-origin only); other formats are a single fetch.
@@ -177,8 +180,14 @@ func FetchAll(ctx context.Context, src store.FolderSource, secret string, fieldM
 	if err != nil {
 		return nil, fmt.Errorf("sessionimport: url: %w", err)
 	}
+	// Request a large page size to minimize round-trips; NetBox caps it at its
+	// MAX_PAGE_SIZE and the `next` links carry the effective limit forward.
+	if q := base.Query(); q.Get("limit") == "" {
+		q.Set("limit", strconv.Itoa(netboxPageSize))
+		base.RawQuery = q.Encode()
+	}
 	var all []store.ImportRecord
-	next := src.URL
+	next := base.String()
 	for page := 0; next != "" && page < maxPages; page++ {
 		nu, err := url.Parse(next)
 		if err != nil {

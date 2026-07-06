@@ -113,7 +113,7 @@ func (a *App) FolderSourceTest(folderID string, dto SourceDTO, secret string) Te
 	if err != nil {
 		return TestResult{Error: err.Error()}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap)
 	if err != nil {
@@ -152,7 +152,7 @@ func (a *App) FolderSourceRefresh(folderID string) RefreshResult {
 	if err != nil {
 		return RefreshResult{Error: err.Error()}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap)
 	if err != nil {

@@ -790,6 +790,23 @@ function FolderCtxMenu(props: {
   );
 }
 
+function splitSourceUrl(u: string): { base: string; path: string } {
+  if (!u) return { base: "", path: "/api/dcim/devices/" };
+  try {
+    const p = new URL(u);
+    return { base: p.origin, path: (p.pathname || "/") + p.search };
+  } catch {
+    return { base: "", path: u };
+  }
+}
+
+function combineSourceUrl(base: string, path: string): string {
+  let b = base;
+  while (b.endsWith("/")) b = b.slice(0, -1);
+  if (!b) return path;
+  return b + (path.startsWith("/") ? path : "/" + path);
+}
+
 function ImportSourceModal(props: {
   st: ImportState;
   onChange: (patch: Partial<ImportState>) => void;
@@ -798,6 +815,10 @@ function ImportSourceModal(props: {
 }) {
   const { st, onChange, onDTO, onTest, onSave, onClose } = props;
   const dto = st.dto;
+  const initURL = splitSourceUrl(dto.url);
+  const [base, setBase] = useState(initURL.base);
+  const [path, setPath] = useState(initURL.path);
+  const applyURL = (b: string, p: string) => { setBase(b); setPath(p); onDTO({ url: combineSourceUrl(b, p) }); };
   const httpsOk = /^https:\/\/.+/.test(dto.url);
   const fm = dto.fieldMap ?? {};
   const mappedOk = dto.format !== "mapped" || Object.keys(fm).length > 0;
@@ -808,8 +829,9 @@ function ImportSourceModal(props: {
     <div class="modal-overlay">
       <div class="modal import-src">
         <h2>import source</h2>
-        <div class="formrow"><label>URL</label><input placeholder="https://netbox.example/api/dcim/devices/" value={dto.url} onInput={(e) => onDTO({ url: (e.target as HTMLInputElement).value })} /></div>
-        {!httpsOk && dto.url !== "" && <div class="imp-warn">URL must start with https://</div>}
+        <div class="formrow"><label>base URL</label><input placeholder="https://netbox.example" value={base} onInput={(e) => applyURL((e.target as HTMLInputElement).value, path)} /></div>
+        {base !== "" && !base.startsWith("https://") && <div class="imp-warn">base URL must start with https://</div>}
+        <div class="formrow"><label>path</label><input placeholder="/api/dcim/devices/" value={path} onInput={(e) => applyURL(base, (e.target as HTMLInputElement).value)} /></div>
         <div class="formrow"><label>format</label>
           <select value={dto.format} onChange={(e) => onDTO({ format: (e.target as HTMLSelectElement).value })}>
             <option value="f9-native">f9-native</option>
