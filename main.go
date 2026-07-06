@@ -8,9 +8,12 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -41,7 +44,82 @@ func webviewDataPath() string {
 	return ""
 }
 
+// wantsIconInstall reports whether the CLI asked to install the Linux desktop
+// icon + launcher (--install-icons, or its --install-images alias).
+func wantsIconInstall() bool {
+	for _, a := range os.Args[1:] {
+		if a == "--install-icons" || a == "--install-images" {
+			return true
+		}
+	}
+	return false
+}
+
+// installDesktopIcons writes the embedded app icon into the freedesktop hicolor
+// theme and a .desktop launcher under $XDG_DATA_HOME (default ~/.local/share),
+// so f9 appears in the application menu. Per-user; no root required. Linux only.
+func installDesktopIcons() error {
+	if runtime.GOOS != "linux" {
+		fmt.Println("f9-gui: --install-icons is only supported on Linux")
+		return nil
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	dataDir := os.Getenv("XDG_DATA_HOME")
+	if dataDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		dataDir = filepath.Join(home, ".local", "share")
+	}
+
+	iconDir := filepath.Join(dataDir, "icons", "hicolor", "256x256", "apps")
+	if err := os.MkdirAll(iconDir, 0o755); err != nil {
+		return err
+	}
+	iconPath := filepath.Join(iconDir, "f9.png")
+	if err := os.WriteFile(iconPath, appIcon, 0o644); err != nil {
+		return err
+	}
+
+	appsDir := filepath.Join(dataDir, "applications")
+	if err := os.MkdirAll(appsDir, 0o755); err != nil {
+		return err
+	}
+	desktop := "[Desktop Entry]\n" +
+		"Type=Application\n" +
+		"Name=f9\n" +
+		"Comment=SSH client\n" +
+		"Exec=" + exe + " %U\n" +
+		"Icon=f9\n" +
+		"Terminal=false\n" +
+		"Categories=Network;Utility;\n" +
+		"StartupWMClass=f9-gui\n"
+	desktopPath := filepath.Join(appsDir, "f9.desktop")
+	if err := os.WriteFile(desktopPath, []byte(desktop), 0o644); err != nil {
+		return err
+	}
+
+	// Best-effort cache refresh; harmless if the tools are absent.
+	_ = exec.Command("gtk-update-icon-cache", "-q", "-t", "-f", filepath.Join(dataDir, "icons", "hicolor")).Run()
+	_ = exec.Command("update-desktop-database", appsDir).Run()
+
+	fmt.Println("f9-gui: installed icon     ->", iconPath)
+	fmt.Println("f9-gui: installed launcher ->", desktopPath)
+	return nil
+}
+
 func main() {
+	if wantsIconInstall() {
+		if err := installDesktopIcons(); err != nil {
+			log.Fatalf("f9-gui: install icons: %v", err)
+		}
+		return
+	}
+
 	// WebKitGTK renders blurry through the DMABUF path on virtio/VM GPUs;
 	// force the SHM renderer for crisp 1:1 output. Ignored on macOS/Windows.
 	os.Setenv("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
