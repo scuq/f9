@@ -115,11 +115,7 @@ func (a *App) FolderSourceTest(folderID string, dto SourceDTO, secret string) Te
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	body, err := sessionimport.Fetch(ctx, src, sec)
-	if err != nil {
-		return TestResult{Error: err.Error()}
-	}
-	recs, err := sessionimport.Decode(src.Format, src.FieldMap, body)
+	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap)
 	if err != nil {
 		return TestResult{Error: err.Error()}
 	}
@@ -158,11 +154,7 @@ func (a *App) FolderSourceRefresh(folderID string) RefreshResult {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	body, err := sessionimport.Fetch(ctx, src, sec)
-	if err != nil {
-		return RefreshResult{Error: err.Error()}
-	}
-	recs, err := sessionimport.Decode(src.Format, src.FieldMap, body)
+	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap)
 	if err != nil {
 		return RefreshResult{Error: err.Error()}
 	}

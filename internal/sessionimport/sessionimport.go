@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -121,7 +122,15 @@ func decodeNative(body []byte) ([]store.ImportRecord, error) {
 }
 
 func decodeNetBox(body []byte) ([]store.ImportRecord, error) {
+	recs, _, err := decodeNetBoxPage(body)
+	return recs, err
+}
+
+// decodeNetBoxPage decodes one NetBox page and returns the records plus the URL
+// of the next page ("" when there are no more).
+func decodeNetBoxPage(body []byte) ([]store.ImportRecord, string, error) {
 	var doc struct {
+		Next    string `json:"next"`
 		Results []struct {
 			ID        int    `json:"id"`
 			Name      string `json:"name"`
@@ -131,7 +140,7 @@ func decodeNetBox(body []byte) ([]store.ImportRecord, error) {
 		} `json:"results"`
 	}
 	if err := json.Unmarshal(body, &doc); err != nil {
-		return nil, fmt.Errorf("sessionimport: netbox decode: %w", err)
+		return nil, "", fmt.Errorf("sessionimport: netbox decode: %w", err)
 	}
 	out := make([]store.ImportRecord, 0, len(doc.Results))
 	for _, d := range doc.Results {
@@ -146,7 +155,52 @@ func decodeNetBox(body []byte) ([]store.ImportRecord, error) {
 			ExternalID: strconv.Itoa(d.ID), Name: d.Name, Host: host, Port: 22, Proto: "ssh",
 		})
 	}
-	return out, nil
+	return out, doc.Next, nil
+}
+
+// maxPages bounds pagination so a misbehaving endpoint can't loop forever
+// (500 pages x NetBox's default 50 = 25k devices).
+const maxPages = 500
+
+// FetchAll fetches all records for a source. The netbox format follows the
+// paginated `next` links (same-origin only); other formats are a single fetch.
+// fieldMap is used only by the mapped format.
+func FetchAll(ctx context.Context, src store.FolderSource, secret string, fieldMap map[string]string) ([]store.ImportRecord, error) {
+	if src.Format != "netbox" {
+		body, err := Fetch(ctx, src, secret)
+		if err != nil {
+			return nil, err
+		}
+		return Decode(src.Format, fieldMap, body)
+	}
+	base, err := url.Parse(src.URL)
+	if err != nil {
+		return nil, fmt.Errorf("sessionimport: url: %w", err)
+	}
+	var all []store.ImportRecord
+	next := src.URL
+	for page := 0; next != "" && page < maxPages; page++ {
+		nu, err := url.Parse(next)
+		if err != nil {
+			return nil, fmt.Errorf("sessionimport: next url: %w", err)
+		}
+		if nu.Scheme != base.Scheme || nu.Host != base.Host {
+			return nil, fmt.Errorf("sessionimport: refusing cross-origin pagination to %q", nu.Host)
+		}
+		pageSrc := src
+		pageSrc.URL = next
+		body, err := Fetch(ctx, pageSrc, secret)
+		if err != nil {
+			return nil, err
+		}
+		recs, nx, err := decodeNetBoxPage(body)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, recs...)
+		next = nx
+	}
+	return all, nil
 }
 
 func decodeMapped(fieldMap map[string]string, body []byte) ([]store.ImportRecord, error) {
