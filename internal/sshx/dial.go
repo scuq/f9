@@ -145,6 +145,12 @@ func Dial(ctx context.Context, host string, port int, user string, p Prompter, o
 	chain = append(chain, final)
 	nc := &nativeClient{c: final, closers: chain}
 	nc.startKeepalive(o.KeepaliveInterval)
+	if o.SocksPort > 0 {
+		// best-effort: a bind failure must not sink the SSH session.
+		if sp, err := startSocks(o.SocksPort, final); err == nil {
+			nc.socks = sp
+		}
+	}
 	return nc, nil
 }
 
@@ -157,6 +163,7 @@ func closeAll(closers []io.Closer) {
 type nativeClient struct {
 	c       *ssh.Client
 	closers []io.Closer
+	socks   *socksProxy
 
 	kaMu   sync.Mutex
 	kaStop chan struct{}
@@ -206,6 +213,9 @@ func (n *nativeClient) Close() error {
 		n.kaStop = nil
 	}
 	n.kaMu.Unlock()
+	if n.socks != nil {
+		_ = n.socks.Close()
+	}
 	closeAll(n.closers)
 	return nil
 }

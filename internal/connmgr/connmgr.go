@@ -32,6 +32,7 @@ type Target struct {
 	KeyFiles     []string
 	NoAgent      bool
 	AgentSockets []string
+	SocksPort    int
 }
 
 // Conn is the UI-facing snapshot of one connection.
@@ -122,6 +123,7 @@ func (m *Manager) ConnectBatch(ctx context.Context, targets []Target, p sshx.Pro
 				KeyFiles:          t.KeyFiles,
 				NoAgent:           t.NoAgent,
 				AgentSockets:      t.AgentSockets,
+				SocksPort:         t.SocksPort,
 			})
 			m.settle(t.SessionID, client, err)
 		}(t)
