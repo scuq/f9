@@ -1736,13 +1736,11 @@ export function App() {
                 <button onClick={() => connectAndOpen(detail.id, detail.name)}>{isConnected(detail.id) ? "open terminal" : "connect"}</button>
                 {isConnected(detail.id) && <button onClick={() => openTerminalFor(detail.id, detail.name)}>new terminal</button>}
                 <button onClick={() => togglePin(detail.id, selPinned)}>{selPinned ? "unpin" : "pin"}</button>
+                <button onClick={() => setModal("session-edit")}>edit</button>
+                <button onClick={() => setJumpEdit({ sessionId: detail.id, initial: detail.jumpChain ?? [] })}>jump chain</button>
                 {sel.generated
-                  ? <span class="gen-note" title="managed by the folder's import source">read-only - refresh or clear the folder's source</span>
-                  : (<>
-                      <button onClick={() => setModal("session-edit")}>edit</button>
-                      <button onClick={() => setJumpEdit({ sessionId: detail.id, initial: detail.jumpChain ?? [] })}>jump chain</button>
-                      <button class="danger" onClick={deleteSelected}>delete</button>
-                    </>)}
+                  ? <span class="gen-note" title="managed by the folder's import source">local edits revert on next refresh</span>
+                  : <button class="danger" onClick={deleteSelected}>delete</button>}
               </div>
             </div>
           ) : <div class="empty">select a session</div>}
