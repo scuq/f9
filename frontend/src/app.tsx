@@ -237,8 +237,8 @@ function SettingsModal(props: {
   const setKeyFiles = (next: string[]) => onSave({ keyFiles: next });
   const agentSockets = settings.agentSockets ?? [];
   const setAgentSockets = (next: string[]) => onSave({ agentSockets: next });
-  const altUsers = settings.altUsers ?? [];
-  const setAltUsers = (next: AltUser[]) => onSave({ altUsers: next });
+  const [altDraft, setAltDraft] = useState<AltUser[]>(settings.altUsers ?? []);
+  const commitAlt = (next: AltUser[]) => { setAltDraft(next); onSave({ altUsers: next }); };
   const [mapScripts, setMapScripts] = useState<MapScript[]>([]);
   const [mapSel, setMapSel] = useState("");
   const [mapName, setMapName] = useState("");
@@ -358,15 +358,15 @@ function SettingsModal(props: {
 
         <div class="opthead">alternative usernames</div>
         <div class="ssh-note">named logins for different target kinds (e.g. jumphost → jdoe, linux → u1234567, windows → john.doe). Available in map scripts as f9.alt_user("label").</div>
-        {altUsers.map((au, i) => (
+        {altDraft.map((au, i) => (
           <div class="formrow" key={i}>
             <label></label>
-            <input class="alt-label" placeholder="label" value={au.label} onInput={(e) => setAltUsers(altUsers.map((x, j) => j === i ? { ...x, label: (e.target as HTMLInputElement).value } : x))} />
-            <input placeholder="username" value={au.user} onInput={(e) => setAltUsers(altUsers.map((x, j) => j === i ? { ...x, user: (e.target as HTMLInputElement).value } : x))} />
-            <button class="ssh-del" onClick={() => setAltUsers(altUsers.filter((_, j) => j !== i))}>remove</button>
+            <input class="alt-label" placeholder="label" value={au.label} onInput={(e) => setAltDraft(altDraft.map((x, j) => j === i ? { ...x, label: (e.target as HTMLInputElement).value } : x))} onBlur={() => onSave({ altUsers: altDraft })} />
+            <input placeholder="username" value={au.user} onInput={(e) => setAltDraft(altDraft.map((x, j) => j === i ? { ...x, user: (e.target as HTMLInputElement).value } : x))} onBlur={() => onSave({ altUsers: altDraft })} />
+            <button class="ssh-del" onClick={() => commitAlt(altDraft.filter((_, j) => j !== i))}>remove</button>
           </div>
         ))}
-        <div class="formrow"><label></label><button class="importbtn" onClick={() => setAltUsers([...altUsers, { label: "", user: "" }])}>add username…</button></div>
+        <div class="formrow"><label></label><button class="importbtn" onClick={() => commitAlt([...altDraft, { label: "", user: "" }])}>add username…</button></div>
 
         <div class="opthead">import map scripts (Lua)</div>
         <div class="ssh-note">map(r) runs per imported record after the filter: return r to keep it (fields: name, host, port, user, proto, folder, tags, attrs, raw), or nil to drop it.</div>
@@ -1122,6 +1122,7 @@ export function App() {
   const [settingsModal, setSettingsModal] = useState(false);
   const [jumpEdit, setJumpEdit] = useState<{ sessionId: string; initial: JumpHop[] } | null>(null);
   const [folderJump, setFolderJump] = useState<{ folderId: string; initial: JumpHop[] } | null>(null);
+  const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
   const [snLib, setSnLib] = useState(false);
   const [snFolders, setSnFolders] = useState<SnippetFolder[]>([]);
   const [snList, setSnList] = useState<Snippet[]>([]);
@@ -1218,14 +1219,17 @@ export function App() {
   };
   const refreshFolder = (folderId: string) => {
     setFolderCtx(null);
+    const mark = (on: boolean) => setRefreshing((r) => { const n = new Set(r); if (on) n.add(folderId); else n.delete(folderId); return n; });
+    mark(true);
     const finish = () => api().FolderSourceRefresh(folderId).then((rr) => {
+      mark(false);
       if (rr.error) {
         if (rr.error.toLowerCase().includes("unlock")) { setCredErr(""); setCredPrompt({ mode: "unlock", run: finish }); return; }
         setErr(rr.error); return;
       }
       if (rr.skipped > 0) setErr("import: added " + rr.added + ", skipped " + rr.skipped + " duplicate name(s)");
       load();
-    }).catch((e) => setErr(String(e)));
+    }).catch((e) => { mark(false); setErr(String(e)); });
     finish();
   };
   const clearImport = (folderId: string) => {
@@ -1633,6 +1637,7 @@ export function App() {
         <div class="filterbar">
           <input type="text" placeholder="filter sessions..." value={q} onInput={(e) => onQuery((e.target as HTMLInputElement).value)} />
           <button title="reload store" onClick={load}>&#x21bb;</button>
+          {refreshing.size > 0 && <span class="refresh-spin" title="refreshing import source\u2026">&#x21bb;</span>}
         </div>
         <div class="tree">
           {err && <div class="error" onClick={() => setErr("")}>{err}</div>}
