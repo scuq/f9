@@ -5,6 +5,7 @@ import { onFindRequested, onPickerRequested, setPickerEnabled } from "./termsear
 
 const api = () => window.go.app.App;
 const MS_CONFIRM_THRESHOLD = 10;
+const FILTER_DEBOUNCE_MS = 250; // wait for a typing pause before filtering
 
 const BAR_TEMPLATE = `rows:
   - buttons:
@@ -1390,7 +1391,7 @@ export function App() {
     setQ(raw);
     window.clearTimeout(debounce.current);
     if (raw.trim() === "") { setHits(null); return; }
-    debounce.current = window.setTimeout(() => api().Filter(raw).then(setHits).catch((e) => setErr(String(e))), 80);
+    debounce.current = window.setTimeout(() => api().Filter(raw).then(setHits).catch((e) => setErr(String(e))), FILTER_DEBOUNCE_MS);
   };
   const select = (s: SessionNode) => {
     setSel(s); setView({ kind: "details", id: s.id });
