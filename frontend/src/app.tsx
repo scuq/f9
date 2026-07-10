@@ -82,8 +82,9 @@ function Folder(props: {
   node: FolderNode; depth: number; selected: string; selectedFolder: string; marked: Record<string, true>;
   onSelect: (s: SessionNode) => void; onSelectFolder: (f: FolderNode) => void; onToggleMark: (id: string) => void;
   onFolderCtx: (node: FolderNode, x: number, y: number) => void;
+  refreshing: Set<string>; onRefreshStatus: (node: FolderNode) => void;
 }) {
-  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx } = props;
+  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx, refreshing, onRefreshStatus } = props;
   const [open, setOpen] = useState(depth < 2);
   return (
     <div>
@@ -93,6 +94,7 @@ function Folder(props: {
         <span class="twist" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{open ? "\u25be" : "\u25b8"}</span>
         <span class="fname">{node.name}</span>
         {node.hasSource && <span class="genmark" title="import source configured on this folder">src</span>}
+        {refreshing.has(node.id) && <span class="folder-spin" title="refreshing \u2014 click for status" onClick={(e) => { e.stopPropagation(); onRefreshStatus(node); }}>{"\u21bb"}</span>}
       </div>
       {open && (node.sessions ?? []).map((s) => (
         <SessionRow key={s.id} s={s} indent={(depth + 1) * 14 + 8} selected={s.id === selected} marked={!!marked[s.id]}
@@ -100,7 +102,8 @@ function Folder(props: {
       ))}
       {open && (node.folders ?? []).map((c) => (
         <Folder key={c.id} node={c} depth={depth + 1} selected={selected} selectedFolder={selectedFolder}
-          marked={marked} onSelect={onSelect} onSelectFolder={onSelectFolder} onToggleMark={onToggleMark} onFolderCtx={onFolderCtx} />
+          marked={marked} onSelect={onSelect} onSelectFolder={onSelectFolder} onToggleMark={onToggleMark} onFolderCtx={onFolderCtx}
+          refreshing={refreshing} onRefreshStatus={onRefreshStatus} />
       ))}
     </div>
   );
@@ -972,7 +975,7 @@ function ImportSourceModal(props: {
   const fm = dto.fieldMap ?? {};
   const mappedOk = dto.format !== "mapped" || Object.keys(fm).length > 0;
   const secretOk = dto.auth === "none" || st.secret !== "" || dto.hasSecret;
-  const canSave = httpsOk && mappedOk && secretOk && !!(st.test && st.test.ok);
+  const canSave = httpsOk && mappedOk && secretOk;
   const secretLabel = dto.auth === "basic" ? "user:password" : dto.auth === "mtls" ? "cert+key PEM" : "token";
   return (
     <div class="modal-overlay">
@@ -1042,7 +1045,7 @@ function ImportSourceModal(props: {
         </div>
         {st.err && <div class="imp-err">{st.err}</div>}
         <div class="modal-actions">
-          {httpsOk && mappedOk && secretOk && !(st.test && st.test.ok) && <span class="import-hint">test the connection before saving</span>}
+          {httpsOk && mappedOk && secretOk && !(st.test && st.test.ok) && <span class="import-hint">tip: test connection to verify before saving</span>}
           <button onClick={onClose}>close</button>
           <button class="primary" onClick={onSave} disabled={!canSave}>save</button>
         </div>
@@ -1123,6 +1126,7 @@ export function App() {
   const [jumpEdit, setJumpEdit] = useState<{ sessionId: string; initial: JumpHop[] } | null>(null);
   const [folderJump, setFolderJump] = useState<{ folderId: string; initial: JumpHop[] } | null>(null);
   const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
+  const [refreshStatus, setRefreshStatus] = useState<{ folderId: string; name: string } | null>(null);
   const [snLib, setSnLib] = useState(false);
   const [snFolders, setSnFolders] = useState<SnippetFolder[]>([]);
   const [snList, setSnList] = useState<Snippet[]>([]);
@@ -1349,6 +1353,27 @@ export function App() {
     api().ConnectSessions([sessionId]).catch((e) => setErr(String(e)));
     setPendingOpen((p) => (p.some((x) => x.id === sessionId) ? p : [...p, { id: sessionId, name }]));
   };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (ctxMenu) { setCtxMenu(null); return; }
+      if (folderCtx) { setFolderCtx(null); return; }
+      if (promptQ.length > 0) { resolvePrompt({ value: "", useForAll: false, accept: false, cancel: true }); return; }
+      if (credPrompt) { setCredPrompt(null); setCredErr(""); return; }
+      if (folderJump) { setFolderJump(null); return; }
+      if (jumpEdit) { setJumpEdit(null); return; }
+      if (imp) { setImp(null); return; }
+      if (modal) { setModal(""); return; }
+      if (msOpen) { setMsOpen(false); return; }
+      if (snLib) { setSnLib(false); return; }
+      if (pickerOpen) { setPickerOpen(false); return; }
+      if (refreshStatus) { setRefreshStatus(null); return; }
+      if (settingsModal) { setSettingsModal(false); return; }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ctxMenu, folderCtx, promptQ, credPrompt, folderJump, jumpEdit, imp, modal, msOpen, snLib, pickerOpen, settingsModal, refreshStatus]);
 
   useEffect(() => {
     if (pendingOpen.length === 0) return;
@@ -1637,7 +1662,6 @@ export function App() {
         <div class="filterbar">
           <input type="text" placeholder="filter sessions..." value={q} onInput={(e) => onQuery((e.target as HTMLInputElement).value)} />
           <button title="reload store" onClick={load}>&#x21bb;</button>
-          {refreshing.size > 0 && <span class="refresh-spin" title="refreshing import source\u2026">&#x21bb;</span>}
         </div>
         <div class="tree">
           {err && <div class="error" onClick={() => setErr("")}>{err}</div>}
@@ -1649,7 +1673,8 @@ export function App() {
               ))
           ) : (
             tree && <Folder node={tree} depth={0} selected={sel?.id ?? ""} selectedFolder={selFolder?.id ?? ""} marked={marked}
-              onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} onFolderCtx={openFolderCtx} />
+              onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} onFolderCtx={openFolderCtx}
+              refreshing={refreshing} onRefreshStatus={(node) => setRefreshStatus({ folderId: node.id, name: node.name })} />
           )}
         </div>
         {conns.length > 0 && (
@@ -1850,6 +1875,18 @@ export function App() {
           onMarkAll={markAll} onClear={clearMarks} onUnmark={toggleMsMark}
           onDryRun={doDryRun} onSend={doMultiSend} onCancel={doMultiCancel} onClose={() => setMsOpen(false)}
           confirm={msConfirm} onConfirmSend={confirmMultiSend} onConfirmCancel={() => setMsConfirm(null)} onJump={jumpToTerm} />
+      )}
+      {refreshStatus && (
+        <div class="modal-overlay" onClick={() => setRefreshStatus(null)}>
+          <div class="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>refreshing {refreshStatus.name}</h2>
+            <div class="ssh-note">{refreshing.has(refreshStatus.folderId) ? "fetching and reconciling sessions from the import source\u2026 this can take a while for large sources." : "refresh finished."}</div>
+            <div class="modal-actions">
+              <button onClick={() => setRefreshStatus(null)}>close</button>
+              {refreshing.has(refreshStatus.folderId) && <button class="danger" onClick={() => { api().FolderSourceCancelRefresh(refreshStatus.folderId).catch(() => {}); }}>cancel refresh</button>}
+            </div>
+          </div>
+        </div>
       )}
       {updateInfo && (
         <div class="update-toast">

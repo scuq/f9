@@ -605,3 +605,6 @@ select, input, textarea, option { color-scheme: dark; }
 .jump-modal .jump-row .jump-port { flex: none; width: 64px; }
 .jump-modal .jump-row .jump-user { flex: none; width: 150px; }
 .jump-modal .jump-row select { flex: none; min-width: 120px; }
+
+/* --- per-folder refresh spinner --- */
+.folder-spin { display: inline-block; animation: f9spin 0.9s linear infinite; color: var(--accent); margin-left: 6px; cursor: pointer; font-size: 11px; }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -120,7 +121,7 @@ func (a *App) FolderSourceTest(folderID string, dto SourceDTO, secret string) Te
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap)
+	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap, true)
 	if err != nil {
 		return TestResult{Error: err.Error()}
 	}
@@ -172,9 +173,26 @@ func (a *App) FolderSourceRefresh(folderID string) RefreshResult {
 		return RefreshResult{Error: err.Error()}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap)
+	a.refreshMu.Lock()
+	if a.refreshCancels == nil {
+		a.refreshCancels = map[string]context.CancelFunc{}
+	}
+	if prev := a.refreshCancels[folderID]; prev != nil {
+		prev()
+	}
+	a.refreshCancels[folderID] = cancel
+	a.refreshMu.Unlock()
+	defer func() {
+		a.refreshMu.Lock()
+		delete(a.refreshCancels, folderID)
+		a.refreshMu.Unlock()
+		cancel()
+	}()
+	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap, false)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return RefreshResult{Error: "refresh canceled"}
+		}
 		return RefreshResult{Error: err.Error()}
 	}
 	if src.MapScript != "" {
@@ -195,6 +213,16 @@ func (a *App) FolderSourceRefresh(folderID string) RefreshResult {
 		return RefreshResult{Error: err.Error()}
 	}
 	return RefreshResult{Added: res.Added, Updated: res.Updated, Removed: res.Removed, Skipped: res.Skipped}
+}
+
+// FolderSourceCancelRefresh aborts an in-progress refresh for the folder.
+func (a *App) FolderSourceCancelRefresh(folderID string) {
+	a.refreshMu.Lock()
+	cancel := a.refreshCancels[folderID]
+	a.refreshMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 }
 
 // resolveSecret returns the credential for a source: the override, the stored

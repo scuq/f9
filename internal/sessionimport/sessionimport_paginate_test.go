@@ -23,7 +23,7 @@ func TestFetchAllNetBoxPaginates(t *testing.T) {
 	defer srv.Close()
 
 	src := store.FolderSource{URL: srv.URL, Format: "netbox", Insecure: true}
-	recs, err := FetchAll(context.Background(), src, "", nil)
+	recs, err := FetchAll(context.Background(), src, "", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func TestFetchAllNetBoxCrossOriginRefused(t *testing.T) {
 	}))
 	defer srv.Close()
 	src := store.FolderSource{URL: srv.URL, Format: "netbox", Insecure: true}
-	if _, err := FetchAll(context.Background(), src, "", nil); err == nil {
+	if _, err := FetchAll(context.Background(), src, "", nil, false); err == nil {
 		t.Fatal("expected cross-origin pagination to be refused")
 	}
 }

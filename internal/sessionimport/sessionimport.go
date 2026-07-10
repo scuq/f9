@@ -234,10 +234,16 @@ const maxPages = 500
 // MAX_PAGE_SIZE (default 1000); a large value keeps the round-trip count low.
 const netboxPageSize = 1000
 
+// netboxPreviewSize is the page size used for a single-page preview (test).
+const netboxPreviewSize = 200
+
 // FetchAll fetches all records for a source. The netbox format follows the
 // paginated `next` links (same-origin only); other formats are a single fetch.
 // fieldMap is used only by the mapped format.
-func FetchAll(ctx context.Context, src store.FolderSource, secret string, fieldMap map[string]string) ([]store.ImportRecord, error) {
+// FetchAll fetches records for a source. When singlePage is true it fetches
+// only the first (small) page — a fast preview for the test button; refresh
+// passes false to page through everything.
+func FetchAll(ctx context.Context, src store.FolderSource, secret string, fieldMap map[string]string, singlePage bool) ([]store.ImportRecord, error) {
 	if src.Format != "netbox" {
 		body, err := Fetch(ctx, src, secret)
 		if err != nil {
@@ -250,9 +256,14 @@ func FetchAll(ctx context.Context, src store.FolderSource, secret string, fieldM
 		return nil, fmt.Errorf("sessionimport: url: %w", err)
 	}
 	// Request a large page size to minimize round-trips; NetBox caps it at its
-	// MAX_PAGE_SIZE and the `next` links carry the effective limit forward.
+	// MAX_PAGE_SIZE and the `next` links carry the effective limit forward. A
+	// preview fetches a single small page.
+	pageSize := netboxPageSize
+	if singlePage {
+		pageSize = netboxPreviewSize
+	}
 	if q := base.Query(); q.Get("limit") == "" {
-		q.Set("limit", strconv.Itoa(netboxPageSize))
+		q.Set("limit", strconv.Itoa(pageSize))
 		base.RawQuery = q.Encode()
 	}
 	var all []store.ImportRecord
@@ -277,6 +288,9 @@ func FetchAll(ctx context.Context, src store.FolderSource, secret string, fieldM
 		}
 		all = append(all, recs...)
 		next = nx
+		if singlePage {
+			break
+		}
 	}
 	match, err := store.CompileFilter(src.Filter)
 	if err != nil {

@@ -16,7 +16,7 @@ func TestFetchAllNetBoxCapturesRaw(t *testing.T) {
 	}))
 	defer srv.Close()
 	src := store.FolderSource{URL: srv.URL, Format: "netbox", Insecure: true}
-	recs, err := FetchAll(context.Background(), src, "", nil)
+	recs, err := FetchAll(context.Background(), src, "", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}

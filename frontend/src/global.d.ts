@@ -62,6 +62,7 @@ declare global {
           SessionDuplicate(sessionId: string): Promise<string>;
           FolderJumpChain(folderId: string): Promise<JumpHop[] | null>;
           FolderSetJumpChain(folderId: string, hops: JumpHop[]): Promise<void>;
+          FolderSourceCancelRefresh(folderId: string): Promise<void>;
           SnippetFolders(): Promise<SnippetFolder[] | null>;
           SnippetList(): Promise<Snippet[] | null>;
           SnippetGet(id: string): Promise<Snippet | null>;
