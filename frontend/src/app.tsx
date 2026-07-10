@@ -235,6 +235,8 @@ function SettingsModal(props: {
   const setKeyFiles = (next: string[]) => onSave({ keyFiles: next });
   const agentSockets = settings.agentSockets ?? [];
   const setAgentSockets = (next: string[]) => onSave({ agentSockets: next });
+  const altUsers = settings.altUsers ?? [];
+  const setAltUsers = (next: AltUser[]) => onSave({ altUsers: next });
   const [mapScripts, setMapScripts] = useState<MapScript[]>([]);
   const [mapSel, setMapSel] = useState("");
   const [mapName, setMapName] = useState("");
@@ -351,6 +353,18 @@ function SettingsModal(props: {
           </div>
         ))}
         <div class="formrow"><label></label><button class="importbtn" onClick={() => setKeyFiles([...keyFiles, ""])}>add key file…</button></div>
+
+        <div class="opthead">alternative usernames</div>
+        <div class="ssh-note">named logins for different target kinds (e.g. jumphost → jdoe, linux → u1234567, windows → john.doe). Available in map scripts as f9.alt_user("label").</div>
+        {altUsers.map((au, i) => (
+          <div class="formrow" key={i}>
+            <label></label>
+            <input class="alt-label" placeholder="label" value={au.label} onInput={(e) => setAltUsers(altUsers.map((x, j) => j === i ? { ...x, label: (e.target as HTMLInputElement).value } : x))} />
+            <input placeholder="username" value={au.user} onInput={(e) => setAltUsers(altUsers.map((x, j) => j === i ? { ...x, user: (e.target as HTMLInputElement).value } : x))} />
+            <button class="ssh-del" onClick={() => setAltUsers(altUsers.filter((_, j) => j !== i))}>remove</button>
+          </div>
+        ))}
+        <div class="formrow"><label></label><button class="importbtn" onClick={() => setAltUsers([...altUsers, { label: "", user: "" }])}>add username…</button></div>
 
         <div class="opthead">import map scripts (Lua)</div>
         <div class="ssh-note">map(r) runs per imported record after the filter: return r to keep it (fields: name, host, port, user, proto, folder, tags, attrs, raw), or nil to drop it.</div>

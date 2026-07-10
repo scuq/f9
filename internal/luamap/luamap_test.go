@@ -23,12 +23,29 @@ function map(r)
   r.folder = "00-KAG/SERVER"
   return r
 end`
-	out, err := Apply(context.Background(), code, recs)
+	out, err := Apply(context.Background(), code, recs, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(out) != 1 || out[0].Name != "a_10.9.9.9" || out[0].Host != "10.9.9.9" || out[0].Folder != "00-KAG/SERVER" {
 		t.Fatalf("out = %+v", out)
+	}
+}
+
+func TestApplyAltUser(t *testing.T) {
+	code := `
+function map(r)
+  assert(f9.alt_user("missing") == nil, "missing label must be nil")
+  r.user = f9.alt_user("linux") or "fallback"
+  return r
+end`
+	out, err := Apply(context.Background(), code, []store.ImportRecord{{Name: "x"}},
+		map[string]string{"linux": "k0006959933"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out[0].User != "k0006959933" {
+		t.Fatalf("user = %q", out[0].User)
 	}
 }
 
@@ -41,7 +58,7 @@ function map(r)
   assert(loadfile == nil, "loadfile leaked")
   return r
 end`
-	out, err := Apply(context.Background(), code, []store.ImportRecord{{Name: "x"}})
+	out, err := Apply(context.Background(), code, []store.ImportRecord{{Name: "x"}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,20 +70,20 @@ end`
 func TestApplyTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
-	_, err := Apply(ctx, `function map(r) while true do end end`, []store.ImportRecord{{Name: "x"}})
+	_, err := Apply(ctx, `function map(r) while true do end end`, []store.ImportRecord{{Name: "x"}}, nil)
 	if err == nil {
 		t.Fatal("infinite loop must be aborted by the context")
 	}
 }
 
 func TestApplyErrors(t *testing.T) {
-	if _, err := Apply(context.Background(), `function map(`, nil); err == nil {
+	if _, err := Apply(context.Background(), `function map(`, nil, nil); err == nil {
 		t.Fatal("syntax error must fail")
 	}
-	if _, err := Apply(context.Background(), `x = 1`, nil); err == nil || !strings.Contains(err.Error(), "must define map") {
+	if _, err := Apply(context.Background(), `x = 1`, nil, nil); err == nil || !strings.Contains(err.Error(), "must define map") {
 		t.Fatalf("missing map(r): %v", err)
 	}
-	if _, err := Apply(context.Background(), `function map(r) return 42 end`, []store.ImportRecord{{Name: "x"}}); err == nil {
+	if _, err := Apply(context.Background(), `function map(r) return 42 end`, []store.ImportRecord{{Name: "x"}}, nil); err == nil {
 		t.Fatal("non-table return must fail")
 	}
 }

@@ -14,8 +14,9 @@ import (
 )
 
 // Apply compiles code (which must define map(r)) and runs it over recs.
-// A per-record error aborts with the record's name in the message.
-func Apply(ctx context.Context, code string, recs []store.ImportRecord) ([]store.ImportRecord, error) {
+// altUsers backs f9.alt_user(label). A per-record error aborts with the
+// record's name in the message.
+func Apply(ctx context.Context, code string, recs []store.ImportRecord, altUsers map[string]string) ([]store.ImportRecord, error) {
 	L := lua.NewState(lua.Options{SkipOpenLibs: true})
 	defer L.Close()
 	for _, lib := range []struct {
@@ -34,6 +35,18 @@ func Apply(ctx context.Context, code string, recs []store.ImportRecord) ([]store
 	// base includes filesystem escapes; remove them.
 	L.SetGlobal("dofile", lua.LNil)
 	L.SetGlobal("loadfile", lua.LNil)
+
+	// f9 helper table: alt_user(label) -> username or nil.
+	f9tbl := L.NewTable()
+	f9tbl.RawSetString("alt_user", L.NewFunction(func(ls *lua.LState) int {
+		if u, ok := altUsers[ls.CheckString(1)]; ok {
+			ls.Push(lua.LString(u))
+		} else {
+			ls.Push(lua.LNil)
+		}
+		return 1
+	}))
+	L.SetGlobal("f9", f9tbl)
 	L.SetContext(ctx)
 
 	if err := L.DoString(code); err != nil {

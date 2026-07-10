@@ -129,7 +129,11 @@ func (a *App) FolderSourceTest(folderID string, dto SourceDTO, secret string) Te
 		if !ok {
 			return TestResult{Error: "app: map script not found: " + src.MapScript}
 		}
-		if recs, err = luamap.Apply(ctx, code, recs); err != nil {
+		au := map[string]string{}
+		for _, x := range a.Settings().AltUsers {
+			au[x.Label] = x.User
+		}
+		if recs, err = luamap.Apply(ctx, code, recs, au); err != nil {
 			return TestResult{Error: err.Error()}
 		}
 	}
@@ -178,7 +182,11 @@ func (a *App) FolderSourceRefresh(folderID string) RefreshResult {
 		if !ok {
 			return RefreshResult{Error: "app: map script not found: " + src.MapScript}
 		}
-		if recs, err = luamap.Apply(ctx, code, recs); err != nil {
+		au := map[string]string{}
+		for _, x := range a.Settings().AltUsers {
+			au[x.Label] = x.User
+		}
+		if recs, err = luamap.Apply(ctx, code, recs, au); err != nil {
 			return RefreshResult{Error: err.Error()}
 		}
 	}

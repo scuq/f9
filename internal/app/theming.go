@@ -16,22 +16,30 @@ import (
 // UISettings is the persisted UI preference set (~/.config/f9/ui.yaml). Font
 // fields empty/zero mean "use the theme's value".
 type UISettings struct {
-	Theme         string   `yaml:"theme" json:"theme"`
-	Zoom          float64  `yaml:"zoom,omitempty" json:"zoom"`
-	FontUI        string   `yaml:"font_ui,omitempty" json:"fontUI"`
-	FontMono      string   `yaml:"font_mono,omitempty" json:"fontMono"`
-	FontUISize    int      `yaml:"font_ui_size,omitempty" json:"fontUISize"`
-	FontTermSize  int      `yaml:"font_term_size,omitempty" json:"fontTermSize"`
-	ShowGlobalBar bool     `yaml:"show_global_bar,omitempty" json:"showGlobalBar"`
-	ShowFolderBar bool     `yaml:"show_folder_bar,omitempty" json:"showFolderBar"`
-	ShowTemplates bool     `yaml:"show_templates,omitempty" json:"showTemplates"`
-	ShowSnippets  bool     `yaml:"show_snippets,omitempty" json:"showSnippets"`
-	BarVertical   bool     `yaml:"bar_vertical,omitempty" json:"barVertical"`
-	BarUnpinned   bool     `yaml:"bar_unpinned,omitempty" json:"barUnpinned"`
-	ShowMultiSend bool     `yaml:"show_multisend,omitempty" json:"showMultiSend"`
-	KeyFiles      []string `yaml:"key_files,omitempty" json:"keyFiles"`
-	DisableAgent  bool     `yaml:"disable_agent,omitempty" json:"disableAgent"`
-	AgentSockets  []string `yaml:"agent_sockets,omitempty" json:"agentSockets"`
+	Theme         string    `yaml:"theme" json:"theme"`
+	Zoom          float64   `yaml:"zoom,omitempty" json:"zoom"`
+	FontUI        string    `yaml:"font_ui,omitempty" json:"fontUI"`
+	FontMono      string    `yaml:"font_mono,omitempty" json:"fontMono"`
+	FontUISize    int       `yaml:"font_ui_size,omitempty" json:"fontUISize"`
+	FontTermSize  int       `yaml:"font_term_size,omitempty" json:"fontTermSize"`
+	ShowGlobalBar bool      `yaml:"show_global_bar,omitempty" json:"showGlobalBar"`
+	ShowFolderBar bool      `yaml:"show_folder_bar,omitempty" json:"showFolderBar"`
+	ShowTemplates bool      `yaml:"show_templates,omitempty" json:"showTemplates"`
+	ShowSnippets  bool      `yaml:"show_snippets,omitempty" json:"showSnippets"`
+	BarVertical   bool      `yaml:"bar_vertical,omitempty" json:"barVertical"`
+	BarUnpinned   bool      `yaml:"bar_unpinned,omitempty" json:"barUnpinned"`
+	ShowMultiSend bool      `yaml:"show_multisend,omitempty" json:"showMultiSend"`
+	KeyFiles      []string  `yaml:"key_files,omitempty" json:"keyFiles"`
+	DisableAgent  bool      `yaml:"disable_agent,omitempty" json:"disableAgent"`
+	AgentSockets  []string  `yaml:"agent_sockets,omitempty" json:"agentSockets"`
+	AltUsers      []AltUser `yaml:"alt_users,omitempty" json:"altUsers"`
+}
+
+// AltUser is a named alternative login (e.g. jumphost -> ste9933), available
+// to import map scripts via f9.alt_user(label).
+type AltUser struct {
+	Label string `yaml:"label" json:"label"`
+	User  string `yaml:"user" json:"user"`
 }
 
 func (a *App) Themes() []string {

@@ -128,6 +128,7 @@ declare global {
     showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean; showSnippets: boolean;
     barVertical: boolean; barUnpinned: boolean; showMultiSend: boolean;
     keyFiles: string[] | null; disableAgent: boolean; agentSockets: string[] | null;
+    altUsers: AltUser[] | null;
   }
   interface GrepOptsInput { invert: boolean; ignoreCase: boolean; before: number; after: number; maxMatches: number; }
   interface GrepMatch { lineNo: number; line: string; before: string[] | null; after: string[] | null; }
@@ -145,6 +146,7 @@ declare global {
   interface CredState { initialized: boolean; locked: boolean; }
   interface FilterRule { field: string; kind: string; value: string; negate: boolean; }
   interface FilterGroup { op: string; rules: FilterRule[] | null; groups: FilterGroup[] | null; }
+  interface AltUser { label: string; user: string; }
   interface MapScript { name: string; code: string; }
   interface SourceDTO { url: string; format: string; auth: string; header: string; reconcileBy: string; insecure: boolean; fieldMap: Record<string, string> | null; filter: FilterGroup | null; mapScript: string; hasSecret: boolean; }
   interface TestResult { ok: boolean; count: number; sample: string[] | null; error: string; }

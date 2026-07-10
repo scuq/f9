@@ -578,3 +578,6 @@ select, input, textarea, option { color-scheme: dark; }
 
 /* --- lua map-script editor --- */
 .lua-editor { width: 100%; box-sizing: border-box; font-family: var(--font-mono); font-size: 12px; background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; resize: vertical; margin: 4px 0; }
+
+/* --- alternative usernames --- */
+.alt-label { flex: none; width: 130px; }
