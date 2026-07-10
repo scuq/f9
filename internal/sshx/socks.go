@@ -22,6 +22,9 @@ type socksProxy struct {
 	wg     sync.WaitGroup
 	once   sync.Once
 	closed chan struct{}
+
+	mu     sync.Mutex
+	active map[net.Conn]struct{}
 }
 
 // startSocks binds 127.0.0.1:port (port 0 = ephemeral, for tests) and forwards
@@ -31,7 +34,7 @@ func startSocks(port int, d sshDialer) (*socksProxy, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sshx: socks listen :%d: %w", port, err)
 	}
-	p := &socksProxy{ln: ln, dial: d, closed: make(chan struct{})}
+	p := &socksProxy{ln: ln, dial: d, closed: make(chan struct{}), active: map[net.Conn]struct{}{}}
 	p.wg.Add(1)
 	go p.serve()
 	return p, nil
@@ -55,19 +58,34 @@ func (p *socksProxy) serve() {
 	}
 }
 
-// Close stops the listener and waits for in-flight connections to drain.
+// Close stops the listener and force-closes in-flight connections so their
+// copy loops return immediately (a browser holding a connection open must not
+// block teardown), then waits for the handlers to finish.
 func (p *socksProxy) Close() error {
 	var err error
 	p.once.Do(func() {
 		close(p.closed)
 		err = p.ln.Close()
 	})
+	p.mu.Lock()
+	for c := range p.active {
+		_ = c.Close()
+	}
+	p.mu.Unlock()
 	p.wg.Wait()
 	return err
 }
 
 func (p *socksProxy) handle(c net.Conn) {
-	defer c.Close()
+	p.mu.Lock()
+	p.active[c] = struct{}{}
+	p.mu.Unlock()
+	defer func() {
+		p.mu.Lock()
+		delete(p.active, c)
+		p.mu.Unlock()
+		c.Close()
+	}()
 	target, err := socksHandshake(c)
 	if err != nil {
 		return
