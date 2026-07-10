@@ -95,7 +95,7 @@ function Folder(props: {
         <span class="twist" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{open ? "\u25be" : "\u25b8"}</span>
         <span class="fname">{node.name}</span>
         {node.hasSource && <span class="genmark" title="import source configured on this folder">src</span>}
-        {refreshing.has(node.id) && <span class="folder-spin" title="refreshing \u2014 click for status" onClick={(e) => { e.stopPropagation(); onRefreshStatus(node); }}>{"\u21bb"}</span>}
+        {refreshing.has(node.id) && <span class="folder-spin" title="refreshing — click for status" onClick={(e) => { e.stopPropagation(); onRefreshStatus(node); }}>{"\u21bb"}</span>}
       </div>
       {open && (node.sessions ?? []).map((s) => (
         <SessionRow key={s.id} s={s} indent={(depth + 1) * 14 + 8} selected={s.id === selected} marked={!!marked[s.id]}
@@ -929,7 +929,7 @@ function JumpChainModal(props: { initial: JumpHop[]; onSave: (hops: JumpHop[]) =
     <div class="modal-overlay" onClick={onClose}>
       <div class="modal jump-modal" onClick={(e) => e.stopPropagation()}>
         <h2>jump chain</h2>
-        <div class="ssh-note">hops apply in order, first to last, before the target. proxyjump tunnels through the hop; shell-hop runs ssh on the hop's shell (last hop may set a user override).</div>
+        <div class="ssh-note">hops apply in order, first to last, before the target. proxyjump tunnels through the hop; shell-hop runs ssh on the hop's shell. the last hop's user override is the onward username, used only when the session has no user of its own (a per-session/imported user wins).</div>
         {hops.map((h, i) => (
           <div class="jump-row" key={i}>
             <input class="jump-host" placeholder="host" value={h.host} onInput={(e) => setHop(i, { host: (e.target as HTMLInputElement).value })} />

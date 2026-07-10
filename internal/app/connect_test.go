@@ -162,3 +162,25 @@ func TestConnectSessionsSharedPassword(t *testing.T) {
 		t.Fatalf("prompt count = %d, want 1 (shared password)", got)
 	}
 }
+
+func TestResolveTargetUser(t *testing.T) {
+	shellHop := []store.JumpHop{{Host: "h", Mode: "shell-hop", UserOverride: "kja"}}
+	proxyHop := []store.JumpHop{{Host: "h", Mode: "proxyjump", UserOverride: "kja"}}
+
+	// session user wins over an inherited shell-hop override
+	if got := resolveTargetUser("zas-hybridkja", shellHop); got != "zas-hybridkja" {
+		t.Fatalf("session user should win: got %q", got)
+	}
+	// no session user -> fall back to the shell-hop override
+	if got := resolveTargetUser("", shellHop); got != "kja" {
+		t.Fatalf("override fallback: got %q", got)
+	}
+	// proxyjump override never applies to the target user
+	if got := resolveTargetUser("", proxyHop); got != "" {
+		t.Fatalf("proxyjump must not set target user: got %q", got)
+	}
+	// no chain -> just the session user
+	if got := resolveTargetUser("admin", nil); got != "admin" {
+		t.Fatalf("no chain: got %q", got)
+	}
+}

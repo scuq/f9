@@ -9,6 +9,7 @@ import (
 
 	"github.com/scuq/f9/internal/connmgr"
 	"github.com/scuq/f9/internal/sshx"
+	"github.com/scuq/f9/internal/store"
 )
 
 // ---- prompt DTOs (cross the Wails boundary) ----
@@ -173,6 +174,24 @@ func (a *App) emitConns() { a.emitEvent("f9:conns", nil) }
 // ---- connect bindings ----
 
 // ConnectSessions dials the given session IDs as one batch (shared prompter).
+// resolveTargetUser returns the username used for the final target. The
+// session's own user takes precedence; a shell-hop's user override on the last
+// hop is only a fallback (e.g. a default carried by an inherited folder jump
+// chain) applied when the session has no user of its own. This lets a per-device
+// user set by an import map script win over a folder-wide override.
+func resolveTargetUser(sessionUser string, chain []store.JumpHop) string {
+	if sessionUser != "" {
+		return sessionUser
+	}
+	if n := len(chain); n > 0 {
+		last := chain[n-1]
+		if last.Mode == "shell-hop" && last.UserOverride != "" {
+			return last.UserOverride
+		}
+	}
+	return sessionUser
+}
+
 func (a *App) ConnectSessions(ids []string) error {
 	gs := a.Settings()
 	targets := make([]connmgr.Target, 0, len(ids))
@@ -205,14 +224,10 @@ func (a *App) ConnectSessions(ids []string) error {
 		if eff.SocksOnly != nil {
 			t.SocksOnly = *eff.SocksOnly
 		}
-		targetUser := s.User
-		for i, j := range eff.JumpChain {
+		for _, j := range eff.JumpChain {
 			t.JumpChain = append(t.JumpChain, sshx.Hop{Host: j.Host, Port: j.Port, User: j.User, Mode: j.Mode})
-			if i == len(eff.JumpChain)-1 && j.Mode == "shell-hop" && j.UserOverride != "" {
-				targetUser = j.UserOverride
-			}
 		}
-		t.User = targetUser
+		t.User = resolveTargetUser(s.User, eff.JumpChain)
 		targets = append(targets, t)
 	}
 	if len(targets) == 0 {
