@@ -581,3 +581,8 @@ select, input, textarea, option { color-scheme: dark; }
 
 /* --- alternative usernames --- */
 .alt-label { flex: none; width: 130px; }
+
+/* --- SOCKS connection badge --- */
+.socksbadge { font-size: 10px; font-family: var(--font-mono); padding: 1px 5px; border-radius: 3px; margin: 0 4px; flex: none; }
+.socksbadge.on { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); border: 1px solid var(--accent); }
+.socksbadge.off { background: color-mix(in srgb, var(--danger) 22%, transparent); color: var(--danger); border: 1px solid var(--danger); }

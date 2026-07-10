@@ -723,6 +723,9 @@ export namespace connmgr {
 	    state: string;
 	    err: string;
 	    since: string;
+	    socksPort: number;
+	    socksActive: boolean;
+	    socksOnly: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Conn(source);
@@ -736,6 +739,9 @@ export namespace connmgr {
 	        this.state = source["state"];
 	        this.err = source["err"];
 	        this.since = source["since"];
+	        this.socksPort = source["socksPort"];
+	        this.socksActive = source["socksActive"];
+	        this.socksOnly = source["socksOnly"];
 	    }
 	}
 

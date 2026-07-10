@@ -36,5 +36,8 @@ func overlay(base, o SessionOptions) SessionOptions {
 	if o.SocksPort != nil {
 		base.SocksPort = o.SocksPort
 	}
+	if o.SocksOnly != nil {
+		base.SocksOnly = o.SocksOnly
+	}
 	return base
 }

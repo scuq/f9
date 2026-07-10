@@ -173,6 +173,8 @@ func (n *nativeClient) ServerVersion() string { return string(n.c.ServerVersion(
 
 func (n *nativeClient) Wait() error { return n.c.Wait() }
 
+func (n *nativeClient) SocksActive() bool { return n.socks != nil }
+
 func (n *nativeClient) NewSession(_ context.Context, termType string, cols, rows int) (Session, error) {
 	s, err := n.c.NewSession()
 	if err != nil {
@@ -233,6 +235,8 @@ type shellHopClient struct {
 func (h *shellHopClient) ServerVersion() string { return h.serverVersion }
 
 func (h *shellHopClient) Wait() error { return h.hop.Wait() }
+
+func (h *shellHopClient) SocksActive() bool { return false }
 
 func (h *shellHopClient) NewSession(_ context.Context, termType string, cols, rows int) (Session, error) {
 	s, err := h.hop.NewSession()

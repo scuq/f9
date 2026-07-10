@@ -59,6 +59,7 @@ func (c *fakeTermClient) NewSession(context.Context, string, int, int) (sshx.Ses
 	return c.sess, nil
 }
 func (c *fakeTermClient) ServerVersion() string { return "SSH-2.0-fake" }
+func (c *fakeTermClient) SocksActive() bool     { return false }
 func (c *fakeTermClient) Wait() error {
 	var never chan struct{}
 	<-never // block forever; client death isn't exercised in these tests

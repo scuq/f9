@@ -33,6 +33,7 @@ type Target struct {
 	NoAgent      bool
 	AgentSockets []string
 	SocksPort    int
+	SocksOnly    bool
 }
 
 // Conn is the UI-facing snapshot of one connection.
@@ -43,6 +44,10 @@ type Conn struct {
 	State     State  `json:"state"`
 	Err       string `json:"err"`
 	Since     string `json:"since"` // RFC3339; wire-friendly for Wails bindings
+
+	SocksPort   int  `json:"socksPort"`   // configured SOCKS dynamic-forward port (0 = none)
+	SocksActive bool `json:"socksActive"` // proxy bound and running
+	SocksOnly   bool `json:"socksOnly"`   // no terminal; the connection exists only for SOCKS
 }
 
 // DialFunc matches sshx.Dial; injectable so the manager is testable without
@@ -100,6 +105,7 @@ func (m *Manager) ConnectBatch(ctx context.Context, targets []Target, p sshx.Pro
 			conn: Conn{
 				SessionID: t.SessionID, Name: t.Name, Host: t.Host,
 				State: StateDialing, Since: now.Format(time.RFC3339),
+				SocksPort: t.SocksPort, SocksOnly: t.SocksOnly,
 			},
 			since: now,
 		}
@@ -150,6 +156,7 @@ func (m *Manager) settle(id string, client sshx.Client, err error) {
 	} else {
 		e.conn.State = StateConnected
 		e.client = client
+		e.conn.SocksActive = client.SocksActive()
 	}
 	m.mu.Unlock()
 	m.onChange()

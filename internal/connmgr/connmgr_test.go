@@ -21,6 +21,7 @@ func (f *fakeClient) NewSession(_ context.Context, _ string, _, _ int) (sshx.Ses
 	return nil, nil
 }
 func (f *fakeClient) ServerVersion() string { return "SSH-2.0-fake" }
+func (f *fakeClient) SocksActive() bool     { return false }
 func (f *fakeClient) Wait() error {
 	f.mu.Lock()
 	if f.done == nil {

@@ -34,6 +34,7 @@ const OPTION_KEYS: { key: string; label: string; hint: string }[] = [
   { key: "keyFile", label: "SSH key file", hint: "~/.ssh/id_ed25519 (overrides global)" },
   { key: "useAgent", label: "use SSH agent", hint: "true | false (empty = inherit)" },
   { key: "socksPort", label: "SOCKS port", hint: "local ssh -D dynamic-forward port, e.g. 22013 (empty = off)" },
+  { key: "socksOnly", label: "SOCKS only", hint: "true | false — connect for SOCKS with no terminal" },
 ];
 
 const UI_FONTS = ["Inter", "system-ui", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Ubuntu", "Cantarell", "Noto Sans"];
@@ -1277,6 +1278,7 @@ export function App() {
     setView({ kind: "term", id: termId });
     setActivity((a) => { if (!a[termId]) return a; const n = { ...a }; delete n[termId]; return n; });
   };
+  const isSocksOnly = (sessionId: string) => conns.some((c) => c.sessionId === sessionId && c.socksOnly);
   const openTerminalFor = (sessionId: string, name: string) => {
     const termId = uuid();
     setTabs((t) => [...t, { termId, sessionId, name }]);
@@ -1284,7 +1286,7 @@ export function App() {
     activateTerm(termId);
   };
   const connectAndOpen = (sessionId: string, name: string) => {
-    if (isConnected(sessionId)) { openTerminalFor(sessionId, name); return; }
+    if (isConnected(sessionId)) { if (!isSocksOnly(sessionId)) openTerminalFor(sessionId, name); return; }
     api().ConnectSessions([sessionId]).catch((e) => setErr(String(e)));
     setPendingOpen((p) => (p.some((x) => x.id === sessionId) ? p : [...p, { id: sessionId, name }]));
   };
@@ -1293,7 +1295,7 @@ export function App() {
     if (pendingOpen.length === 0) return;
     const still: { id: string; name: string }[] = [];
     for (const p of pendingOpen) {
-      if (conns.some((c) => c.sessionId === p.id && c.state === "connected")) openTerminalFor(p.id, p.name);
+      if (conns.some((c) => c.sessionId === p.id && c.state === "connected")) { if (!isSocksOnly(p.id)) openTerminalFor(p.id, p.name); }
       else if (conns.some((c) => c.sessionId === p.id && c.state === "error")) { /* drop */ }
       else still.push(p);
     }
@@ -1588,6 +1590,7 @@ export function App() {
                 <div class="connrow" key={c.sessionId} title={tc > 1 ? `${tc} terminals — click to cycle` : c.err}
                   onClick={() => cycleSessionTabs(c.sessionId)}>
                   <span class={"dot " + c.state} /><span class="cname">{c.name}</span>
+                  {c.socksPort > 0 && <span class={"socksbadge " + (c.socksActive ? "on" : "off")} title={c.socksActive ? ("SOCKS proxy on 127.0.0.1:" + c.socksPort) : ("SOCKS :" + c.socksPort + " failed to bind (port in use?)")}>{"SOCKS:" + c.socksPort}</span>}
                   {tc > 1 && <span class="conncount">{"\u00d7" + tc}</span>}
                   <span class="cstate">{STATE_LABEL[c.state] ?? c.state}</span>
                   <button class="cx" title="disconnect" onClick={(e) => { e.stopPropagation(); api().Disconnect(c.sessionId); }}>&#x2715;</button>

@@ -17,6 +17,7 @@ type SessionOptions struct {
 	KeyFile           *string        `yaml:"key_file,omitempty"`    // per-session private key (overrides global)
 	UseAgent          *bool          `yaml:"use_agent,omitempty"`   // per-session agent toggle (overrides global)
 	SocksPort         *int           `yaml:"socks_port,omitempty"`  // local SOCKS5 dynamic-forward port (ssh -D)
+	SocksOnly         *bool          `yaml:"socks_only,omitempty"`  // connect for SOCKS only, no terminal
 }
 
 // JumpHop is one hop of a jump chain. Mode "proxyjump" (TCP forward) or

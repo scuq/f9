@@ -115,6 +115,7 @@ declare global {
   interface Conn {
     sessionId: string; name: string; host: string;
     state: "dialing" | "connected" | "error"; err: string; since: string;
+    socksPort: number; socksActive: boolean; socksOnly: boolean;
   }
   interface PromptRequest {
     id: string; kind: "password" | "passphrase" | "hostkey" | "kbi";

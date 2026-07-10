@@ -65,6 +65,9 @@ type Client interface {
 	// Wait blocks until the underlying connection closes (server death,
 	// keepalive failure, or Close), returning the reason if any.
 	Wait() error
+	// SocksActive reports whether a SOCKS dynamic-forward proxy is bound and
+	// running for this client (false when none was requested or the bind failed).
+	SocksActive() bool
 	Close() error
 }
 
