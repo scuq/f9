@@ -18,6 +18,7 @@ import (
 	"github.com/scuq/f9/internal/connmgr"
 	"github.com/scuq/f9/internal/cred"
 	"github.com/scuq/f9/internal/filter"
+	"github.com/scuq/f9/internal/luamap"
 	"github.com/scuq/f9/internal/multisend"
 	"github.com/scuq/f9/internal/osdetect"
 	"github.com/scuq/f9/internal/snippets"
@@ -125,6 +126,7 @@ type App struct {
 	bars     *buttonbar.YAMLStore
 	snips    *snippets.Store
 	creds    *cred.Store
+	maps     *luamap.Library
 	mgr      *connmgr.Manager
 
 	pmu     sync.Mutex
@@ -185,6 +187,11 @@ func New() (*App, error) {
 		return nil, err
 	}
 	a.creds = cstore
+	mstore, err := luamap.OpenLibrary(filepath.Join(root, ".mapscripts.yaml"))
+	if err != nil {
+		return nil, err
+	}
+	a.maps = mstore
 	return a, nil
 }
 

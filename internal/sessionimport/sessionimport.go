@@ -164,8 +164,14 @@ func decodeNetBoxPage(body []byte) ([]store.ImportRecord, string, error) {
 	if err := json.Unmarshal(body, &doc); err != nil {
 		return nil, "", fmt.Errorf("sessionimport: netbox decode: %w", err)
 	}
+	// second, generic pass over the same body: the raw object per device, for
+	// the Lua map hook (r.raw).
+	var rawDoc struct {
+		Results []map[string]interface{} `json:"results"`
+	}
+	_ = json.Unmarshal(body, &rawDoc)
 	out := make([]store.ImportRecord, 0, len(doc.Results))
-	for _, d := range doc.Results {
+	for i, d := range doc.Results {
 		host := d.Name
 		if d.PrimaryIP != nil && d.PrimaryIP.Address != "" {
 			host = d.PrimaryIP.Address
@@ -210,9 +216,13 @@ func decodeNetBoxPage(body []byte) ([]store.ImportRecord, string, error) {
 				}
 			}
 		}
-		out = append(out, store.ImportRecord{
+		rec := store.ImportRecord{
 			ExternalID: strconv.Itoa(d.ID), Name: d.Name, Host: host, Port: 22, Proto: "ssh", Attrs: attrs,
-		})
+		}
+		if i < len(rawDoc.Results) {
+			rec.Raw = rawDoc.Results[i]
+		}
+		out = append(out, rec)
 	}
 	return out, doc.Next, nil
 }

@@ -15,7 +15,9 @@ type ImportRecord struct {
 	User       string
 	Proto      string
 	Tags       []string
-	Attrs      map[string]string // filterable attributes (status, role, manufacturer, model, hostname, tenant, site)
+	Attrs      map[string]string      // filterable attributes (status, role, manufacturer, model, hostname, tenant, site)
+	Raw        map[string]interface{} // full decoded source object (exposed to map scripts as r.raw)
+	Folder     string                 // nested folder path under the source folder (used by reconcile in a later slice)
 }
 
 // ReconcileResult reports what a reconcile changed.

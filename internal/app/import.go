@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/scuq/f9/internal/luamap"
 	"github.com/scuq/f9/internal/sessionimport"
 	"github.com/scuq/f9/internal/store"
 )
@@ -36,6 +37,7 @@ type SourceDTO struct {
 	Insecure    bool               `json:"insecure"`
 	FieldMap    map[string]string  `json:"fieldMap"`
 	Filter      *store.FilterGroup `json:"filter"`
+	MapScript   string             `json:"mapScript"`
 	HasSecret   bool               `json:"hasSecret"`
 }
 
@@ -45,7 +47,7 @@ func (dto SourceDTO) toSource(folderID string) store.FolderSource {
 	return store.FolderSource{
 		URL: dto.URL, Format: dto.Format, Auth: dto.Auth, Header: dto.Header,
 		ReconcileBy: dto.ReconcileBy, Insecure: dto.Insecure, FieldMap: dto.FieldMap,
-		Filter: dto.Filter,
+		Filter: dto.Filter, MapScript: dto.MapScript,
 		CredID: credIDFor(folderID),
 	}
 }
@@ -59,7 +61,7 @@ func (a *App) FolderSourceGet(folderID string) *SourceDTO {
 	return &SourceDTO{
 		URL: src.URL, Format: src.Format, Auth: src.Auth, Header: src.Header,
 		ReconcileBy: src.ReconcileBy, Insecure: src.Insecure, FieldMap: src.FieldMap,
-		Filter:    src.Filter,
+		Filter: src.Filter, MapScript: src.MapScript,
 		HasSecret: a.creds.Has(src.CredID),
 	}
 }
@@ -122,6 +124,15 @@ func (a *App) FolderSourceTest(folderID string, dto SourceDTO, secret string) Te
 	if err != nil {
 		return TestResult{Error: err.Error()}
 	}
+	if src.MapScript != "" {
+		code, ok := a.maps.Get(src.MapScript)
+		if !ok {
+			return TestResult{Error: "app: map script not found: " + src.MapScript}
+		}
+		if recs, err = luamap.Apply(ctx, code, recs); err != nil {
+			return TestResult{Error: err.Error()}
+		}
+	}
 	sample := make([]string, 0, 5)
 	for i, r := range recs {
 		if i >= 5 {
@@ -161,6 +172,15 @@ func (a *App) FolderSourceRefresh(folderID string) RefreshResult {
 	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap)
 	if err != nil {
 		return RefreshResult{Error: err.Error()}
+	}
+	if src.MapScript != "" {
+		code, ok := a.maps.Get(src.MapScript)
+		if !ok {
+			return RefreshResult{Error: "app: map script not found: " + src.MapScript}
+		}
+		if recs, err = luamap.Apply(ctx, code, recs); err != nil {
+			return RefreshResult{Error: err.Error()}
+		}
 	}
 	res, err := a.st.ReconcileFolderSessions(folderID, recs, src.ReconcileBy)
 	if err != nil {
