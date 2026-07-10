@@ -141,6 +141,9 @@ type App struct {
 	msJob    *multisend.Job
 	msCancel chan struct{}
 
+	refreshMu      sync.Mutex
+	refreshCancels map[string]context.CancelFunc
+
 	themes    map[string]*theme.Theme
 	themeName string
 	themeMu   sync.RWMutex
