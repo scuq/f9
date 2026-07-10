@@ -60,6 +60,8 @@ declare global {
           MapScriptDelete(name: string): Promise<void>;
           SessionSetJumpChain(sessionId: string, hops: JumpHop[]): Promise<void>;
           SessionDuplicate(sessionId: string): Promise<string>;
+          FolderJumpChain(folderId: string): Promise<JumpHop[] | null>;
+          FolderSetJumpChain(folderId: string, hops: JumpHop[]): Promise<void>;
           SnippetFolders(): Promise<SnippetFolder[] | null>;
           SnippetList(): Promise<Snippet[] | null>;
           SnippetGet(id: string): Promise<Snippet | null>;

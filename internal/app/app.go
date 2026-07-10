@@ -342,23 +342,19 @@ func (a *App) SaveSession(in SessionInput) (string, error) {
 
 // SessionSetJumpChain replaces a session's jump chain (hops applied in order
 // before reaching the target). An empty list clears it (overriding inheritance).
-func (a *App) SessionSetJumpChain(sessionID string, hops []JumpHopDTO) error {
-	s, _, err := a.st.Resolve(sessionID)
-	if err != nil {
-		return err
-	}
+func toJumpChain(hops []JumpHopDTO) ([]store.JumpHop, error) {
 	chain := make([]store.JumpHop, 0, len(hops))
 	for _, h := range hops {
 		host := strings.TrimSpace(h.Host)
 		if host == "" {
-			return fmt.Errorf("app: jump hop host required")
+			return nil, fmt.Errorf("app: jump hop host required")
 		}
 		mode := strings.TrimSpace(h.Mode)
 		if mode == "" {
 			mode = "proxyjump"
 		}
 		if mode != "proxyjump" && mode != "shell-hop" {
-			return fmt.Errorf("app: jump mode %q: want proxyjump|shell-hop", mode)
+			return nil, fmt.Errorf("app: jump mode %q: want proxyjump|shell-hop", mode)
 		}
 		port := h.Port
 		if port == 0 {
@@ -369,8 +365,61 @@ func (a *App) SessionSetJumpChain(sessionID string, hops []JumpHopDTO) error {
 			Mode: mode, UserOverride: strings.TrimSpace(h.UserOverride),
 		})
 	}
+	return chain, nil
+}
+
+func jumpChainDTO(chain []store.JumpHop) []JumpHopDTO {
+	out := make([]JumpHopDTO, 0, len(chain))
+	for _, h := range chain {
+		out = append(out, JumpHopDTO{Host: h.Host, Port: h.Port, User: h.User, Mode: h.Mode, UserOverride: h.UserOverride})
+	}
+	return out
+}
+
+func (a *App) SessionSetJumpChain(sessionID string, hops []JumpHopDTO) error {
+	s, _, err := a.st.Resolve(sessionID)
+	if err != nil {
+		return err
+	}
+	chain, err := toJumpChain(hops)
+	if err != nil {
+		return err
+	}
 	s.Options.JumpChain = chain
 	return a.st.Put(s)
+}
+
+// FolderJumpChain returns a folder's jump chain (applied to sessions under it).
+func (a *App) FolderJumpChain(folderID string) []JumpHopDTO {
+	for _, f := range a.st.Folders() {
+		if f.ID == folderID {
+			return jumpChainDTO(f.Options.JumpChain)
+		}
+	}
+	return nil
+}
+
+// FolderSetJumpChain sets a folder's jump chain; every session under the folder
+// inherits it through the option overlay unless it overrides.
+func (a *App) FolderSetJumpChain(folderID string, hops []JumpHopDTO) error {
+	var f store.Folder
+	found := false
+	for _, x := range a.st.Folders() {
+		if x.ID == folderID {
+			f = x
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("app: folder %s not found", folderID)
+	}
+	chain, err := toJumpChain(hops)
+	if err != nil {
+		return err
+	}
+	f.Options.JumpChain = chain
+	return a.st.PutFolder(f)
 }
 
 // SessionDuplicate copies a session (including its options) into the same

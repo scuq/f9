@@ -50,6 +50,10 @@ export function DisconnectAll():Promise<void>;
 
 export function Filter(arg1:string):Promise<Array<app.FilterHit>>;
 
+export function FolderJumpChain(arg1:string):Promise<Array<app.JumpHopDTO>>;
+
+export function FolderSetJumpChain(arg1:string,arg2:Array<app.JumpHopDTO>):Promise<void>;
+
 export function FolderSourceClear(arg1:string):Promise<void>;
 
 export function FolderSourceGet(arg1:string):Promise<app.SourceDTO>;

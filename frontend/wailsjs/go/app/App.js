@@ -86,6 +86,14 @@ export function Filter(arg1) {
   return window['go']['app']['App']['Filter'](arg1);
 }
 
+export function FolderJumpChain(arg1) {
+  return window['go']['app']['App']['FolderJumpChain'](arg1);
+}
+
+export function FolderSetJumpChain(arg1, arg2) {
+  return window['go']['app']['App']['FolderSetJumpChain'](arg1, arg2);
+}
+
 export function FolderSourceClear(arg1) {
   return window['go']['app']['App']['FolderSourceClear'](arg1);
 }

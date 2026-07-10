@@ -904,8 +904,8 @@ function FilterGroupEditor(props: { group: FilterGroup; depth: number; onChange:
   );
 }
 
-function JumpChainModal(props: { sessionId: string; initial: JumpHop[]; onClose: () => void; onSaved: () => void }) {
-  const { sessionId, initial, onClose, onSaved } = props;
+function JumpChainModal(props: { initial: JumpHop[]; onSave: (hops: JumpHop[]) => Promise<void>; onClose: () => void; onSaved: () => void }) {
+  const { initial, onSave, onClose, onSaved } = props;
   const [hops, setHops] = useState<JumpHop[]>(initial.map((h) => ({ ...h })));
   const [err, setErr] = useState("");
   const setHop = (i: number, patch: Partial<JumpHop>) => setHops(hops.map((h, j) => (j === i ? { ...h, ...patch } : h)));
@@ -917,7 +917,7 @@ function JumpChainModal(props: { sessionId: string; initial: JumpHop[]; onClose:
     setHops(next);
   };
   const save = () => {
-    api().SessionSetJumpChain(sessionId, hops.map((h) => ({ host: h.host, port: h.port || 0, user: h.user || "", mode: h.mode || "proxyjump", userOverride: h.userOverride || "" })))
+    onSave(hops.map((h) => ({ host: h.host, port: h.port || 0, user: h.user || "", mode: h.mode || "proxyjump", userOverride: h.userOverride || "" })))
       .then(() => { onSaved(); onClose(); })
       .catch((e) => setErr(String(e)));
   };
@@ -958,9 +958,9 @@ function ImportSourceModal(props: {
   st: ImportState;
   onChange: (patch: Partial<ImportState>) => void;
   onDTO: (patch: Partial<SourceDTO>) => void;
-  onTest: () => void; onSave: () => void; onClose: () => void;
+  onTest: () => void; onSave: () => void; onClose: () => void; onEditJump: () => void;
 }) {
-  const { st, onChange, onDTO, onTest, onSave, onClose } = props;
+  const { st, onChange, onDTO, onTest, onSave, onClose, onEditJump } = props;
   const dto = st.dto;
   const [scripts, setScripts] = useState<MapScript[]>([]);
   useEffect(() => { api().MapScriptList().then((l) => setScripts(l ?? [])).catch(() => {}); }, []);
@@ -1031,6 +1031,9 @@ function ImportSourceModal(props: {
             <FilterGroupEditor group={dto.filter ?? { op: "and", rules: [], groups: [] }} depth={0} onChange={(g) => onDTO({ filter: isEmptyFilter(g) ? null : g })} />
           </div>
         )}
+        <div class="formrow"><label>jump chain</label>
+          <button class="importbtn" onClick={onEditJump}>edit jump chain (applied to all sessions from this source)</button>
+        </div>
         <div class="imp-actions">
           <button onClick={onTest} disabled={!httpsOk || st.testing}>{st.testing ? "testing\u2026" : "test connection"}</button>
           {st.test && (st.test.ok
@@ -1118,6 +1121,7 @@ export function App() {
   const [settings, setSettings] = useState<UISettings>(EMPTY_SETTINGS);
   const [settingsModal, setSettingsModal] = useState(false);
   const [jumpEdit, setJumpEdit] = useState<{ sessionId: string; initial: JumpHop[] } | null>(null);
+  const [folderJump, setFolderJump] = useState<{ folderId: string; initial: JumpHop[] } | null>(null);
   const [snLib, setSnLib] = useState(false);
   const [snFolders, setSnFolders] = useState<SnippetFolder[]>([]);
   const [snList, setSnList] = useState<Snippet[]>([]);
@@ -1794,7 +1798,8 @@ export function App() {
         <ImportSourceModal st={imp}
           onChange={(patch) => setImp((c) => c ? { ...c, ...patch, test: null } : c)}
           onDTO={(patch) => setImp((c) => c ? { ...c, dto: { ...c.dto, ...patch }, test: null } : c)}
-          onTest={testImport} onSave={doSaveImport} onClose={() => setImp(null)} />
+          onTest={testImport} onSave={doSaveImport} onClose={() => setImp(null)}
+          onEditJump={() => api().FolderJumpChain(imp.folderId).then((h) => setFolderJump({ folderId: imp.folderId, initial: h ?? [] })).catch(() => setFolderJump({ folderId: imp.folderId, initial: [] }))} />
       )}
       {credPrompt && (
         <CredPromptModal mode={credPrompt.mode} err={credErr}
@@ -1803,7 +1808,8 @@ export function App() {
 
       {modal === "session-new" && selFolder && <SessionModal folder={selFolder} detail={null} onClose={() => setModal("")} onSaved={afterMutation} />}
       {modal === "session-edit" && selFolder && detail && <SessionModal folder={selFolder} detail={detail} onClose={() => setModal("")} onSaved={afterMutation} />}
-      {jumpEdit && <JumpChainModal sessionId={jumpEdit.sessionId} initial={jumpEdit.initial} onClose={() => setJumpEdit(null)} onSaved={() => { const id = jumpEdit.sessionId; api().SessionDetail(id).then(setDetail).catch(() => {}); }} />}
+      {jumpEdit && <JumpChainModal initial={jumpEdit.initial} onSave={(hops) => api().SessionSetJumpChain(jumpEdit.sessionId, hops)} onClose={() => setJumpEdit(null)} onSaved={() => { const id = jumpEdit.sessionId; api().SessionDetail(id).then(setDetail).catch(() => {}); }} />}
+      {folderJump && <JumpChainModal initial={folderJump.initial} onSave={(hops) => api().FolderSetJumpChain(folderJump.folderId, hops)} onClose={() => setFolderJump(null)} onSaved={() => {}} />}
       {modal === "folder" && selFolder && <FolderModal parent={selFolder} onClose={() => setModal("")} onSaved={afterMutation} />}
       {settingsModal && (
         <SettingsModal settings={settings} themeList={themeList} defInd={defInd}
