@@ -38,8 +38,9 @@ type UISettings struct {
 // AltUser is a named alternative login (e.g. jumphost -> ste9933), available
 // to import map scripts via f9.alt_user(label).
 type AltUser struct {
-	Label string `yaml:"label" json:"label"`
-	User  string `yaml:"user" json:"user"`
+	Label   string `yaml:"label" json:"label"`
+	User    string `yaml:"user" json:"user"`
+	KeyFile string `yaml:"key_file,omitempty" json:"keyFile"` // optional key used when this label is referenced
 }
 
 func (a *App) Themes() []string {

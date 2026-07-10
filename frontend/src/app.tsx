@@ -364,12 +364,13 @@ function SettingsModal(props: {
         <div class="formrow"><label></label><button class="importbtn" onClick={() => setKeyFiles([...keyFiles, ""])}>add key file…</button></div>
 
         <div class="opthead">alternative usernames</div>
-        <div class="ssh-note">named logins for different target kinds (e.g. jumphost → jdoe, linux → u1234567, windows → john.doe). Available in map scripts as f9.alt_user("label").</div>
+        <div class="ssh-note">named logins for different target kinds (e.g. jumphost → jdoe, linux → u1234567). Reference them as @label in session users, jump-hop users and overrides (resolved at connect; the optional key file is used for auth), or via f9.alt_user("label") in map scripts.</div>
         {altDraft.map((au, i) => (
           <div class="formrow" key={i}>
             <label></label>
             <input class="alt-label" placeholder="label" value={au.label} onInput={(e) => setAltDraft(altDraft.map((x, j) => j === i ? { ...x, label: (e.target as HTMLInputElement).value } : x))} onBlur={() => onSave({ altUsers: altDraft })} />
             <input placeholder="username" value={au.user} onInput={(e) => setAltDraft(altDraft.map((x, j) => j === i ? { ...x, user: (e.target as HTMLInputElement).value } : x))} onBlur={() => onSave({ altUsers: altDraft })} />
+            <input class="alt-key" placeholder="key file (optional)" value={au.keyFile ?? ""} onInput={(e) => setAltDraft(altDraft.map((x, j) => j === i ? { ...x, keyFile: (e.target as HTMLInputElement).value } : x))} onBlur={() => onSave({ altUsers: altDraft })} />
             <button class="ssh-del" onClick={() => commitAlt(altDraft.filter((_, j) => j !== i))}>remove</button>
           </div>
         ))}
@@ -932,7 +933,7 @@ function JumpChainModal(props: { initial: JumpHop[]; onSave: (hops: JumpHop[]) =
     <div class="modal-overlay" onClick={onClose}>
       <div class="modal jump-modal" onClick={(e) => e.stopPropagation()}>
         <h2>jump chain</h2>
-        <div class="ssh-note">hops apply in order, first to last, before the target. proxyjump tunnels through the hop; shell-hop runs ssh on the hop's shell. the last hop's user override is the onward username, used only when the session has no user of its own (a per-session/imported user wins).</div>
+        <div class="ssh-note">hops apply in order, first to last, before the target. proxyjump tunnels through the hop; shell-hop runs ssh on the hop's shell. the last hop's user override is the onward username, used only when the session has no user of its own (a per-session/imported user wins). users and overrides may reference an alternative username as @label.</div>
         {hops.map((h, i) => (
           <div class="jump-row" key={i}>
             <input class="jump-host" placeholder="host" value={h.host} onInput={(e) => setHop(i, { host: (e.target as HTMLInputElement).value })} />
@@ -1044,7 +1045,7 @@ function ImportSourceModal(props: {
         <div class="imp-actions">
           <button onClick={onTest} disabled={!httpsOk || st.testing}>{st.testing ? "testing\u2026" : "test connection"}</button>
           {st.test && (st.test.ok
-            ? <span class="imp-ok">ok {"\u2014"} {st.test.count} session{st.test.count === 1 ? "" : "s"}{(st.test.sample ?? []).length > 0 ? ": " + (st.test.sample ?? []).join(", ") : ""}</span>
+            ? <span class="imp-ok">ok {"\u2014"} {st.test.count} session{st.test.count === 1 ? "" : "s"}{st.test.partial ? " (preview of first " + st.test.scanned + " devices; refresh scans all)" : ""}{(st.test.sample ?? []).length > 0 ? ": " + (st.test.sample ?? []).join(", ") : ""}</span>
             : <span class="imp-err">{st.test.error}</span>)}
         </div>
         {st.err && <div class="imp-err">{st.err}</div>}
@@ -1242,6 +1243,7 @@ export function App() {
   };
   const clearImport = (folderId: string) => {
     setFolderCtx(null);
+    if (!confirm("Clear the import source configuration on this folder?\n\nThis removes the URL, token, filter and jump chain \u2014 you'll have to re-enter them. Imported sessions are kept but no longer managed.")) return;
     api().FolderSourceClear(folderId).then(() => load()).catch((e) => setErr(String(e)));
   };
   const submitCredPrompt = (pass: string) => {
@@ -1781,6 +1783,9 @@ export function App() {
                     {detail.jumpChain.map((j) => `${j.user ? j.user + "@" : ""}${j.host} [${j.mode}]`).join(" \u2192 ")}{" "}
                     <span class="badge">{detail.jumpSource}</span>
                   </td></tr>
+                )}
+                {detail.jumpChain && detail.jumpChain.length > 0 && detail.onwardUser !== "" && (
+                  <tr><td>onward user</td><td>{detail.onwardUser} <span class="badge">effective login to target</span></td></tr>
                 )}
               </table>
               <div class="detail-actions">

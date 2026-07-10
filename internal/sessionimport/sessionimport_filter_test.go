@@ -23,7 +23,7 @@ func TestFetchAllNetBoxFilters(t *testing.T) {
 		URL: srv.URL, Format: "netbox", Insecure: true,
 		Filter: &store.FilterGroup{Rules: []store.FilterRule{{Field: "role", Kind: "eq", Value: "core"}}},
 	}
-	recs, err := FetchAll(context.Background(), src, "", nil, false)
+	recs, _, err := FetchAll(context.Background(), src, "", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestFetchAllNetBoxCustomFieldFilter(t *testing.T) {
 		URL: srv.URL, Format: "netbox", Insecure: true,
 		Filter: &store.FilterGroup{Rules: []store.FilterRule{{Field: "cf:cmdbSupportTeam", Kind: "contains", Value: "3400"}}},
 	}
-	recs, err := FetchAll(context.Background(), src, "", nil, false)
+	recs, _, err := FetchAll(context.Background(), src, "", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}

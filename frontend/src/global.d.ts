@@ -110,7 +110,7 @@ declare global {
   interface SessionDetail {
     id: string; name: string; folderId: string; folderPath: string;
     host: string; port: number; user: string; proto: string;
-    options: Record<string, OptionField>; jumpChain: JumpHop[] | null; jumpSource: string;
+    options: Record<string, OptionField>; jumpChain: JumpHop[] | null; jumpSource: string; onwardUser: string;
   }
   interface SessionInput {
     id: string; folderId: string; name: string; host: string;
@@ -152,10 +152,10 @@ declare global {
   interface CredState { initialized: boolean; locked: boolean; }
   interface FilterRule { field: string; kind: string; value: string; negate: boolean; }
   interface FilterGroup { op: string; rules: FilterRule[] | null; groups: FilterGroup[] | null; }
-  interface AltUser { label: string; user: string; }
+  interface AltUser { label: string; user: string; keyFile: string; }
   interface MapScript { name: string; code: string; }
   interface SourceDTO { url: string; format: string; auth: string; header: string; reconcileBy: string; insecure: boolean; fieldMap: Record<string, string> | null; filter: FilterGroup | null; mapScript: string; hasSecret: boolean; }
-  interface TestResult { ok: boolean; count: number; sample: string[] | null; error: string; }
+  interface TestResult { ok: boolean; count: number; sample: string[] | null; error: string; scanned: number; partial: boolean; }
   interface RefreshResult { added: number; updated: number; removed: number; skipped: number; error: string; }
   interface UpdateInfo { current: string; latest: string; newer: boolean; url: string; notes: string; error: string; }
   interface AgentKey { comment: string; format: string; fingerprint: string; }

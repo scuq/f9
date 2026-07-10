@@ -184,3 +184,29 @@ func TestResolveTargetUser(t *testing.T) {
 		t.Fatalf("no chain: got %q", got)
 	}
 }
+
+func TestResolveAltRefs(t *testing.T) {
+	alts := []AltUser{
+		{Label: "jump", User: "ste9933", KeyFile: "~/.ssh/id_ste9933"},
+		{Label: "hybrid", User: "zas-hybridkja"},
+	}
+	chain := []store.JumpHop{{Host: "h", Mode: "shell-hop", User: "@jump", UserOverride: "@hybrid"}}
+	user, out, keys := resolveAltRefs(alts, "@hybrid", chain)
+	if user != "zas-hybridkja" {
+		t.Fatalf("user = %q", user)
+	}
+	if out[0].User != "ste9933" || out[0].UserOverride != "zas-hybridkja" {
+		t.Fatalf("chain = %+v", out[0])
+	}
+	if len(keys) != 1 || keys[0] != "~/.ssh/id_ste9933" {
+		t.Fatalf("keys = %v", keys)
+	}
+	// literals and unknown labels pass through untouched; original chain unmodified
+	u2, out2, k2 := resolveAltRefs(alts, "admin", []store.JumpHop{{Host: "h", User: "@nope"}})
+	if u2 != "admin" || out2[0].User != "@nope" || len(k2) != 0 {
+		t.Fatalf("literal/unknown: %q %+v %v", u2, out2[0], k2)
+	}
+	if chain[0].User != "@jump" {
+		t.Fatal("input chain must not be mutated")
+	}
+}

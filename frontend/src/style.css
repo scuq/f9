@@ -608,3 +608,6 @@ select, input, textarea, option { color-scheme: dark; }
 
 /* --- per-folder refresh spinner --- */
 .folder-spin { display: inline-block; animation: f9spin 0.9s linear infinite; color: var(--accent); margin-left: 6px; cursor: pointer; font-size: 11px; }
+
+/* --- alt-user key file input --- */
+.alt-key { flex: none; width: 180px; }

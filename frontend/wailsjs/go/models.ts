@@ -33,6 +33,7 @@ export namespace app {
 	export class AltUser {
 	    label: string;
 	    user: string;
+	    keyFile: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AltUser(source);
@@ -42,6 +43,7 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.label = source["label"];
 	        this.user = source["user"];
+	        this.keyFile = source["keyFile"];
 	    }
 	}
 	export class CredState {
@@ -378,6 +380,7 @@ export namespace app {
 	    options: Record<string, OptionField>;
 	    jumpChain: JumpHopDTO[];
 	    jumpSource: string;
+	    onwardUser: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SessionDetail(source);
@@ -396,6 +399,7 @@ export namespace app {
 	        this.options = this.convertValues(source["options"], OptionField, true);
 	        this.jumpChain = this.convertValues(source["jumpChain"], JumpHopDTO);
 	        this.jumpSource = source["jumpSource"];
+	        this.onwardUser = source["onwardUser"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -496,6 +500,8 @@ export namespace app {
 	    count: number;
 	    sample: string[];
 	    error: string;
+	    scanned: number;
+	    partial: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new TestResult(source);
@@ -507,6 +513,8 @@ export namespace app {
 	        this.count = source["count"];
 	        this.sample = source["sample"];
 	        this.error = source["error"];
+	        this.scanned = source["scanned"];
+	        this.partial = source["partial"];
 	    }
 	}
 	export class UISettings {

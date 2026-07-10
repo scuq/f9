@@ -234,75 +234,93 @@ const maxPages = 500
 // MAX_PAGE_SIZE (default 1000); a large value keeps the round-trip count low.
 const netboxPageSize = 1000
 
-// netboxPreviewSize is the page size used for a single-page preview (test).
-const netboxPreviewSize = 200
+// Preview (test) bounds: keep fetching pages until this many filter matches
+// are found, up to previewMaxPages — so late-sorting matches still show up
+// without scanning the whole source.
+const previewTargetMatches = 25
+const previewMaxPages = 8
 
 // FetchAll fetches all records for a source. The netbox format follows the
 // paginated `next` links (same-origin only); other formats are a single fetch.
 // fieldMap is used only by the mapped format.
-// FetchAll fetches records for a source. When singlePage is true it fetches
-// only the first (small) page — a fast preview for the test button; refresh
-// passes false to page through everything.
-func FetchAll(ctx context.Context, src store.FolderSource, secret string, fieldMap map[string]string, singlePage bool) ([]store.ImportRecord, error) {
+// FetchStats reports how much of the source a fetch covered.
+type FetchStats struct {
+	Scanned int  // records decoded
+	Partial bool // true when a preview stopped before the end of the source
+}
+
+// FetchAll fetches records for a source. When preview is true it fetches pages
+// only until it has previewTargetMatches filter matches (or previewMaxPages),
+// reporting Partial when it stopped early; refresh passes false to page
+// through everything.
+func FetchAll(ctx context.Context, src store.FolderSource, secret string, fieldMap map[string]string, preview bool) ([]store.ImportRecord, FetchStats, error) {
 	if src.Format != "netbox" {
 		body, err := Fetch(ctx, src, secret)
 		if err != nil {
-			return nil, err
+			return nil, FetchStats{}, err
 		}
-		return Decode(src.Format, fieldMap, body)
+		recs, err := Decode(src.Format, fieldMap, body)
+		if err != nil {
+			return nil, FetchStats{}, err
+		}
+		return recs, FetchStats{Scanned: len(recs)}, nil
 	}
 	base, err := url.Parse(src.URL)
 	if err != nil {
-		return nil, fmt.Errorf("sessionimport: url: %w", err)
+		return nil, FetchStats{}, fmt.Errorf("sessionimport: url: %w", err)
 	}
 	// Request a large page size to minimize round-trips; NetBox caps it at its
-	// MAX_PAGE_SIZE and the `next` links carry the effective limit forward. A
-	// preview fetches a single small page.
-	pageSize := netboxPageSize
-	if singlePage {
-		pageSize = netboxPreviewSize
-	}
+	// MAX_PAGE_SIZE and the `next` links carry the effective limit forward.
 	if q := base.Query(); q.Get("limit") == "" {
-		q.Set("limit", strconv.Itoa(pageSize))
+		q.Set("limit", strconv.Itoa(netboxPageSize))
 		base.RawQuery = q.Encode()
+	}
+	match, err := store.CompileFilter(src.Filter)
+	if err != nil {
+		return nil, FetchStats{}, err
 	}
 	var all []store.ImportRecord
 	next := base.String()
 	for page := 0; next != "" && page < maxPages; page++ {
 		nu, err := url.Parse(next)
 		if err != nil {
-			return nil, fmt.Errorf("sessionimport: next url: %w", err)
+			return nil, FetchStats{}, fmt.Errorf("sessionimport: next url: %w", err)
 		}
 		if nu.Scheme != base.Scheme || nu.Host != base.Host {
-			return nil, fmt.Errorf("sessionimport: refusing cross-origin pagination to %q", nu.Host)
+			return nil, FetchStats{}, fmt.Errorf("sessionimport: refusing cross-origin pagination to %q", nu.Host)
 		}
 		pageSrc := src
 		pageSrc.URL = next
 		body, err := Fetch(ctx, pageSrc, secret)
 		if err != nil {
-			return nil, err
+			return nil, FetchStats{}, err
 		}
 		recs, nx, err := decodeNetBoxPage(body)
 		if err != nil {
-			return nil, err
+			return nil, FetchStats{}, err
 		}
 		all = append(all, recs...)
 		next = nx
-		if singlePage {
-			break
+		if preview {
+			matched := 0
+			for _, r := range all {
+				if match(r.Attrs) {
+					matched++
+				}
+			}
+			if matched >= previewTargetMatches || page+1 >= previewMaxPages {
+				break
+			}
 		}
 	}
-	match, err := store.CompileFilter(src.Filter)
-	if err != nil {
-		return nil, err
-	}
+	stats := FetchStats{Scanned: len(all), Partial: next != ""}
 	filtered := all[:0]
 	for _, r := range all {
 		if match(r.Attrs) {
 			filtered = append(filtered, r)
 		}
 	}
-	return filtered, nil
+	return filtered, stats, nil
 }
 
 func decodeMapped(fieldMap map[string]string, body []byte) ([]store.ImportRecord, error) {

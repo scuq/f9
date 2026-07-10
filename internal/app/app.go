@@ -96,6 +96,7 @@ type SessionDetail struct {
 	Options    map[string]OptionField `json:"options"`
 	JumpChain  []JumpHopDTO           `json:"jumpChain"`
 	JumpSource string                 `json:"jumpSource"`
+	OnwardUser string                 `json:"onwardUser"` // effective target login (session user, else shell-hop fallback)
 }
 
 // ---- save inputs ----
@@ -295,6 +296,8 @@ func (a *App) SessionDetail(id string) (*SessionDetail, error) {
 	d.JumpSource = a.sourceOf(chain,
 		func(o store.SessionOptions) bool { return o.JumpChain != nil },
 		s.Options.JumpChain != nil)
+	ou, ochain, _ := resolveAltRefs(a.Settings().AltUsers, s.User, eff.JumpChain)
+	d.OnwardUser = resolveTargetUser(ou, ochain)
 	return d, nil
 }
 

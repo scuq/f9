@@ -102,10 +102,12 @@ func (a *App) FolderSourceClear(folderID string) error {
 
 // TestResult reports a dry connectivity/auth/format check.
 type TestResult struct {
-	OK     bool     `json:"ok"`
-	Count  int      `json:"count"`
-	Sample []string `json:"sample"`
-	Error  string   `json:"error"`
+	OK      bool     `json:"ok"`
+	Count   int      `json:"count"`
+	Sample  []string `json:"sample"`
+	Error   string   `json:"error"`
+	Scanned int      `json:"scanned"` // records the preview decoded
+	Partial bool     `json:"partial"` // preview stopped before the end of the source
 }
 
 // FolderSourceTest fetches + decodes with the given config and secret without
@@ -121,7 +123,7 @@ func (a *App) FolderSourceTest(folderID string, dto SourceDTO, secret string) Te
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap, true)
+	recs, stats, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap, true)
 	if err != nil {
 		return TestResult{Error: err.Error()}
 	}
@@ -149,7 +151,7 @@ func (a *App) FolderSourceTest(folderID string, dto SourceDTO, secret string) Te
 		}
 		sample = append(sample, name)
 	}
-	return TestResult{OK: true, Count: len(recs), Sample: sample}
+	return TestResult{OK: true, Count: len(recs), Sample: sample, Scanned: stats.Scanned, Partial: stats.Partial}
 }
 
 // RefreshResult reports a reconcile outcome.
@@ -188,7 +190,7 @@ func (a *App) FolderSourceRefresh(folderID string) RefreshResult {
 		a.refreshMu.Unlock()
 		cancel()
 	}()
-	recs, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap, false)
+	recs, _, err := sessionimport.FetchAll(ctx, src, sec, src.FieldMap, false)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return RefreshResult{Error: "refresh canceled"}
@@ -207,6 +209,9 @@ func (a *App) FolderSourceRefresh(folderID string) RefreshResult {
 		if recs, err = luamap.Apply(ctx, code, recs, au); err != nil {
 			return RefreshResult{Error: err.Error()}
 		}
+	}
+	if len(recs) == 0 {
+		return RefreshResult{Error: "refresh returned 0 records — leaving existing sessions untouched (check format, filter and map script; clear the source if you really want to remove everything)"}
 	}
 	res, err := a.st.ReconcileFolderSessions(folderID, recs, src.ReconcileBy)
 	if err != nil {

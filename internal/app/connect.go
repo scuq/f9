@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -192,6 +193,37 @@ func resolveTargetUser(sessionUser string, chain []store.JumpHop) string {
 	return sessionUser
 }
 
+// resolveAltRefs expands "@label" references (alternative usernames from
+// Settings) in the session user and jump chain. It returns the resolved user,
+// a resolved copy of the chain, and any key files attached to referenced
+// labels. Unknown labels are left verbatim so a typo fails visibly at auth.
+func resolveAltRefs(alts []AltUser, user string, chain []store.JumpHop) (string, []store.JumpHop, []string) {
+	var keys []string
+	look := func(v string) string {
+		if !strings.HasPrefix(v, "@") {
+			return v
+		}
+		label := v[1:]
+		for _, a := range alts {
+			if a.Label == label {
+				if a.KeyFile != "" {
+					keys = append(keys, a.KeyFile)
+				}
+				return a.User
+			}
+		}
+		return v
+	}
+	user = look(user)
+	out := make([]store.JumpHop, len(chain))
+	for i, h := range chain {
+		h.User = look(h.User)
+		h.UserOverride = look(h.UserOverride)
+		out[i] = h
+	}
+	return user, out, keys
+}
+
 func (a *App) ConnectSessions(ids []string) error {
 	gs := a.Settings()
 	targets := make([]connmgr.Target, 0, len(ids))
@@ -200,9 +232,13 @@ func (a *App) ConnectSessions(ids []string) error {
 		if err != nil {
 			return err
 		}
+		sUser, hopChain, altKeys := resolveAltRefs(gs.AltUsers, s.User, eff.JumpChain)
 		keyFiles := gs.KeyFiles
 		if eff.KeyFile != nil && *eff.KeyFile != "" {
 			keyFiles = []string{*eff.KeyFile}
+		}
+		if len(altKeys) > 0 {
+			keyFiles = append(append([]string{}, altKeys...), keyFiles...)
 		}
 		noAgent := gs.DisableAgent
 		if eff.UseAgent != nil {
@@ -224,10 +260,10 @@ func (a *App) ConnectSessions(ids []string) error {
 		if eff.SocksOnly != nil {
 			t.SocksOnly = *eff.SocksOnly
 		}
-		for _, j := range eff.JumpChain {
+		for _, j := range hopChain {
 			t.JumpChain = append(t.JumpChain, sshx.Hop{Host: j.Host, Port: j.Port, User: j.User, Mode: j.Mode})
 		}
-		t.User = resolveTargetUser(s.User, eff.JumpChain)
+		t.User = resolveTargetUser(sUser, hopChain)
 		targets = append(targets, t)
 	}
 	if len(targets) == 0 {
