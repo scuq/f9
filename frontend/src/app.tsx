@@ -1428,6 +1428,17 @@ export function App() {
     if (!sel || !confirm(`delete session ${sel.name}?`)) return;
     api().DeleteSession(sel.id).then(() => { setSel(null); setDetail(null); afterMutation(); }).catch((e) => setErr(String(e)));
   };
+  const duplicateSelected = () => {
+    if (!detail) return;
+    api().SessionDuplicate(detail.id).then((newId) => {
+      load();
+      api().SessionDetail(newId).then((d) => {
+        setDetail(d);
+        setSel({ id: d.id, name: d.name, host: d.host, port: d.port, user: d.user, proto: d.proto, detectedOs: "", osPinned: false, pinned: false, generated: false });
+        setView({ kind: "details", id: newId });
+      }).catch(() => {});
+    }).catch((e) => setErr(String(e)));
+  };
   const resolvePrompt = (r: PromptReply) => {
     const cur = promptQ[0];
     if (cur) api().ResolvePrompt(cur.id, r);
@@ -1738,6 +1749,7 @@ export function App() {
                 <button onClick={() => togglePin(detail.id, selPinned)}>{selPinned ? "unpin" : "pin"}</button>
                 <button onClick={() => setModal("session-edit")}>edit</button>
                 <button onClick={() => setJumpEdit({ sessionId: detail.id, initial: detail.jumpChain ?? [] })}>jump chain</button>
+                <button onClick={duplicateSelected}>duplicate</button>
                 {sel.generated
                   ? <span class="gen-note" title="managed by the folder's import source">local edits revert on next refresh</span>
                   : <button class="danger" onClick={deleteSelected}>delete</button>}

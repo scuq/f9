@@ -373,6 +373,34 @@ func (a *App) SessionSetJumpChain(sessionID string, hops []JumpHopDTO) error {
 	return a.st.Put(s)
 }
 
+// SessionDuplicate copies a session (including its options) into the same
+// folder under a unique name, as a hand-made (non-generated) session — so a
+// duplicate of an imported session is a normal, refresh-safe local copy.
+func (a *App) SessionDuplicate(sessionID string) (string, error) {
+	src, _, err := a.st.Resolve(sessionID)
+	if err != nil {
+		return "", err
+	}
+	dup := src
+	dup.ID = ""
+	dup.Source = "" // a hand-made copy, not managed by an import source
+	dup.ExternalID = ""
+	dup.Revision = 0
+	base := src.Name + " copy"
+	name := base
+	for i := 2; ; i++ {
+		if _, exists := a.st.SessionByName(src.FolderID, name); !exists {
+			break
+		}
+		name = fmt.Sprintf("%s %d", base, i)
+	}
+	dup.Name = name
+	if err := a.st.Put(dup); err != nil {
+		return "", err
+	}
+	return a.sessionIDByName(dup.FolderID, dup.Name)
+}
+
 // SaveFolder creates (empty ID) or renames a folder; returns the ID.
 func (a *App) SaveFolder(in FolderInput) (string, error) {
 	in.Name = strings.TrimSpace(in.Name)
