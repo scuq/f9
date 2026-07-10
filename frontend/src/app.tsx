@@ -923,7 +923,7 @@ function JumpChainModal(props: { initial: JumpHop[]; onSave: (hops: JumpHop[]) =
   };
   return (
     <div class="modal-overlay" onClick={onClose}>
-      <div class="modal" onClick={(e) => e.stopPropagation()}>
+      <div class="modal jump-modal" onClick={(e) => e.stopPropagation()}>
         <h2>jump chain</h2>
         <div class="ssh-note">hops apply in order, first to last, before the target. proxyjump tunnels through the hop; shell-hop runs ssh on the hop's shell (last hop may set a user override).</div>
         {hops.map((h, i) => (

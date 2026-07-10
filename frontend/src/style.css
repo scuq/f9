@@ -597,3 +597,11 @@ select, input, textarea, option { color-scheme: dark; }
 /* --- refresh spinner --- */
 .refresh-spin { display: inline-block; animation: f9spin 0.9s linear infinite; color: var(--accent); margin-left: 4px; }
 @keyframes f9spin { to { transform: rotate(360deg); } }
+
+/* --- jump chain editor: wider modal + readable field widths --- */
+.modal.jump-modal { width: 660px; max-width: 92vw; }
+.jump-modal .jump-row { flex-wrap: wrap; }
+.jump-modal .jump-row .jump-host { flex: 1 1 240px; min-width: 220px; }
+.jump-modal .jump-row .jump-port { flex: none; width: 64px; }
+.jump-modal .jump-row .jump-user { flex: none; width: 150px; }
+.jump-modal .jump-row select { flex: none; min-width: 120px; }
