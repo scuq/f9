@@ -126,6 +126,18 @@ export function LaunchApp(arg1) {
   return window['go']['app']['App']['LaunchApp'](arg1);
 }
 
+export function MapScriptDelete(arg1) {
+  return window['go']['app']['App']['MapScriptDelete'](arg1);
+}
+
+export function MapScriptList() {
+  return window['go']['app']['App']['MapScriptList']();
+}
+
+export function MapScriptPut(arg1, arg2) {
+  return window['go']['app']['App']['MapScriptPut'](arg1, arg2);
+}
+
 export function MultiSendCancel() {
   return window['go']['app']['App']['MultiSendCancel']();
 }

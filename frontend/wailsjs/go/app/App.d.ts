@@ -4,6 +4,7 @@ import {connmgr} from '../models';
 import {buttonbar} from '../models';
 import {updater} from '../models';
 import {app} from '../models';
+import {luamap} from '../models';
 import {snippets} from '../models';
 import {theme} from '../models';
 
@@ -68,6 +69,12 @@ export function GrepTerminal(arg1:string,arg2:string,arg3:app.GrepOptsDTO):Promi
 export function ImportITermTheme():Promise<string>;
 
 export function LaunchApp(arg1:Array<string>):Promise<void>;
+
+export function MapScriptDelete(arg1:string):Promise<void>;
+
+export function MapScriptList():Promise<Array<luamap.Script>>;
+
+export function MapScriptPut(arg1:string,arg2:string):Promise<void>;
 
 export function MultiSendCancel():Promise<void>;
 

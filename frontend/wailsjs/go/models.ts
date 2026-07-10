@@ -438,6 +438,7 @@ export namespace app {
 	    insecure: boolean;
 	    fieldMap: Record<string, string>;
 	    filter?: store.FilterGroup;
+	    mapScript: string;
 	    hasSecret: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -454,6 +455,7 @@ export namespace app {
 	        this.insecure = source["insecure"];
 	        this.fieldMap = source["fieldMap"];
 	        this.filter = this.convertValues(source["filter"], store.FilterGroup);
+	        this.mapScript = source["mapScript"];
 	        this.hasSecret = source["hasSecret"];
 	    }
 	
@@ -700,6 +702,25 @@ export namespace connmgr {
 	        this.state = source["state"];
 	        this.err = source["err"];
 	        this.since = source["since"];
+	    }
+	}
+
+}
+
+export namespace luamap {
+	
+	export class Script {
+	    name: string;
+	    code: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Script(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.code = source["code"];
 	    }
 	}
 

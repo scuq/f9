@@ -235,6 +235,25 @@ function SettingsModal(props: {
   const setKeyFiles = (next: string[]) => onSave({ keyFiles: next });
   const agentSockets = settings.agentSockets ?? [];
   const setAgentSockets = (next: string[]) => onSave({ agentSockets: next });
+  const [mapScripts, setMapScripts] = useState<MapScript[]>([]);
+  const [mapSel, setMapSel] = useState("");
+  const [mapName, setMapName] = useState("");
+  const [mapCode, setMapCode] = useState("");
+  const [mapErr, setMapErr] = useState("");
+  const loadMapScripts = () => api().MapScriptList().then((l) => setMapScripts(l ?? [])).catch(() => {});
+  useEffect(() => { loadMapScripts(); }, []);
+  const selectMapScript = (name: string) => {
+    setMapSel(name); setMapErr("");
+    if (name === "") { setMapName(""); setMapCode(""); return; }
+    const s = mapScripts.find((x) => x.name === name);
+    setMapName(name); setMapCode(s ? s.code : "");
+  };
+  const saveMapScript = () => {
+    api().MapScriptPut(mapName, mapCode).then(() => { setMapErr(""); setMapSel(mapName); loadMapScripts(); }).catch((e) => setMapErr(String(e)));
+  };
+  const deleteMapScript = () => {
+    api().MapScriptDelete(mapSel).then(() => { setMapErr(""); selectMapScript(""); loadMapScripts(); }).catch((e) => setMapErr(String(e)));
+  };
   return (
     <div class="modal-overlay" onClick={onClose}>
       <div class="modal settings-modal" onClick={(e) => e.stopPropagation()}>
@@ -332,6 +351,22 @@ function SettingsModal(props: {
           </div>
         ))}
         <div class="formrow"><label></label><button class="importbtn" onClick={() => setKeyFiles([...keyFiles, ""])}>add key file…</button></div>
+
+        <div class="opthead">import map scripts (Lua)</div>
+        <div class="ssh-note">map(r) runs per imported record after the filter: return r to keep it (fields: name, host, port, user, proto, folder, tags, attrs, raw), or nil to drop it.</div>
+        <div class="formrow"><label>script</label>
+          <select value={mapSel} onChange={(e) => selectMapScript((e.target as HTMLSelectElement).value)}>
+            <option value="">new script…</option>
+            {mapScripts.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
+          </select>
+        </div>
+        <div class="formrow"><label>name</label><input value={mapName} onInput={(e) => setMapName((e.target as HTMLInputElement).value)} placeholder="my-script" /></div>
+        <textarea class="lua-editor" rows={10} spellcheck={false} value={mapCode} onInput={(e) => setMapCode((e.target as HTMLTextAreaElement).value)} placeholder={"function map(r)\n  return r\nend"} />
+        {mapErr && <div class="imp-warn">{mapErr}</div>}
+        <div class="filt-actions">
+          <button class="importbtn" disabled={mapName === ""} onClick={saveMapScript}>save script</button>
+          {mapSel !== "" && <button class="ssh-del" onClick={deleteMapScript}>delete script</button>}
+        </div>
 
         <div class="modal-actions"><button class="primary" onClick={onClose}>done</button></div>
       </div>
@@ -861,6 +896,8 @@ function ImportSourceModal(props: {
 }) {
   const { st, onChange, onDTO, onTest, onSave, onClose } = props;
   const dto = st.dto;
+  const [scripts, setScripts] = useState<MapScript[]>([]);
+  useEffect(() => { api().MapScriptList().then((l) => setScripts(l ?? [])).catch(() => {}); }, []);
   const initURL = splitSourceUrl(dto.url);
   const [base, setBase] = useState(initURL.base);
   const [path, setPath] = useState(initURL.path);
@@ -889,6 +926,12 @@ function ImportSourceModal(props: {
           <select value={dto.reconcileBy} onChange={(e) => onDTO({ reconcileBy: (e.target as HTMLSelectElement).value })}>
             <option value="hostname">hostname</option>
             <option value="externalId">external id</option>
+          </select>
+        </div>
+        <div class="formrow"><label>map script</label>
+          <select value={dto.mapScript || ""} onChange={(e) => onDTO({ mapScript: (e.target as HTMLSelectElement).value })}>
+            <option value="">none</option>
+            {scripts.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
           </select>
         </div>
         <div class="formrow"><label>auth</label>
@@ -1058,7 +1101,7 @@ export function App() {
   const load = () => api().Tree().then((t) => { setTree(t); if (!selFolder) setSelFolder({ id: t.id, path: t.path }); }).catch((e) => setErr(String(e)));
 
   const openFolderCtx = (node: FolderNode, x: number, y: number) => setFolderCtx({ node, x, y });
-  const blankDTO = (): SourceDTO => ({ url: "", format: "f9-native", auth: "none", header: "", reconcileBy: "hostname", insecure: false, fieldMap: {}, filter: null, hasSecret: false });
+  const blankDTO = (): SourceDTO => ({ url: "", format: "f9-native", auth: "none", header: "", reconcileBy: "hostname", insecure: false, fieldMap: {}, filter: null, mapScript: "", hasSecret: false });
   const openImport = (folderId: string) => {
     setFolderCtx(null);
     api().FolderSourceGet(folderId).then((got) => {
