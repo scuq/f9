@@ -66,14 +66,26 @@ function dotClass(fl?: IndFlags): string | null {
   return null;
 }
 
+// countTree returns deep subfolder/session counts for a folder node.
+function countTree(n: FolderNode): { f: number; s: number } {
+  let f = 0, s = (n.sessions ?? []).length;
+  for (const c of n.folders ?? []) {
+    const cc = countTree(c);
+    f += 1 + cc.f;
+    s += cc.s;
+  }
+  return { f, s };
+}
+
 function SessionRow(props: {
-  s: SessionNode; pathPrefix?: string; indent: number; selected: boolean; marked: boolean;
-  onSelect: () => void; onToggleMark: () => void;
+  s: SessionNode; pathPrefix?: string; indent: number; selected: boolean; marked: boolean; showMark: boolean;
+  onSelect: () => void; onToggleMark: () => void; onConnect: () => void;
 }) {
-  const { s, pathPrefix, indent, selected, marked, onSelect, onToggleMark } = props;
+  const { s, pathPrefix, indent, selected, marked, showMark, onSelect, onToggleMark, onConnect } = props;
   return (
-    <div class={"row session" + (selected ? " selected" : "")} style={{ paddingLeft: `${indent}px` }} onClick={onSelect}>
-      <input type="checkbox" checked={marked} onClick={(e) => { e.stopPropagation(); onToggleMark(); }} />
+    <div class={"row session" + (selected ? " selected" : "")} style={{ paddingLeft: `${indent}px` }} onClick={onSelect}
+      onDblClick={onConnect} title="double-click to connect">
+      {showMark && <input type="checkbox" checked={marked} onClick={(e) => { e.stopPropagation(); onToggleMark(); }} />}
       {pathPrefix && <span class="hitpath">{pathPrefix}</span>}
       <span class="sname">{s.name}</span>
       {s.pinned && <span class="pinbadge">{"\u2605"}</span>}
@@ -87,9 +99,11 @@ function Folder(props: {
   onSelect: (s: SessionNode) => void; onSelectFolder: (f: FolderNode) => void; onToggleMark: (id: string) => void;
   onFolderCtx: (node: FolderNode, x: number, y: number) => void;
   refreshing: Set<string>; onRefreshStatus: (node: FolderNode) => void;
+  showMarks: boolean; onConnect: (s: SessionNode) => void;
 }) {
-  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx, refreshing, onRefreshStatus } = props;
+  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx, refreshing, onRefreshStatus, showMarks, onConnect } = props;
   const [open, setOpen] = useState(depth < 2);
+  const cnt = countTree(node);
   return (
     <div>
       <div class={"row folder" + (node.id === selectedFolder ? " selected" : "")} style={{ paddingLeft: `${depth * 14}px` }}
@@ -97,17 +111,18 @@ function Folder(props: {
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onFolderCtx(node, e.clientX, e.clientY); }}>
         <span class="twist" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{open ? "\u25be" : "\u25b8"}</span>
         <span class="fname">{node.name}</span>
+        <span class="fcount" title={cnt.f + " subfolders \u00b7 " + cnt.s + " sessions"}>{cnt.f > 0 ? cnt.f + "/" : ""}{cnt.s}</span>
         {node.hasSource && <span class="genmark" title="import source configured on this folder">src</span>}
         {refreshing.has(node.id) && <span class="folder-spin" title="refreshing — click for status" onClick={(e) => { e.stopPropagation(); onRefreshStatus(node); }}>{"\u21bb"}</span>}
       </div>
       {open && (node.sessions ?? []).map((s) => (
-        <SessionRow key={s.id} s={s} indent={(depth + 1) * 14 + 8} selected={s.id === selected} marked={!!marked[s.id]}
-          onSelect={() => onSelect(s)} onToggleMark={() => onToggleMark(s.id)} />
+        <SessionRow key={s.id} s={s} indent={(depth + 1) * 14 + 8} selected={s.id === selected} marked={!!marked[s.id]} showMark={showMarks}
+          onSelect={() => onSelect(s)} onToggleMark={() => onToggleMark(s.id)} onConnect={() => onConnect(s)} />
       ))}
       {open && (node.folders ?? []).map((c) => (
         <Folder key={c.id} node={c} depth={depth + 1} selected={selected} selectedFolder={selectedFolder}
           marked={marked} onSelect={onSelect} onSelectFolder={onSelectFolder} onToggleMark={onToggleMark} onFolderCtx={onFolderCtx}
-          refreshing={refreshing} onRefreshStatus={onRefreshStatus} />
+          refreshing={refreshing} onRefreshStatus={onRefreshStatus} showMarks={showMarks} onConnect={onConnect} />
       ))}
     </div>
   );
@@ -1132,6 +1147,7 @@ export function App() {
   const [folderJump, setFolderJump] = useState<{ folderId: string; initial: JumpHop[] } | null>(null);
   const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
   const [refreshStatus, setRefreshStatus] = useState<{ folderId: string; name: string } | null>(null);
+  const [showMarks, setShowMarks] = useState(false);
   const [snLib, setSnLib] = useState(false);
   const [snFolders, setSnFolders] = useState<SnippetFolder[]>([]);
   const [snList, setSnList] = useState<Snippet[]>([]);
@@ -1662,7 +1678,8 @@ export function App() {
           <button onClick={() => setModal("folder")} disabled={!selFolder}>+ folder</button>
         </div>
         <div class="toolbar">
-          <button onClick={connectMarked} disabled={markedIds.length === 0}>connect marked ({markedIds.length})</button>
+          <button class={"markstoggle" + (showMarks ? " on" : "")} title={showMarks ? "hide selection checkboxes" : "show selection checkboxes (multi-connect)"} onClick={() => setShowMarks(!showMarks)}>{"\u2611"}</button>
+          {showMarks && <button onClick={connectMarked} disabled={markedIds.length === 0}>connect marked ({markedIds.length})</button>}
           <button onClick={connectFolder} disabled={!selFolder}>connect folder</button>
         </div>
         <div class="filterbar">
@@ -1675,14 +1692,16 @@ export function App() {
             hits.length === 0 ? <div class="nohits">no matches</div> : (<>
               {hits.slice(0, FILTER_MAX_RESULTS).map((h) => (
                 <SessionRow key={h.id} s={h} pathPrefix={h.path + "/"} indent={10} selected={h.id === sel?.id}
-                  marked={!!marked[h.id]} onSelect={() => select(h)} onToggleMark={() => toggleMark(h.id)} />
+                  marked={!!marked[h.id]} showMark={showMarks} onSelect={() => select(h)} onToggleMark={() => toggleMark(h.id)}
+                  onConnect={() => connectAndOpen(h.id, h.name)} />
               ))}
               {hits.length > FILTER_MAX_RESULTS && <div class="nohits">showing first {FILTER_MAX_RESULTS} of {hits.length}, refine to narrow</div>}
             </>)
           ) : (
             tree && <Folder node={tree} depth={0} selected={sel?.id ?? ""} selectedFolder={selFolder?.id ?? ""} marked={marked}
               onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} onFolderCtx={openFolderCtx}
-              refreshing={refreshing} onRefreshStatus={(node) => setRefreshStatus({ folderId: node.id, name: node.name })} />
+              refreshing={refreshing} onRefreshStatus={(node) => setRefreshStatus({ folderId: node.id, name: node.name })}
+              showMarks={showMarks} onConnect={(s) => connectAndOpen(s.id, s.name)} />
           )}
         </div>
         {conns.length > 0 && (
@@ -1767,7 +1786,7 @@ export function App() {
               <table>
                 <tr><td>folder</td><td>{detail.folderPath}</td></tr>
                 <tr><td>host</td><td>{detail.host}{detail.port && detail.port !== 22 ? ":" + detail.port : ""}</td></tr>
-                <tr><td>user</td><td>{detail.user || "\u2014"}</td></tr>
+                <tr><td>user</td><td>{detail.user || "\u2014"}{detail.user.startsWith("@") && detail.onwardUser && detail.onwardUser !== detail.user ? " \u2192 " + detail.onwardUser : ""}</td></tr>
                 <tr><td>proto</td><td>{detail.proto}</td></tr>
                 <tr><td>os</td><td>{sel.detectedOs ? sel.detectedOs + (sel.osPinned ? " (pinned)" : "") : "not detected yet"}</td></tr>
               </table>

@@ -611,3 +611,8 @@ select, input, textarea, option { color-scheme: dark; }
 
 /* --- alt-user key file input --- */
 .alt-key { flex: none; width: 180px; }
+
+/* --- folder counters + marks toggle --- */
+.fcount { font-size: 10px; color: var(--folder-fg); opacity: 0.7; flex: none; margin-left: 4px; }
+.markstoggle { flex: none; padding: 2px 8px; }
+.markstoggle.on { color: var(--accent); border-color: var(--accent); }
