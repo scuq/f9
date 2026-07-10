@@ -495,6 +495,13 @@ func (a *App) optionFields(s store.Session, eff store.SessionOptions, chain []st
 			func(o store.SessionOptions) bool { return o.UseAgent != nil },
 			s.Options.UseAgent != nil),
 	}
+	out["socksPort"] = OptionField{
+		Value:     intPtr(s.Options.SocksPort),
+		Effective: intPtr(eff.SocksPort),
+		Source: a.sourceOf(chain,
+			func(o store.SessionOptions) bool { return o.SocksPort != nil },
+			s.Options.SocksPort != nil),
+	}
 	return out
 }
 
@@ -543,6 +550,12 @@ func parseOptions(in map[string]string) (store.SessionOptions, error) {
 			}
 			b := v == "true"
 			o.UseAgent = &b
+		case "socksPort":
+			n, err := strconv.Atoi(v)
+			if err != nil || n < 1 || n > 65535 {
+				return o, fmt.Errorf("app: socksPort %q: want a port 1-65535", v)
+			}
+			o.SocksPort = &n
 		default:
 			return o, fmt.Errorf("app: unknown option %q", k)
 		}

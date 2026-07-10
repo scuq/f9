@@ -33,6 +33,7 @@ const OPTION_KEYS: { key: string; label: string; hint: string }[] = [
   { key: "auditScope", label: "audit scope", hint: "off | events | events+input | full-io" },
   { key: "keyFile", label: "SSH key file", hint: "~/.ssh/id_ed25519 (overrides global)" },
   { key: "useAgent", label: "use SSH agent", hint: "true | false (empty = inherit)" },
+  { key: "socksPort", label: "SOCKS port", hint: "local ssh -D dynamic-forward port, e.g. 22013 (empty = off)" },
 ];
 
 const UI_FONTS = ["Inter", "system-ui", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "Ubuntu", "Cantarell", "Noto Sans"];

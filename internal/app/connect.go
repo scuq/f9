@@ -199,6 +199,9 @@ func (a *App) ConnectSessions(ids []string) error {
 		if eff.KeepaliveInterval != nil {
 			t.Keepalive = *eff.KeepaliveInterval
 		}
+		if eff.SocksPort != nil {
+			t.SocksPort = *eff.SocksPort
+		}
 		targetUser := s.User
 		for i, j := range eff.JumpChain {
 			t.JumpChain = append(t.JumpChain, sshx.Hop{Host: j.Host, Port: j.Port, User: j.User, Mode: j.Mode})

@@ -13,7 +13,7 @@ func durp(v time.Duration) *time.Duration { return &v }
 func TestOverlayFieldCoverage(t *testing.T) {
 	// Guard: when SessionOptions grows, overlay() and the inheritance test
 	// below must be extended. Bump the expected count last.
-	if n := reflect.TypeOf(SessionOptions{}).NumField(); n != 9 {
+	if n := reflect.TypeOf(SessionOptions{}).NumField(); n != 10 {
 		t.Fatalf("SessionOptions has %d fields; update overlay() and this test", n)
 	}
 }

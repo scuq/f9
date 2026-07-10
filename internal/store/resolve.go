@@ -33,5 +33,8 @@ func overlay(base, o SessionOptions) SessionOptions {
 	if o.UseAgent != nil {
 		base.UseAgent = o.UseAgent
 	}
+	if o.SocksPort != nil {
+		base.SocksPort = o.SocksPort
+	}
 	return base
 }
