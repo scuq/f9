@@ -5,7 +5,10 @@ import { onFindRequested, onPickerRequested, setPickerEnabled } from "./termsear
 
 const api = () => window.go.app.App;
 const MS_CONFIRM_THRESHOLD = 10;
-const FILTER_DEBOUNCE_MS = 250; // wait for a typing pause before filtering
+// Shorter queries match far more sessions (heavier render), so wait longer
+// before filtering; longer queries are cheap, so respond quickly.
+const filterDebounceMs = (len: number) => Math.max(120, 420 - (len - 1) * 75);
+const FILTER_MAX_RESULTS = 300; // cap rendered matches; a broad query never paints hundreds of rows
 
 const BAR_TEMPLATE = `rows:
   - buttons:
@@ -1391,7 +1394,7 @@ export function App() {
     setQ(raw);
     window.clearTimeout(debounce.current);
     if (raw.trim() === "") { setHits(null); return; }
-    debounce.current = window.setTimeout(() => api().Filter(raw).then(setHits).catch((e) => setErr(String(e))), FILTER_DEBOUNCE_MS);
+    debounce.current = window.setTimeout(() => api().Filter(raw).then(setHits).catch((e) => setErr(String(e))), filterDebounceMs(raw.trim().length));
   };
   const select = (s: SessionNode) => {
     setSel(s); setView({ kind: "details", id: s.id });
@@ -1667,11 +1670,13 @@ export function App() {
         <div class="tree">
           {err && <div class="error" onClick={() => setErr("")}>{err}</div>}
           {hits !== null ? (
-            hits.length === 0 ? <div class="nohits">no matches</div> :
-              hits.map((h) => (
+            hits.length === 0 ? <div class="nohits">no matches</div> : (<>
+              {hits.slice(0, FILTER_MAX_RESULTS).map((h) => (
                 <SessionRow key={h.id} s={h} pathPrefix={h.path + "/"} indent={10} selected={h.id === sel?.id}
                   marked={!!marked[h.id]} onSelect={() => select(h)} onToggleMark={() => toggleMark(h.id)} />
-              ))
+              ))}
+              {hits.length > FILTER_MAX_RESULTS && <div class="nohits">showing first {FILTER_MAX_RESULTS} of {hits.length}, refine to narrow</div>}
+            </>)
           ) : (
             tree && <Folder node={tree} depth={0} selected={sel?.id ?? ""} selectedFolder={selFolder?.id ?? ""} marked={marked}
               onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} onFolderCtx={openFolderCtx}
