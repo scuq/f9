@@ -11,15 +11,15 @@ import (
 // from an external HTTPS endpoint. Non-secret config only; the actual token /
 // password / key material lives in the cred store, referenced by CredID.
 type FolderSource struct {
-	URL         string            `yaml:"url"`                 // https only
-	Format      string            `yaml:"format"`              // f9-native | netbox | mapped
-	Auth        string            `yaml:"auth"`                // none | bearer | basic | mtls
-	CredID      string            `yaml:"cred_id,omitempty"`   // key into the cred store
-	Header      string            `yaml:"header,omitempty"`    // custom auth header (default Authorization)
-	ReconcileBy string            `yaml:"reconcile_by"`        // externalId | hostname
-	FieldMap    map[string]string `yaml:"field_map,omitempty"` // for the mapped format
-	Insecure    bool              `yaml:"insecure,omitempty"`  // skip TLS verification (untrusted remote cert)
-	Filter      *FilterGroup      `yaml:"filter,omitempty"`    // client-side record filter (netbox)
+	URL         string            `yaml:"url"`                  // https only
+	Format      string            `yaml:"format"`               // f9-native | netbox | mapped
+	Auth        string            `yaml:"auth"`                 // none | bearer | basic | mtls
+	CredID      string            `yaml:"cred_id,omitempty"`    // key into the cred store
+	Header      string            `yaml:"header,omitempty"`     // custom auth header (default Authorization)
+	ReconcileBy string            `yaml:"reconcile_by"`         // externalId | hostname
+	FieldMap    map[string]string `yaml:"field_map,omitempty"`  // for the mapped format
+	Insecure    bool              `yaml:"insecure,omitempty"`   // skip TLS verification (untrusted remote cert)
+	Filter      *FilterGroup      `yaml:"filter,omitempty"`     // client-side record filter (netbox)
 	MapScript   string            `yaml:"map_script,omitempty"` // named Lua map script (global library)
 	UpdatedAt   time.Time         `yaml:"updated_at,omitempty"`
 }
