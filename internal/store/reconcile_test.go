@@ -100,3 +100,106 @@ func TestReconcileSkipsDuplicateNames(t *testing.T) {
 		t.Fatalf("added=%d skipped=%d (want 1/1)", res.Added, res.Skipped)
 	}
 }
+
+func TestReconcileNestedFolders(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := mkFolder(t, s, "nb", s.RootID())
+	recs := []ImportRecord{
+		{ExternalID: "1", Name: "n1", Host: "h1", Folder: "A/B"},
+		{ExternalID: "2", Name: "n2", Host: "h2", Folder: "A/C"},
+		{ExternalID: "3", Name: "n3", Host: "h3"}, // source folder itself
+	}
+	res, err := s.ReconcileFolderSessions(f.ID, recs, "externalId")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Added != 3 || res.Skipped != 0 {
+		t.Fatalf("added=%d skipped=%d", res.Added, res.Skipped)
+	}
+	fA, ok := s.FolderByName(f.ID, "A")
+	if !ok || fA.SourceOwner != f.ID {
+		t.Fatalf("folder A: ok=%v owner=%q", ok, fA.SourceOwner)
+	}
+	fB, ok := s.FolderByName(fA.ID, "B")
+	if !ok {
+		t.Fatal("folder A/B missing")
+	}
+	if _, ok := s.SessionByName(fB.ID, "n1"); !ok {
+		t.Fatal("n1 not placed in A/B")
+	}
+
+	// move n1 to A/C, drop n2 -> B becomes empty and is pruned
+	recs2 := []ImportRecord{
+		{ExternalID: "1", Name: "n1", Host: "h1", Folder: "A/C"},
+		{ExternalID: "3", Name: "n3", Host: "h3"},
+	}
+	res2, err := s.ReconcileFolderSessions(f.ID, recs2, "externalId")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res2.Updated != 2 || res2.Removed != 1 {
+		t.Fatalf("updated=%d removed=%d", res2.Updated, res2.Removed)
+	}
+	fC, ok := s.FolderByName(fA.ID, "C")
+	if !ok {
+		t.Fatal("folder A/C missing")
+	}
+	if _, ok := s.SessionByName(fC.ID, "n1"); !ok {
+		t.Fatal("n1 not moved to A/C")
+	}
+	if _, ok := s.FolderByName(fA.ID, "B"); ok {
+		t.Fatal("empty generated folder B should be pruned")
+	}
+
+	// drop everything -> the whole generated tree is pruned
+	res3, err := s.ReconcileFolderSessions(f.ID, nil, "externalId")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res3.Removed != 2 {
+		t.Fatalf("removed=%d", res3.Removed)
+	}
+	if _, ok := s.FolderByName(f.ID, "A"); ok {
+		t.Fatal("empty generated folder A should be pruned")
+	}
+	if !s.folderExists(f.ID) {
+		t.Fatal("the source folder itself must never be pruned")
+	}
+}
+
+func TestReconcileNestedDuplicateNames(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := mkFolder(t, s, "nb", s.RootID())
+	recs := []ImportRecord{
+		{ExternalID: "1", Name: "dup", Host: "h1", Folder: "site1"},
+		{ExternalID: "2", Name: "dup", Host: "h2", Folder: "site2"},
+	}
+	res, err := s.ReconcileFolderSessions(f.ID, recs, "externalId")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Added != 2 || res.Skipped != 0 {
+		t.Fatalf("per-leaf duplicates must coexist: added=%d skipped=%d", res.Added, res.Skipped)
+	}
+}
+
+func TestReconcileHandmadeFoldersNotPruned(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := mkFolder(t, s, "nb", s.RootID())
+	hand := mkFolder(t, s, "handmade", f.ID) // user folder inside the source folder
+	if _, err := s.ReconcileFolderSessions(f.ID, nil, "externalId"); err != nil {
+		t.Fatal(err)
+	}
+	if !s.folderExists(hand.ID) {
+		t.Fatal("hand-made folder must survive pruning")
+	}
+}

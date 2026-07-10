@@ -29,13 +29,14 @@ type JumpHop struct {
 }
 
 type Folder struct {
-	ID        string         `yaml:"id"` // ULID
-	Name      string         `yaml:"name"`
-	ParentID  string         `yaml:"parent_id,omitempty"`
-	Options   SessionOptions `yaml:"options,omitempty"`
-	Revision  uint64         `yaml:"revision"`
-	UpdatedAt time.Time      `yaml:"updated_at"`
-	Source    *FolderSource  `yaml:"source,omitempty"`
+	ID          string         `yaml:"id"` // ULID
+	Name        string         `yaml:"name"`
+	ParentID    string         `yaml:"parent_id,omitempty"`
+	Options     SessionOptions `yaml:"options,omitempty"`
+	Revision    uint64         `yaml:"revision"`
+	UpdatedAt   time.Time      `yaml:"updated_at"`
+	Source      *FolderSource  `yaml:"source,omitempty"`
+	SourceOwner string         `yaml:"source_owner,omitempty"` // set on folders auto-created by an import (the source folder's ID)
 }
 
 type Session struct {
