@@ -58,6 +58,7 @@ declare global {
           MapScriptList(): Promise<MapScript[] | null>;
           MapScriptPut(name: string, code: string): Promise<void>;
           MapScriptDelete(name: string): Promise<void>;
+          SessionSetJumpChain(sessionId: string, hops: JumpHop[]): Promise<void>;
           SnippetFolders(): Promise<SnippetFolder[] | null>;
           SnippetList(): Promise<Snippet[] | null>;
           SnippetGet(id: string): Promise<Snippet | null>;

@@ -108,6 +108,8 @@ export function SendToTerminal(arg1:string,arg2:string,arg3:number,arg4:boolean)
 
 export function SessionDetail(arg1:string):Promise<app.SessionDetail>;
 
+export function SessionSetJumpChain(arg1:string,arg2:Array<app.JumpHopDTO>):Promise<void>;
+
 export function SetTerminalWatch(arg1:string,arg2:string):Promise<void>;
 
 export function Settings():Promise<app.UISettings>;

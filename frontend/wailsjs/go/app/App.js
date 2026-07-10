@@ -202,6 +202,10 @@ export function SessionDetail(arg1) {
   return window['go']['app']['App']['SessionDetail'](arg1);
 }
 
+export function SessionSetJumpChain(arg1, arg2) {
+  return window['go']['app']['App']['SessionSetJumpChain'](arg1, arg2);
+}
+
 export function SetTerminalWatch(arg1, arg2) {
   return window['go']['app']['App']['SetTerminalWatch'](arg1, arg2);
 }

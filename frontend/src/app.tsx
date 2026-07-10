@@ -904,6 +904,56 @@ function FilterGroupEditor(props: { group: FilterGroup; depth: number; onChange:
   );
 }
 
+function JumpChainModal(props: { sessionId: string; initial: JumpHop[]; onClose: () => void; onSaved: () => void }) {
+  const { sessionId, initial, onClose, onSaved } = props;
+  const [hops, setHops] = useState<JumpHop[]>(initial.map((h) => ({ ...h })));
+  const [err, setErr] = useState("");
+  const setHop = (i: number, patch: Partial<JumpHop>) => setHops(hops.map((h, j) => (j === i ? { ...h, ...patch } : h)));
+  const move = (i: number, d: number) => {
+    const j = i + d;
+    if (j < 0 || j >= hops.length) return;
+    const next = hops.slice();
+    const tmp = next[i]; next[i] = next[j]; next[j] = tmp;
+    setHops(next);
+  };
+  const save = () => {
+    api().SessionSetJumpChain(sessionId, hops.map((h) => ({ host: h.host, port: h.port || 0, user: h.user || "", mode: h.mode || "proxyjump", userOverride: h.userOverride || "" })))
+      .then(() => { onSaved(); onClose(); })
+      .catch((e) => setErr(String(e)));
+  };
+  return (
+    <div class="modal-overlay" onClick={onClose}>
+      <div class="modal" onClick={(e) => e.stopPropagation()}>
+        <h2>jump chain</h2>
+        <div class="ssh-note">hops apply in order, first to last, before the target. proxyjump tunnels through the hop; shell-hop runs ssh on the hop's shell (last hop may set a user override).</div>
+        {hops.map((h, i) => (
+          <div class="jump-row" key={i}>
+            <input class="jump-host" placeholder="host" value={h.host} onInput={(e) => setHop(i, { host: (e.target as HTMLInputElement).value })} />
+            <input class="jump-port" placeholder="22" value={h.port ? String(h.port) : ""} onInput={(e) => setHop(i, { port: parseInt((e.target as HTMLInputElement).value, 10) || 0 })} />
+            <input class="jump-user" placeholder="user" value={h.user} onInput={(e) => setHop(i, { user: (e.target as HTMLInputElement).value })} />
+            <select value={h.mode || "proxyjump"} onChange={(e) => setHop(i, { mode: (e.target as HTMLSelectElement).value })}>
+              <option value="proxyjump">proxyjump</option>
+              <option value="shell-hop">shell-hop</option>
+            </select>
+            {h.mode === "shell-hop" && <input class="jump-user" placeholder="user override" value={h.userOverride} onInput={(e) => setHop(i, { userOverride: (e.target as HTMLInputElement).value })} />}
+            <button class="importbtn" disabled={i === 0} onClick={() => move(i, -1)}>{"\u2191"}</button>
+            <button class="importbtn" disabled={i === hops.length - 1} onClick={() => move(i, 1)}>{"\u2193"}</button>
+            <button class="ssh-del" onClick={() => setHops(hops.filter((_, j) => j !== i))}>{"\u00d7"}</button>
+          </div>
+        ))}
+        <div class="filt-actions">
+          <button class="importbtn" onClick={() => setHops([...hops, { host: "", port: 0, user: "", mode: "proxyjump", userOverride: "" }])}>+ hop</button>
+        </div>
+        {err && <div class="imp-warn">{err}</div>}
+        <div class="modal-actions">
+          <button onClick={onClose}>cancel</button>
+          <button class="primary" onClick={save}>save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ImportSourceModal(props: {
   st: ImportState;
   onChange: (patch: Partial<ImportState>) => void;
@@ -1067,6 +1117,7 @@ export function App() {
   const [themeList, setThemeList] = useState<string[]>([]);
   const [settings, setSettings] = useState<UISettings>(EMPTY_SETTINGS);
   const [settingsModal, setSettingsModal] = useState(false);
+  const [jumpEdit, setJumpEdit] = useState<{ sessionId: string; initial: JumpHop[] } | null>(null);
   const [snLib, setSnLib] = useState(false);
   const [snFolders, setSnFolders] = useState<SnippetFolder[]>([]);
   const [snList, setSnList] = useState<Snippet[]>([]);
@@ -1689,6 +1740,7 @@ export function App() {
                   ? <span class="gen-note" title="managed by the folder's import source">read-only - refresh or clear the folder's source</span>
                   : (<>
                       <button onClick={() => setModal("session-edit")}>edit</button>
+                      <button onClick={() => setJumpEdit({ sessionId: detail.id, initial: detail.jumpChain ?? [] })}>jump chain</button>
                       <button class="danger" onClick={deleteSelected}>delete</button>
                     </>)}
               </div>
@@ -1741,6 +1793,7 @@ export function App() {
 
       {modal === "session-new" && selFolder && <SessionModal folder={selFolder} detail={null} onClose={() => setModal("")} onSaved={afterMutation} />}
       {modal === "session-edit" && selFolder && detail && <SessionModal folder={selFolder} detail={detail} onClose={() => setModal("")} onSaved={afterMutation} />}
+      {jumpEdit && <JumpChainModal sessionId={jumpEdit.sessionId} initial={jumpEdit.initial} onClose={() => setJumpEdit(null)} onSaved={() => { const id = jumpEdit.sessionId; api().SessionDetail(id).then(setDetail).catch(() => {}); }} />}
       {modal === "folder" && selFolder && <FolderModal parent={selFolder} onClose={() => setModal("")} onSaved={afterMutation} />}
       {settingsModal && (
         <SettingsModal settings={settings} themeList={themeList} defInd={defInd}

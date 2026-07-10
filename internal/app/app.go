@@ -340,6 +340,39 @@ func (a *App) SaveSession(in SessionInput) (string, error) {
 	return a.sessionIDByName(s.FolderID, s.Name)
 }
 
+// SessionSetJumpChain replaces a session's jump chain (hops applied in order
+// before reaching the target). An empty list clears it (overriding inheritance).
+func (a *App) SessionSetJumpChain(sessionID string, hops []JumpHopDTO) error {
+	s, _, err := a.st.Resolve(sessionID)
+	if err != nil {
+		return err
+	}
+	chain := make([]store.JumpHop, 0, len(hops))
+	for _, h := range hops {
+		host := strings.TrimSpace(h.Host)
+		if host == "" {
+			return fmt.Errorf("app: jump hop host required")
+		}
+		mode := strings.TrimSpace(h.Mode)
+		if mode == "" {
+			mode = "proxyjump"
+		}
+		if mode != "proxyjump" && mode != "shell-hop" {
+			return fmt.Errorf("app: jump mode %q: want proxyjump|shell-hop", mode)
+		}
+		port := h.Port
+		if port == 0 {
+			port = 22
+		}
+		chain = append(chain, store.JumpHop{
+			Host: host, Port: port, User: strings.TrimSpace(h.User),
+			Mode: mode, UserOverride: strings.TrimSpace(h.UserOverride),
+		})
+	}
+	s.Options.JumpChain = chain
+	return a.st.Put(s)
+}
+
 // SaveFolder creates (empty ID) or renames a folder; returns the ID.
 func (a *App) SaveFolder(in FolderInput) (string, error) {
 	in.Name = strings.TrimSpace(in.Name)
