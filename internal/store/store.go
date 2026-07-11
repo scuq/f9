@@ -79,4 +79,6 @@ type Store interface {
 	Delete(id string) error
 	Meta(sessionID string) (SessionMeta, error)
 	PutMeta(m SessionMeta) error
+	OSHint(host string) (OSHint, bool)
+	PutOSHint(h OSHint) error
 }

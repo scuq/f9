@@ -1285,6 +1285,7 @@ export function App() {
     }).then((t) => applyThemeColors(t)).catch(() => {});
 
     const offC = window.runtime.EventsOn("f9:conns", () => refreshConns());
+    const offOS = window.runtime.EventsOn("f9:osdetected", () => load());
     const offP = window.runtime.EventsOn("f9:prompt", (req: PromptRequest) => setPromptQ((qs) => [...qs, req]));
     const offT = window.runtime.EventsOn("f9:termclosed", (ev: { termId: string; died: boolean }) => {
       const termId = ev.termId;
@@ -1315,7 +1316,7 @@ export function App() {
     });
     const offMS = window.runtime.EventsOn("f9:multisend", (r: MSResult) => setMsResults((prev) => ({ ...prev, [r.id]: r })));
     const offMSD = window.runtime.EventsOn("f9:multisenddone", () => setMsRunning(false));
-    return () => { offC?.(); offP?.(); offT?.(); offA?.(); offTh?.(); offMS?.(); offMSD?.(); };
+    return () => { offC?.(); offP?.(); offT?.(); offA?.(); offTh?.(); offMS?.(); offMSD?.(); offOS?.(); };
   }, []);
 
   // Suppress the default WebKit context menu everywhere; custom menus (set via

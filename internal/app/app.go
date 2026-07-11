@@ -138,6 +138,9 @@ type App struct {
 	terms   map[string]*terminal
 	tunings map[osdetect.Family]osdetect.Tuning
 
+	detMu sync.Mutex
+	dets  map[string]osdetect.Detector
+
 	msMu     sync.RWMutex
 	msJob    *multisend.Job
 	msCancel chan struct{}

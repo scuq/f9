@@ -89,6 +89,7 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 	if !ok {
 		return fmt.Errorf("app: session not connected")
 	}
+	a.ensureDetector(sessionID, client.ServerVersion())
 	sess, err := client.NewSession(context.Background(), "xterm-256color", cols, rows)
 	if err != nil {
 		return err
@@ -114,12 +115,14 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 		t.sb.Append(stripANSI(p))
 		a.feedMultisend(termID, p)
 		a.detectActivity(termID, t, p)
+		a.observeOS(sessionID, p)
 	})
 	go func() {
 		_ = sess.Wait()
 		a.tmu.Lock()
 		delete(a.terms, termID)
 		a.tmu.Unlock()
+		a.dropDetectorIfIdle(sessionID)
 		t.sb.Close()
 		a.emitEvent("f9:termclosed", map[string]interface{}{"termId": termID, "died": !t.closing.Load()})
 	}()

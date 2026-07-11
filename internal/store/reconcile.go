@@ -105,6 +105,14 @@ func (s *YAMLStore) ReconcileFolderSessions(folderID string, records []ImportRec
 				return res, fmt.Errorf("store: reconcile update %q: %w", r.Name, err)
 			}
 			res.Updated++
+			if m, err := s.Meta(cur.ID); err == nil && m.DetectedOS == "" && !m.OSPinned {
+				if hint, ok := s.OSHint(cur.Host); ok {
+					m.DetectedOS = hint.OS
+					m.OSConfidence = hint.Confidence
+					m.OSPinned = hint.Pinned
+					_ = s.PutMeta(m)
+				}
+			}
 			continue
 		}
 		ns := Session{
@@ -126,6 +134,17 @@ func (s *YAMLStore) ReconcileFolderSessions(folderID string, records []ImportRec
 			return res, fmt.Errorf("store: reconcile add %q: %w", r.Name, err)
 		}
 		res.Added++
+		// A recreated session inherits the device's OS from the hint cache.
+		if hint, ok := s.OSHint(ns.Host); ok {
+			if created, found := s.SessionByName(leaf, r.Name); found {
+				_ = s.PutMeta(SessionMeta{
+					SessionID:    created.ID,
+					DetectedOS:   hint.OS,
+					OSConfidence: hint.Confidence,
+					OSPinned:     hint.Pinned,
+				})
+			}
+		}
 	}
 
 	for k, sess := range existing {
