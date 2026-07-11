@@ -1042,6 +1042,12 @@ export namespace theme {
 	    folderFg: string;
 	    selectedBg: string;
 	    danger: string;
+	    sidebarBg: string;
+	    sidebarBgRaised: string;
+	    sidebarFg: string;
+	    sidebarBorder: string;
+	    sidebarFolderFg: string;
+	    sidebarSelectedBg: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UI(source);
@@ -1057,6 +1063,12 @@ export namespace theme {
 	        this.folderFg = source["folderFg"];
 	        this.selectedBg = source["selectedBg"];
 	        this.danger = source["danger"];
+	        this.sidebarBg = source["sidebarBg"];
+	        this.sidebarBgRaised = source["sidebarBgRaised"];
+	        this.sidebarFg = source["sidebarFg"];
+	        this.sidebarBorder = source["sidebarBorder"];
+	        this.sidebarFolderFg = source["sidebarFolderFg"];
+	        this.sidebarSelectedBg = source["sidebarSelectedBg"];
 	    }
 	}
 	export class Theme {

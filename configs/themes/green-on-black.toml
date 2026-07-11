@@ -1,0 +1,41 @@
+name = "green-on-black"
+
+[ui]
+bg = "#030803"
+bg_raised = "#0a140a"
+fg = "#6fdc8c"
+accent = "#00e05a"
+border = "#153a1d"
+folder_fg = "#3f8f55"
+selected_bg = "#0a2f14"
+danger = "#ff5f56"
+
+[font]
+ui = "Inter"
+mono = "JetBrains Mono"
+size = 13
+
+[terminal]
+background = "#030803"
+foreground = "#33ff66"
+cursor = "#00ff41"
+cursor_accent = "#030803"
+selection = "#0a3d1a"
+
+[terminal.ansi]
+black = "#0a140a"
+red = "#e05252"
+green = "#00e05a"
+yellow = "#b8bf5e"
+blue = "#4f9e8f"
+magenta = "#9e6fb8"
+cyan = "#3fbfae"
+white = "#a8d8b4"
+bright_black = "#2e5c3a"
+bright_red = "#ff5f56"
+bright_green = "#33ff66"
+bright_yellow = "#d6de7a"
+bright_blue = "#6fc4b4"
+bright_magenta = "#bd8fd6"
+bright_cyan = "#5fd8c8"
+bright_white = "#d8ffe2"

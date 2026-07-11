@@ -1,0 +1,51 @@
+name = "becklight"
+
+# Dark application chrome (header, tab strip, button bars, status bar).
+[ui]
+bg = "#14161a"
+bg_raised = "#1c1f24"
+fg = "#c6c9cf"
+accent = "#3465a4"
+border = "#2a2e34"
+folder_fg = "#8a8f98"
+selected_bg = "#233a52"
+danger = "#e06c75"
+
+# Light session sidebar (tree + connections).
+sidebar_bg = "#f7f7f5"
+sidebar_bg_raised = "#ffffff"
+sidebar_fg = "#1c1e21"
+sidebar_border = "#d8d8d4"
+sidebar_folder_fg = "#6b6f76"
+sidebar_selected_bg = "#dceaf7"
+
+[font]
+ui = "Inter"
+mono = "JetBrains Mono"
+size = 13
+
+# Light terminal (Tango Light).
+[terminal]
+background = "#ffffff"
+foreground = "#1c1e21"
+cursor = "#1c1e21"
+cursor_accent = "#ffffff"
+selection = "#c8dcf0"
+
+[terminal.ansi]
+black = "#000000"
+red = "#cc0000"
+green = "#4e9a06"
+yellow = "#c4a000"
+blue = "#3465a4"
+magenta = "#75507b"
+cyan = "#06989a"
+white = "#d3d7cf"
+bright_black = "#555753"
+bright_red = "#ef2929"
+bright_green = "#8ae234"
+bright_yellow = "#fce94f"
+bright_blue = "#729fcf"
+bright_magenta = "#ad7fa8"
+bright_cyan = "#34e2e2"
+bright_white = "#eeeeec"

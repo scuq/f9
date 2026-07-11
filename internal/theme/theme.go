@@ -27,6 +27,16 @@ type UI struct {
 	FolderFg   string `toml:"folder_fg" json:"folderFg"`
 	SelectedBg string `toml:"selected_bg" json:"selectedBg"`
 	Danger     string `toml:"danger" json:"danger"`
+
+	// Optional sidebar overrides. Empty => the session sidebar uses the main
+	// colors above; set them to give the sidebar its own scheme (e.g. a light
+	// sidebar on a dark-chrome theme).
+	SidebarBg         string `toml:"sidebar_bg,omitempty" json:"sidebarBg"`
+	SidebarBgRaised   string `toml:"sidebar_bg_raised,omitempty" json:"sidebarBgRaised"`
+	SidebarFg         string `toml:"sidebar_fg,omitempty" json:"sidebarFg"`
+	SidebarBorder     string `toml:"sidebar_border,omitempty" json:"sidebarBorder"`
+	SidebarFolderFg   string `toml:"sidebar_folder_fg,omitempty" json:"sidebarFolderFg"`
+	SidebarSelectedBg string `toml:"sidebar_selected_bg,omitempty" json:"sidebarSelectedBg"`
 }
 
 type Font struct {

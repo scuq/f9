@@ -60,6 +60,13 @@ function applyAll() {
   r.setProperty("--folder-fg", u.folderFg);
   r.setProperty("--selected-bg", u.selectedBg);
   r.setProperty("--danger", u.danger);
+  const sb = (main: string, ov?: string) => (ov && ov !== "" ? ov : main);
+  r.setProperty("--sb-bg", sb(u.bg, u.sidebarBg));
+  r.setProperty("--sb-bg-raised", sb(u.bgRaised, u.sidebarBgRaised));
+  r.setProperty("--sb-fg", sb(u.fg, u.sidebarFg));
+  r.setProperty("--sb-border", sb(u.border, u.sidebarBorder));
+  r.setProperty("--sb-folder-fg", sb(u.folderFg, u.sidebarFolderFg));
+  r.setProperty("--sb-selected-bg", sb(u.selectedBg, u.sidebarSelectedBg));
   r.setProperty("--font-ui", `"${uiFont()}", system-ui, -apple-system, "Segoe UI", sans-serif`);
   r.setProperty("--font-mono", monoStack(monoFont()));
   r.setProperty("--font-size", `${uiSize()}px`);

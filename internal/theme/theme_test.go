@@ -20,6 +20,34 @@ func TestLoadAllBuiltins(t *testing.T) {
 	if _, ok := themes["gruvbox-dark"]; !ok {
 		t.Fatal("gruvbox-dark builtin missing")
 	}
+	gb, ok := themes["green-on-black"]
+	if !ok {
+		t.Fatal("green-on-black builtin missing")
+	}
+	if gb.Terminal.Foreground != "#33ff66" {
+		t.Fatalf("green-on-black terminal.foreground = %q", gb.Terminal.Foreground)
+	}
+	bl, ok := themes["becklight"]
+	if !ok {
+		t.Fatal("becklight builtin missing")
+	}
+	if bl.Terminal.Background != "#ffffff" || bl.Terminal.ANSI.Blue != "#3465a4" {
+		t.Fatalf("becklight colors off: bg=%q blue=%q", bl.Terminal.Background, bl.Terminal.ANSI.Blue)
+	}
+	gb, ok := themes["green-on-black"]
+	if !ok {
+		t.Fatal("green-on-black builtin missing")
+	}
+	if gb.Terminal.Foreground != "#33ff66" {
+		t.Fatalf("green-on-black terminal.foreground = %q", gb.Terminal.Foreground)
+	}
+	bl, ok := themes["becklight"]
+	if !ok {
+		t.Fatal("becklight builtin missing")
+	}
+	if bl.Terminal.Background != "#ffffff" || bl.Terminal.ANSI.Blue != "#3465a4" {
+		t.Fatalf("becklight colors off: bg=%q blue=%q", bl.Terminal.Background, bl.Terminal.ANSI.Blue)
+	}
 }
 
 func TestValidateRejectsBadHex(t *testing.T) {

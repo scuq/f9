@@ -10,6 +10,12 @@
   --folder-fg: #7d828b;
   --selected-bg: #123049;
   --danger: #e06c75;
+  --sb-bg: #0a0b0d;
+  --sb-bg-raised: #14161a;
+  --sb-fg: #c6c9cf;
+  --sb-border: #24272d;
+  --sb-folder-fg: #7d828b;
+  --sb-selected-bg: #123049;
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
@@ -30,6 +36,13 @@ body {
 .layout { display: flex; flex: 1; min-height: 0; }
 
 .sidebar {
+  --bg: var(--sb-bg);
+  --bg-raised: var(--sb-bg-raised);
+  --fg: var(--sb-fg);
+  --border: var(--sb-border);
+  --folder-fg: var(--sb-folder-fg);
+  --selected-bg: var(--sb-selected-bg);
+  color: var(--fg);
   width: 340px;
   min-width: 260px;
   display: flex;
