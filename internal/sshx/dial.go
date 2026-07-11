@@ -58,12 +58,20 @@ func Dial(ctx context.Context, host string, port int, user string, p Prompter, o
 	}
 	dialer := &net.Dialer{Timeout: o.Timeout}
 
+	// firstAct records inbound data on the first physical TCP leg — the one a
+	// VPN/wifi drop kills. Tunneled legs ride it, so tracking it covers all.
+	var firstAct *activityConn
 	connect := func(h string, prt int, usr string, via *ssh.Client) (*ssh.Client, error) {
 		addr := net.JoinHostPort(h, strconv.Itoa(prt))
 		var raw net.Conn
 		var derr error
 		if via == nil {
 			raw, derr = dialer.DialContext(ctx, "tcp", addr)
+			if derr == nil {
+				ac := newActivityConn(raw)
+				firstAct = ac
+				raw = ac
+			}
 		} else {
 			raw, derr = via.Dial("tcp", addr)
 		}
@@ -128,12 +136,14 @@ func Dial(ctx context.Context, host string, port int, user string, p Prompter, o
 			if err != nil {
 				return fail(err)
 			}
-			return &shellHopClient{
+			shc := &shellHopClient{
 				hop:           hc,
 				cmd:           cmd,
 				closers:       chain,
 				serverVersion: string(hc.ServerVersion()),
-			}, nil
+			}
+			shc.startKeepalive(o.KeepaliveInterval, firstAct)
+			return shc, nil
 		}
 		prev = hc
 	}
@@ -144,7 +154,7 @@ func Dial(ctx context.Context, host string, port int, user string, p Prompter, o
 	}
 	chain = append(chain, final)
 	nc := &nativeClient{c: final, closers: chain}
-	nc.startKeepalive(o.KeepaliveInterval)
+	nc.startKeepalive(o.KeepaliveInterval, firstAct)
 	if o.SocksPort > 0 {
 		// best-effort: a bind failure must not sink the SSH session.
 		if sp, err := startSocks(o.SocksPort, final); err == nil {
@@ -183,11 +193,7 @@ func (n *nativeClient) NewSession(_ context.Context, termType string, cols, rows
 	return wrapSession(s, termType, cols, rows, "")
 }
 
-// kaReplyTimeout bounds how long a keepalive ping waits for the server's
-// reply before the link is declared dead.
-const kaReplyTimeout = 5 * time.Second
-
-func (n *nativeClient) startKeepalive(interval time.Duration) {
+func (n *nativeClient) startKeepalive(interval time.Duration, act *activityConn) {
 	if interval <= 0 {
 		return
 	}
@@ -195,39 +201,7 @@ func (n *nativeClient) startKeepalive(interval time.Duration) {
 	n.kaStop = make(chan struct{})
 	stop := n.kaStop
 	n.kaMu.Unlock()
-	go func() {
-		t := time.NewTicker(interval)
-		defer t.Stop()
-		for {
-			select {
-			case <-t.C:
-				// SendRequest(wantReply=true) blocks forever on a half-dead
-				// link (VPN/wifi drop: no RST, packets just vanish). Bound the
-				// wait: no reply within kaReplyTimeout means the link is gone;
-				// force-close so Wait() returns and the death path runs. The
-				// blocked SendRequest goroutine is released by the Close.
-				done := make(chan error, 1)
-				go func() {
-					_, _, err := n.c.SendRequest("keepalive@openssh.com", true, nil)
-					done <- err
-				}()
-				select {
-				case err := <-done:
-					if err != nil {
-						n.c.Close()
-						return
-					}
-				case <-time.After(kaReplyTimeout):
-					n.c.Close()
-					return
-				case <-stop:
-					return
-				}
-			case <-stop:
-				return
-			}
-		}
-	}()
+	go runKeepalive(n.c, interval, act, stop)
 }
 
 func (n *nativeClient) Close() error {
@@ -252,6 +226,20 @@ type shellHopClient struct {
 	cmd           string
 	closers       []io.Closer
 	serverVersion string
+
+	kaMu   sync.Mutex
+	kaStop chan struct{}
+}
+
+func (h *shellHopClient) startKeepalive(interval time.Duration, act *activityConn) {
+	if interval <= 0 {
+		return
+	}
+	h.kaMu.Lock()
+	h.kaStop = make(chan struct{})
+	stop := h.kaStop
+	h.kaMu.Unlock()
+	go runKeepalive(h.hop, interval, act, stop)
 }
 
 func (h *shellHopClient) ServerVersion() string { return h.serverVersion }
@@ -269,6 +257,12 @@ func (h *shellHopClient) NewSession(_ context.Context, termType string, cols, ro
 }
 
 func (h *shellHopClient) Close() error {
+	h.kaMu.Lock()
+	if h.kaStop != nil {
+		close(h.kaStop)
+		h.kaStop = nil
+	}
+	h.kaMu.Unlock()
 	closeAll(h.closers)
 	return nil
 }
