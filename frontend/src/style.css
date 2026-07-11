@@ -157,7 +157,16 @@ body {
   position: absolute; inset: 0; display: flex;
   align-items: center; justify-content: center; color: var(--folder-fg);
 }
-.paneview .details { position: absolute; inset: 0; overflow-y: auto; padding: 32px; max-width: 760px; }
+.paneview .details {
+  --bg: var(--sb-bg);
+  --bg-raised: var(--sb-bg-raised);
+  --fg: var(--sb-fg);
+  --border: var(--sb-border);
+  --folder-fg: var(--sb-folder-fg);
+  --selected-bg: var(--sb-selected-bg);
+  color: var(--fg);
+  position: absolute; inset: 0; overflow-y: auto; padding: 32px; max-width: 760px;
+}
 .pinbadge { color: var(--accent); font-size: 10px; margin-left: 4px; }
 .pinbadge.big { font-size: 14px; margin-left: 8px; }
 .details h1 { font-size: 18px; color: var(--accent); margin: 0 0 12px; }
