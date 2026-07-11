@@ -183,6 +183,10 @@ func (n *nativeClient) NewSession(_ context.Context, termType string, cols, rows
 	return wrapSession(s, termType, cols, rows, "")
 }
 
+// kaReplyTimeout bounds how long a keepalive ping waits for the server's
+// reply before the link is declared dead.
+const kaReplyTimeout = 5 * time.Second
+
 func (n *nativeClient) startKeepalive(interval time.Duration) {
 	if interval <= 0 {
 		return
@@ -197,8 +201,26 @@ func (n *nativeClient) startKeepalive(interval time.Duration) {
 		for {
 			select {
 			case <-t.C:
-				if _, _, err := n.c.SendRequest("keepalive@openssh.com", true, nil); err != nil {
+				// SendRequest(wantReply=true) blocks forever on a half-dead
+				// link (VPN/wifi drop: no RST, packets just vanish). Bound the
+				// wait: no reply within kaReplyTimeout means the link is gone;
+				// force-close so Wait() returns and the death path runs. The
+				// blocked SendRequest goroutine is released by the Close.
+				done := make(chan error, 1)
+				go func() {
+					_, _, err := n.c.SendRequest("keepalive@openssh.com", true, nil)
+					done <- err
+				}()
+				select {
+				case err := <-done:
+					if err != nil {
+						n.c.Close()
+						return
+					}
+				case <-time.After(kaReplyTimeout):
 					n.c.Close()
+					return
+				case <-stop:
 					return
 				}
 			case <-stop:
