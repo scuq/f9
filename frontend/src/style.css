@@ -616,3 +616,7 @@ select, input, textarea, option { color-scheme: dark; }
 .fcount { font-size: 10px; color: var(--folder-fg); opacity: 0.7; flex: none; margin-left: 4px; }
 .markstoggle { flex: none; padding: 2px 8px; }
 .markstoggle.on { color: var(--accent); border-color: var(--accent); }
+
+/* --- connections filter + close-dead --- */
+.connfilter { flex: 1; min-width: 40px; margin: 0 6px; font-size: 11px; padding: 2px 6px; }
+.tabdeadclose { flex: none; margin-left: 6px; font-size: 11px; color: var(--danger); border-color: var(--danger); align-self: center; }

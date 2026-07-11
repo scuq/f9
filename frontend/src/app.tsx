@@ -1148,6 +1148,7 @@ export function App() {
   const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
   const [refreshStatus, setRefreshStatus] = useState<{ folderId: string; name: string } | null>(null);
   const [showMarks, setShowMarks] = useState(false);
+  const [connFilter, setConnFilter] = useState("");
   const [snLib, setSnLib] = useState(false);
   const [snFolders, setSnFolders] = useState<SnippetFolder[]>([]);
   const [snList, setSnList] = useState<Snippet[]>([]);
@@ -1420,8 +1421,34 @@ export function App() {
   };
   const toggleMark = (id: string) => setMarked((m) => { const n = { ...m }; if (n[id]) delete n[id]; else n[id] = true; return n; });
   const markedIds = Object.keys(marked);
-  const connectMarked = () => { if (markedIds.length) api().ConnectSessions(markedIds).catch((e) => setErr(String(e))); };
-  const connectFolder = () => { if (selFolder) api().ConnectFolder(selFolder.id).catch((e) => setErr(String(e))); };
+  const walkSessions = (n: FolderNode, out: SessionNode[]): SessionNode[] => {
+    for (const s of n.sessions ?? []) out.push(s);
+    for (const c of n.folders ?? []) walkSessions(c, out);
+    return out;
+  };
+  const findFolderNode = (n: FolderNode, id: string): FolderNode | null => {
+    if (n.id === id) return n;
+    for (const c of n.folders ?? []) { const r = findFolderNode(c, id); if (r) return r; }
+    return null;
+  };
+  // queueOpens registers sessions for a terminal tab once they connect,
+  // skipping ones that already have a tab.
+  const queueOpens = (list: { id: string; name: string }[]) => {
+    const fresh = list.filter((x) => !tabs.some((t) => t.sessionId === x.id));
+    if (fresh.length) setPendingOpen((p) => [...p, ...fresh]);
+  };
+  const connectMarked = () => {
+    if (!markedIds.length) return;
+    const all = tree ? walkSessions(tree, []) : [];
+    queueOpens(markedIds.map((id) => ({ id, name: all.find((s) => s.id === id)?.name ?? id })));
+    api().ConnectSessions(markedIds).catch((e) => setErr(String(e)));
+  };
+  const connectFolder = () => {
+    if (!selFolder) return;
+    const node = tree ? findFolderNode(tree, selFolder.id) : null;
+    if (node) queueOpens(walkSessions(node, []).map((s) => ({ id: s.id, name: s.name })));
+    api().ConnectFolder(selFolder.id).catch((e) => setErr(String(e)));
+  };
   const cycleSessionTabs = (sessionId: string) => {
     const sessTabs = tabs.filter((t) => t.sessionId === sessionId);
     if (sessTabs.length === 0) {
@@ -1464,6 +1491,16 @@ export function App() {
     setView((v) => (v.kind === "term" && v.id === termId ? { kind: "empty", id: "" } : v));
     setActivity((a) => { if (!a[termId]) return a; const n = { ...a }; delete n[termId]; return n; });
     setTabCfg((c) => { const n = { ...c }; delete n[termId]; return n; });
+  };
+  const closeAllDead = () => {
+    for (const t of tabs) {
+      if (dead.has(t.termId)) closeTab(t.termId);
+    }
+  };
+  // reconnectTab replaces a dead tab with a fresh connection to its session.
+  const reconnectTab = (t: Tab) => {
+    closeTab(t.termId);
+    connectAndOpen(t.sessionId, t.name);
   };
   const setCfg = (termId: string, patch: Partial<TabCfg>) => {
     setTabCfg((c) => {
@@ -1706,8 +1743,11 @@ export function App() {
         </div>
         {conns.length > 0 && (
           <div class="connpanel">
-            <div class="connhead"><span>connections ({conns.length})</span><button onClick={() => api().DisconnectAll()}>disconnect all</button></div>
-            {conns.map((c) => {
+            <div class="connhead"><span>connections ({conns.length})</span>
+              <input class="connfilter" placeholder="filter" value={connFilter} onInput={(e) => setConnFilter((e.target as HTMLInputElement).value)} />
+              {conns.some((c) => c.state === "error") && <button onClick={() => api().ConnectSessions(conns.filter((c) => c.state === "error").map((c) => c.sessionId)).catch((e) => setErr(String(e)))}>reconnect failed</button>}
+              <button onClick={() => api().DisconnectAll()}>disconnect all</button></div>
+            {conns.filter((c) => connFilter === "" || c.name.toLowerCase().includes(connFilter.toLowerCase())).map((c) => {
               const tc = tabs.filter((t) => t.sessionId === c.sessionId).length;
               return (
                 <div class="connrow" key={c.sessionId} title={tc > 1 ? `${tc} terminals — click to cycle` : c.err}
@@ -1716,6 +1756,7 @@ export function App() {
                   {c.socksPort > 0 && <span class={"socksbadge " + (c.socksActive ? "on" : "off")} title={c.socksActive ? ("SOCKS proxy on 127.0.0.1:" + c.socksPort) : ("SOCKS :" + c.socksPort + " failed to bind (port in use?)")}>{"SOCKS:" + c.socksPort}</span>}
                   {tc > 1 && <span class="conncount">{"\u00d7" + tc}</span>}
                   <span class="cstate">{STATE_LABEL[c.state] ?? c.state}</span>
+                  {c.state === "error" && <button class="cx" title="reconnect" onClick={(e) => { e.stopPropagation(); connectAndOpen(c.sessionId, c.name); }}>&#x21bb;</button>}
                   <button class="cx" title="disconnect" onClick={(e) => { e.stopPropagation(); api().Disconnect(c.sessionId); }}>&#x2715;</button>
                 </div>
               );
@@ -1732,7 +1773,7 @@ export function App() {
 
       <div class="mainpane">
         {displayTabs.length > 0 && (
-          <div class="tabstrip">
+          <div class="tabstrip" onWheel={(e) => { if (e.deltaY !== 0) { (e.currentTarget as HTMLDivElement).scrollLeft += e.deltaY; e.preventDefault(); } }}>
             {displayTabs.map((d) => d.type === "term" ? (
               <div key={d.tab.termId} class={"tab" + (view.kind === "term" && view.id === d.tab.termId ? " active" : "") + (dead.has(d.tab.termId) ? " down" : "")}
                 onClick={() => activateTerm(d.tab.termId)}
@@ -1760,12 +1801,15 @@ export function App() {
             {activeTab && settings.showTemplates && (
               <span class="tabsend" title="send template" onClick={() => setSendOpen(true)}>{"\u27a4"}</span>
             )}
+            {dead.size > 0 && (
+              <button class="tabdeadclose" title="close all disconnected tabs" onClick={closeAllDead}>close dead ({dead.size})</button>
+            )}
 
           </div>
         )}
         <div class="paneview">
           {tabs.map((t) => (
-            <TerminalView key={t.termId} termId={t.termId} sessionId={t.sessionId} active={view.kind === "term" && view.id === t.termId} />
+            <TerminalView key={t.termId} termId={t.termId} sessionId={t.sessionId} active={view.kind === "term" && view.id === t.termId} disconnected={dead.has(t.termId)} onReconnect={() => reconnectTab(t)} />
           ))}
           {searchOpen && view.kind === "term" && (
             <SearchPanel

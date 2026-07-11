@@ -15,13 +15,16 @@ function b64ToBytes(b64: string): Uint8Array {
 }
 
 export function TerminalView(
-  { termId, sessionId, active }: { termId: string; sessionId: string; active: boolean },
+  { termId, sessionId, active, disconnected, onReconnect }: { termId: string; sessionId: string; active: boolean; disconnected?: boolean; onReconnect?: () => void },
 ) {
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<XTerm | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const lastSize = useRef({ cols: 0, rows: 0 });
   const primaryRef = useRef("");
+  const wasDisc = useRef(false);
+  const onReconnectRef = useRef(onReconnect);
+  onReconnectRef.current = onReconnect;
 
   const fitAndSync = () => {
     const fit = fitRef.current, term = termRef.current;
@@ -59,6 +62,12 @@ export function TerminalView(
     // Intercept Ctrl/Cmd+F before xterm forwards it to the shell; open the
     // scrollback search panel instead.
     term.attachCustomKeyEventHandler((e) => {
+      // Enter on a disconnected terminal: reconnect the session in this tab.
+      if (e.type === "keydown" && e.key === "Enter" && wasDisc.current) {
+        e.preventDefault();
+        onReconnectRef.current?.();
+        return false;
+      }
       // Ctrl/Cmd+Shift+C: copy the selection to the clipboard.
       if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "c" || e.key === "C")) {
         const sel = term.getSelection();
@@ -149,6 +158,17 @@ export function TerminalView(
       requestAnimationFrame(() => { fitAndSync(); try { termRef.current!.focus(); } catch { /* noop */ } });
     }
   }, [active]);
+
+  // Once the session is gone, freeze the terminal: stop the cursor blink and
+  // ignore input (except Enter, handled above as reconnect). Scrollback stays
+  // intact for reading the last output.
+  useEffect(() => {
+    const term = termRef.current;
+    if (!term || !disconnected || wasDisc.current) return;
+    wasDisc.current = true;
+    term.options.cursorBlink = false;
+    term.options.disableStdin = true;
+  }, [disconnected]);
 
   return <div class="termhost" ref={hostRef} style={{ display: active ? "block" : "none" }} />;
 }
