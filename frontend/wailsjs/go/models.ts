@@ -1048,6 +1048,12 @@ export namespace theme {
 	    sidebarBorder: string;
 	    sidebarFolderFg: string;
 	    sidebarSelectedBg: string;
+	    tabstripBg: string;
+	    paneBg: string;
+	    tabHoverBg: string;
+	    chromeFg: string;
+	    chromeFolderFg: string;
+	    chromeBorder: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new UI(source);
@@ -1069,6 +1075,12 @@ export namespace theme {
 	        this.sidebarBorder = source["sidebarBorder"];
 	        this.sidebarFolderFg = source["sidebarFolderFg"];
 	        this.sidebarSelectedBg = source["sidebarSelectedBg"];
+	        this.tabstripBg = source["tabstripBg"];
+	        this.paneBg = source["paneBg"];
+	        this.tabHoverBg = source["tabHoverBg"];
+	        this.chromeFg = source["chromeFg"];
+	        this.chromeFolderFg = source["chromeFolderFg"];
+	        this.chromeBorder = source["chromeBorder"];
 	    }
 	}
 	export class Theme {

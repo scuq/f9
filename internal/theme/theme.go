@@ -37,6 +37,16 @@ type UI struct {
 	SidebarBorder     string `toml:"sidebar_border,omitempty" json:"sidebarBorder"`
 	SidebarFolderFg   string `toml:"sidebar_folder_fg,omitempty" json:"sidebarFolderFg"`
 	SidebarSelectedBg string `toml:"sidebar_selected_bg,omitempty" json:"sidebarSelectedBg"`
+
+	// Optional tab-bar chrome overrides (the strip above terminals). Empty =>
+	// the historical dark chrome / the main colors. Set them for a light tab
+	// bar on a dark-chrome theme.
+	TabstripBg     string `toml:"tabstrip_bg,omitempty" json:"tabstripBg"`
+	PaneBg         string `toml:"pane_bg,omitempty" json:"paneBg"`
+	TabHoverBg     string `toml:"tab_hover_bg,omitempty" json:"tabHoverBg"`
+	ChromeFg       string `toml:"chrome_fg,omitempty" json:"chromeFg"`
+	ChromeFolderFg string `toml:"chrome_folder_fg,omitempty" json:"chromeFolderFg"`
+	ChromeBorder   string `toml:"chrome_border,omitempty" json:"chromeBorder"`
 }
 
 type Font struct {

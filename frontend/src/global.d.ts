@@ -163,7 +163,7 @@ declare global {
   interface AgentStatus { endpoints: AgentEndpoint[] | null; }
   interface ThemeData {
     name: string;
-    ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string; sidebarBg?: string; sidebarBgRaised?: string; sidebarFg?: string; sidebarBorder?: string; sidebarFolderFg?: string; sidebarSelectedBg?: string };
+    ui: { bg: string; bgRaised: string; fg: string; accent: string; border: string; folderFg: string; selectedBg: string; danger: string; sidebarBg?: string; sidebarBgRaised?: string; sidebarFg?: string; sidebarBorder?: string; sidebarFolderFg?: string; sidebarSelectedBg?: string; tabstripBg?: string; paneBg?: string; tabHoverBg?: string; chromeFg?: string; chromeFolderFg?: string; chromeBorder?: string };
     font: { ui: string; mono: string; size: number };
     terminal: {
       background: string; foreground: string; cursor: string; cursorAccent: string; selection: string;

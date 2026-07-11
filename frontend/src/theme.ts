@@ -67,6 +67,13 @@ function applyAll() {
   r.setProperty("--sb-border", sb(u.border, u.sidebarBorder));
   r.setProperty("--sb-folder-fg", sb(u.folderFg, u.sidebarFolderFg));
   r.setProperty("--sb-selected-bg", sb(u.selectedBg, u.sidebarSelectedBg));
+  const chrome = (fixed: string, ov?: string) => (ov && ov !== "" ? ov : fixed);
+  r.setProperty("--tabstrip-bg", chrome("#0a0a0c", u.tabstripBg));
+  r.setProperty("--pane-bg", chrome("#000000", u.paneBg));
+  r.setProperty("--tab-hover-bg", chrome("#111318", u.tabHoverBg));
+  r.setProperty("--ch-fg", sb(u.fg, u.chromeFg));
+  r.setProperty("--ch-folder-fg", sb(u.folderFg, u.chromeFolderFg));
+  r.setProperty("--ch-border", sb(u.border, u.chromeBorder));
   r.setProperty("--font-ui", `"${uiFont()}", system-ui, -apple-system, "Segoe UI", sans-serif`);
   r.setProperty("--font-mono", monoStack(monoFont()));
   r.setProperty("--font-size", `${uiSize()}px`);

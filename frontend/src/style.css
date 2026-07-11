@@ -16,6 +16,12 @@
   --sb-border: #24272d;
   --sb-folder-fg: #7d828b;
   --sb-selected-bg: #123049;
+  --tabstrip-bg: #0a0a0c;
+  --pane-bg: #000000;
+  --tab-hover-bg: #111318;
+  --ch-fg: #c6c9cf;
+  --ch-folder-fg: #7d828b;
+  --ch-border: #24272d;
   --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 }
@@ -124,9 +130,9 @@ body {
 .statusbar .gear { cursor: pointer; font-size: 14px; }
 .statusbar .gear:hover { color: var(--accent); }
 
-.mainpane { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #000; }
+.mainpane { --fg: var(--ch-fg); --folder-fg: var(--ch-folder-fg); --border: var(--ch-border); flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--pane-bg); }
 .tabstrip {
-  display: flex; align-items: stretch; background: #0a0a0c;
+  display: flex; align-items: stretch; background: var(--tabstrip-bg);
   border-bottom: 1px solid var(--border); overflow-x: auto; min-height: 30px;
 }
 .tab {
@@ -134,8 +140,8 @@ body {
   color: var(--folder-fg); cursor: pointer; border-right: 1px solid var(--border);
   white-space: nowrap; font-size: 12px;
 }
-.tab:hover { background: #111318; }
-.tab.active { background: #000; color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
+.tab:hover { background: var(--tab-hover-bg); }
+.tab.active { background: var(--pane-bg); color: var(--fg); box-shadow: inset 0 -2px 0 var(--accent); }
 .tab.pinned-empty { font-style: italic; opacity: 0.75; }
 .tab .pin { color: var(--folder-fg); font-size: 11px; }
 .tab .pin.filled { color: var(--accent); }
@@ -145,7 +151,7 @@ body {
 .tabnew { display: flex; align-items: center; padding: 0 12px; color: var(--folder-fg); cursor: pointer; font-size: 15px; }
 .tabnew:hover { color: var(--accent); }
 .paneview { flex: 1; position: relative; overflow: hidden; }
-.termhost { position: absolute; inset: 0; padding: 6px 8px 4px; background: #000; }
+.termhost { position: absolute; inset: 0; padding: 6px 8px 4px; background: var(--pane-bg); }
 .termhost .xterm { height: 100%; }
 .paneview .empty {
   position: absolute; inset: 0; display: flex;

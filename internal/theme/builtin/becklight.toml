@@ -19,6 +19,14 @@ sidebar_border = "#d8d8d4"
 sidebar_folder_fg = "#6b6f76"
 sidebar_selected_bg = "#dceaf7"
 
+# Light tab bar (matches the light sidebar + terminal).
+tabstrip_bg = "#ececea"
+pane_bg = "#ffffff"
+tab_hover_bg = "#e4e4e1"
+chrome_fg = "#1c1e21"
+chrome_folder_fg = "#6b6f76"
+chrome_border = "#d8d8d4"
+
 [font]
 ui = "Inter"
 mono = "JetBrains Mono"
