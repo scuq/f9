@@ -17,6 +17,10 @@ type rule struct {
 	hint    []byte         // fast substring for version/line rules
 	re      *regexp.Regexp // prompt rules: matched against the ANSI-stripped tail
 	weights []famWeight
+	// hostBanner marks motd/banner-style evidence a unix jumphost emits;
+	// relay detectors (shell-hop sessions) ignore these so the hop's OS
+	// doesn't contaminate the target's detection.
+	hostBanner bool
 }
 
 // versionRules match the SSH server version string (e.g. "SSH-2.0-Cisco-1.25").
@@ -39,12 +43,12 @@ var lineRules = []rule{
 	{hint: []byte("PAN-OS"), weights: []famWeight{{FamilyPANOS, 5}}},
 	{hint: []byte("Invalid syntax"), weights: []famWeight{{FamilyPANOS, 2}}},
 	{hint: []byte("JUNOS"), weights: []famWeight{{FamilyJunos, 5}}},
-	{hint: []byte("OpenBSD"), weights: []famWeight{{FamilyOpenBSD, 4}}},
+	{hint: []byte("OpenBSD"), weights: []famWeight{{FamilyOpenBSD, 4}}, hostBanner: true},
 	{hint: []byte("Microsoft Windows"), weights: []famWeight{{FamilyWindows, 5}}},
-	{hint: []byte("Linux "), weights: []famWeight{{FamilyLinux, 3}}},
-	{hint: []byte("Debian"), weights: []famWeight{{FamilyLinux, 2}}},
-	{hint: []byte("Ubuntu"), weights: []famWeight{{FamilyLinux, 2}}},
-	{hint: []byte("Red Hat Enterprise Linux"), weights: []famWeight{{FamilyLinux, 2}}},
+	{hint: []byte("Linux "), weights: []famWeight{{FamilyLinux, 3}}, hostBanner: true},
+	{hint: []byte("Debian"), weights: []famWeight{{FamilyLinux, 2}}, hostBanner: true},
+	{hint: []byte("Ubuntu"), weights: []famWeight{{FamilyLinux, 2}}, hostBanner: true},
+	{hint: []byte("Red Hat Enterprise Linux"), weights: []famWeight{{FamilyLinux, 2}}, hostBanner: true},
 }
 
 // promptRules match the tail (the line a prompt sits on, never newline-

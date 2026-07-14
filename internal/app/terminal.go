@@ -89,7 +89,20 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 	if !ok {
 		return fmt.Errorf("app: session not connected")
 	}
-	a.ensureDetector(sessionID, client.ServerVersion())
+	relay := false
+	if _, eff, rerr := a.st.Resolve(sessionID); rerr == nil {
+		for _, h := range eff.JumpChain {
+			if h.Mode == "shell-hop" {
+				relay = true
+				break
+			}
+		}
+	}
+	sv := client.ServerVersion()
+	if relay {
+		sv = "" // the banner belongs to the hop, not the target
+	}
+	a.ensureDetector(sessionID, sv, relay)
 	sess, err := client.NewSession(context.Background(), "xterm-256color", cols, rows)
 	if err != nil {
 		return err

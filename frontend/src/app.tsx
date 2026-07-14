@@ -1778,6 +1778,8 @@ export function App() {
             {displayTabs.map((d) => d.type === "term" ? (
               <div key={d.tab.termId} class={"tab" + (view.kind === "term" && view.id === d.tab.termId ? " active" : "") + (dead.has(d.tab.termId) ? " down" : "")}
                 onClick={() => activateTerm(d.tab.termId)}
+                onMouseDown={(e) => { if (e.button === 1) e.preventDefault(); }}
+                onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); closeTab(d.tab.termId); } }}
                 onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ termId: d.tab.termId, x: e.clientX, y: e.clientY }); }}>
                 <span class={"tabconn " + (dead.has(d.tab.termId) ? "down" : "up")} title={dead.has(d.tab.termId) ? "disconnected" : "connected"} />
                 {(() => { const dc = dotClass(activity[d.tab.termId]); return dc ? <span class={"actdot " + dc} /> : null; })()}
@@ -1788,10 +1790,10 @@ export function App() {
                 <span class={"pin" + (d.pinned ? " filled" : "")} title={d.pinned ? "unpin" : "pin"}
                   onClick={(e) => { e.stopPropagation(); togglePin(d.tab.sessionId, d.pinned); }}>{d.pinned ? "\u2605" : "\u2606"}</span>
                 <span class="tabname">{d.tab.name}</span>
-                <span class="tabx" title="close" onClick={(e) => { e.stopPropagation(); closeTab(d.tab.termId); }}>{"\u2715"}</span>
+                <span class="tabx" title={d.pinned ? "close terminal (tab stays pinned \u2014 unpin via \u2605)" : "close"} onClick={(e) => { e.stopPropagation(); closeTab(d.tab.termId); }}>{"\u2715"}</span>
               </div>
             ) : (
-              <div key={"pin:" + d.sessionId} class="tab pinned-empty" onClick={() => connectAndOpen(d.sessionId, d.name)}>
+              <div key={"pin:" + d.sessionId} class="tab pinned-empty" title="pinned — not connected; click to connect" onClick={() => connectAndOpen(d.sessionId, d.name)}>
                 <span class="pin filled" title="unpin" onClick={(e) => { e.stopPropagation(); togglePin(d.sessionId, true); }}>{"\u2605"}</span>
                 <span class="tabname">{d.name}</span>
               </div>
@@ -1882,6 +1884,7 @@ export function App() {
 
       {ctxMenu && ctxCfg && (
         <div class="ctxmenu" style={{ left: `${ctxMenu.x}px`, top: `${ctxMenu.y}px` }} onClick={(e) => e.stopPropagation()}>
+          <div class="mrow ctxact" onClick={() => { closeTab(ctxMenu.termId); setCtxMenu(null); }}>close tab</div>
           <div class="mhead">tab indicators</div>
           <label class="mrow"><input type="checkbox" checked={ctxCfg.output} onChange={(e) => setCfg(ctxMenu.termId, { output: (e.target as HTMLInputElement).checked })} /> <span class="swatch output" /> output</label>
           <label class="mrow"><input type="checkbox" checked={ctxCfg.prompt} onChange={(e) => setCfg(ctxMenu.termId, { prompt: (e.target as HTMLInputElement).checked })} /> <span class="swatch prompt" /> command done</label>

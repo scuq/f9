@@ -8,7 +8,7 @@ import (
 // ensureDetector starts passive OS detection for a session with no settled OS
 // yet, seeding it with the SSH server version string. Safe to call for every
 // opened terminal; only the first call per session creates a detector.
-func (a *App) ensureDetector(sessionID, serverVersion string) {
+func (a *App) ensureDetector(sessionID, serverVersion string, relay bool) {
 	if m, err := a.st.Meta(sessionID); err == nil && (m.DetectedOS != "" || m.OSPinned) {
 		return
 	}
@@ -21,6 +21,9 @@ func (a *App) ensureDetector(sessionID, serverVersion string) {
 		return
 	}
 	det := osdetect.New()
+	if relay {
+		det = osdetect.NewRelay()
+	}
 	if serverVersion != "" {
 		det.ObserveServerVersion(serverVersion)
 	}

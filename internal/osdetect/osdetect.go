@@ -55,6 +55,10 @@ type detector struct {
 	firedVersion []bool
 	firedLine    []bool
 	firedPrompt  []bool
+
+	// relay: the byte stream passes through a unix jumphost (shell-hop), so
+	// host-banner evidence must be ignored — it describes the hop.
+	relay bool
 }
 
 func New() Detector {
@@ -64,6 +68,16 @@ func New() Detector {
 		firedLine:    make([]bool, len(lineRules)),
 		firedPrompt:  make([]bool, len(promptRules)),
 	}
+}
+
+// NewRelay returns a detector for sessions whose stream passes through a
+// unix jumphost (shell-hop): unix host-banner line rules are ignored so the
+// hop's motd cannot label the target. Device-idiom evidence (prompts, error
+// strings, pagers, product banners) still applies.
+func NewRelay() Detector {
+	d := New().(*detector)
+	d.relay = true
+	return d
 }
 
 func (d *detector) ObserveServerVersion(v string) {
@@ -121,6 +135,9 @@ func (d *detector) matchLine(line []byte) {
 		return
 	}
 	for i, r := range lineRules {
+		if d.relay && r.hostBanner {
+			continue
+		}
 		if d.firedLine[i] || !bytes.Contains(line, r.hint) {
 			continue
 		}

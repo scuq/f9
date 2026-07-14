@@ -126,3 +126,27 @@ func TestWeakEvidenceLowConfidence(t *testing.T) {
 		t.Fatalf("OpenSSH alone must stay below threshold: %+v", g)
 	}
 }
+
+func TestRelayIgnoresHopBanner(t *testing.T) {
+	d := NewRelay()
+	// what an OpenBSD jumphost prints before the onward hop
+	d.ObserveOutput([]byte("OpenBSD 7.5 (GENERIC.MP) #82: welcome\n"))
+	if g := d.Guess(); g.Family == FamilyOpenBSD {
+		t.Fatalf("relay detector took the hop banner: %+v", g)
+	}
+	// the target's own idioms must still win
+	d.ObserveOutput([]byte("Cisco IOS Software, C2960X\n"))
+	d.ObserveOutput([]byte("% Invalid input detected at '^' marker.\n"))
+	d.ObserveOutput([]byte("sw-core-01#"))
+	g := d.Guess()
+	if g.Family != FamilyIOS || g.Confidence < DefaultThreshold {
+		t.Fatalf("relay detection of the target failed: %+v", g)
+	}
+	// a normal detector still honors the banner (rule unchanged outside relay)
+	n := New()
+	n.ObserveOutput([]byte("OpenBSD 7.5 (GENERIC.MP) #82: welcome\n"))
+	n.ObserveOutput([]byte("$ "))
+	if g := n.Guess(); g.Family != FamilyOpenBSD {
+		t.Fatalf("normal detector lost the banner rule: %+v", g)
+	}
+}
