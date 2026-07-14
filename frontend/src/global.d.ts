@@ -9,6 +9,7 @@ declare global {
           GetVersion(): Promise<string>;
           Filter(query: string): Promise<FilterHit[]>;
           SessionDetail(id: string): Promise<SessionDetail>;
+          ConnInfo(id: string): Promise<ConnInfoDTO>;
           SaveSession(input: SessionInput): Promise<string>;
           SaveFolder(input: FolderInput): Promise<string>;
           DeleteSession(id: string): Promise<void>;
@@ -120,6 +121,7 @@ declare global {
   interface Conn {
     sessionId: string; name: string; host: string;
     state: "dialing" | "connected" | "error"; err: string; since: string;
+    // (ConnInfoDTO lives below)
     socksPort: number; socksActive: boolean; socksOnly: boolean;
   }
   interface PromptRequest {
@@ -174,3 +176,12 @@ declare global {
     };
   }
 }
+
+declare global {
+  interface ConnInfoDTO {
+    serverVersion: string; keyExchange: string; hostKey: string;
+    cipherIn: string; cipherOut: string; macIn: string; macOut: string;
+    relay: boolean; host: string; port: number; onwardUser: string; chain: string; socksPort: number;
+  }
+}
+export {};

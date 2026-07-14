@@ -193,6 +193,25 @@ func (n *nativeClient) NewSession(_ context.Context, termType string, cols, rows
 	return wrapSession(s, termType, cols, rows, "")
 }
 
+// connInfoFrom extracts the negotiated transport parameters from an
+// established client (exposed via ssh.AlgorithmsConnMetadata).
+func connInfoFrom(c *ssh.Client, relay bool) ConnInfo {
+	ci := ConnInfo{ServerVersion: string(c.ServerVersion()), Relay: relay}
+	if m, ok := c.Conn.(ssh.AlgorithmsConnMetadata); ok {
+		a := m.Algorithms()
+		ci.KeyExchange = a.KeyExchange
+		ci.HostKey = a.HostKey
+		ci.CipherIn = a.Read.Cipher
+		ci.CipherOut = a.Write.Cipher
+		ci.MACIn = a.Read.MAC
+		ci.MACOut = a.Write.MAC
+	}
+	return ci
+}
+
+func (n *nativeClient) ConnInfo() ConnInfo   { return connInfoFrom(n.c, false) }
+func (h *shellHopClient) ConnInfo() ConnInfo { return connInfoFrom(h.hop, true) }
+
 func (n *nativeClient) startKeepalive(interval time.Duration, act *activityConn) {
 	if interval <= 0 {
 		return

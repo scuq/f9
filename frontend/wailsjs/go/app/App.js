@@ -42,6 +42,10 @@ export function CloseTerminal(arg1) {
   return window['go']['app']['App']['CloseTerminal'](arg1);
 }
 
+export function ConnInfo(arg1) {
+  return window['go']['app']['App']['ConnInfo'](arg1);
+}
+
 export function ConnectFolder(arg1) {
   return window['go']['app']['App']['ConnectFolder'](arg1);
 }

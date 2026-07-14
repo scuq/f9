@@ -20,8 +20,9 @@ type fakeClient struct {
 func (f *fakeClient) NewSession(_ context.Context, _ string, _, _ int) (sshx.Session, error) {
 	return nil, nil
 }
-func (f *fakeClient) ServerVersion() string { return "SSH-2.0-fake" }
-func (f *fakeClient) SocksActive() bool     { return false }
+func (f *fakeClient) ServerVersion() string   { return "SSH-2.0-fake" }
+func (f *fakeClient) SocksActive() bool       { return false }
+func (f *fakeClient) ConnInfo() sshx.ConnInfo { return sshx.ConnInfo{} }
 func (f *fakeClient) Wait() error {
 	f.mu.Lock()
 	if f.done == nil {

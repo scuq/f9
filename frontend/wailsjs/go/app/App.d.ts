@@ -28,6 +28,8 @@ export function CheckForUpdate():Promise<updater.Info>;
 
 export function CloseTerminal(arg1:string):Promise<void>;
 
+export function ConnInfo(arg1:string):Promise<app.ConnInfoDTO>;
+
 export function ConnectFolder(arg1:string):Promise<void>;
 
 export function ConnectSessions(arg1:Array<string>):Promise<void>;

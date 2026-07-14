@@ -68,7 +68,22 @@ type Client interface {
 	// SocksActive reports whether a SOCKS dynamic-forward proxy is bound and
 	// running for this client (false when none was requested or the bind failed).
 	SocksActive() bool
+	// ConnInfo describes the established transport (negotiated algorithms,
+	// server version). For shell-hop clients it describes the HOP leg.
+	ConnInfo() ConnInfo
 	Close() error
+}
+
+// ConnInfo describes an established SSH transport, for status display.
+type ConnInfo struct {
+	ServerVersion string
+	KeyExchange   string
+	HostKey       string
+	CipherIn      string // server -> client
+	CipherOut     string // client -> server
+	MACIn         string
+	MACOut        string
+	Relay         bool // shell-hop: fields describe the hop leg, not the target
 }
 
 var (

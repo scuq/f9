@@ -80,8 +80,9 @@ type fakeGUIClient struct{}
 func (fakeGUIClient) NewSession(_ context.Context, _ string, _, _ int) (sshx.Session, error) {
 	return nil, nil
 }
-func (fakeGUIClient) ServerVersion() string { return "SSH-2.0-fake" }
-func (fakeGUIClient) SocksActive() bool     { return false }
+func (fakeGUIClient) ServerVersion() string   { return "SSH-2.0-fake" }
+func (fakeGUIClient) SocksActive() bool       { return false }
+func (fakeGUIClient) ConnInfo() sshx.ConnInfo { return sshx.ConnInfo{} }
 func (fakeGUIClient) Wait() error {
 	var never chan struct{}
 	<-never // block forever; this fake connection never dies on its own

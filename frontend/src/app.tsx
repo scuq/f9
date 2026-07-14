@@ -66,6 +66,20 @@ function dotClass(fl?: IndFlags): string | null {
   return null;
 }
 
+// Uptime renders a ticking connected-for duration; the 1s interval lives in
+// this small component so the rest of the app doesn't re-render every second.
+function Uptime({ since }: { since: string }) {
+  const [, setN] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => setN((x) => x + 1), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+  const secs = Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 1000));
+  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), sec = secs % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return <span class="sb-uptime" title="connected for">{h > 0 ? h + ":" + pad(m) + ":" + pad(sec) : m + ":" + pad(sec)}</span>;
+}
+
 // countTree returns deep subfolder/session counts for a folder node.
 function countTree(n: FolderNode): { f: number; s: number } {
   let f = 0, s = (n.sessions ?? []).length;
@@ -1149,6 +1163,7 @@ export function App() {
   const [refreshStatus, setRefreshStatus] = useState<{ folderId: string; name: string } | null>(null);
   const [showMarks, setShowMarks] = useState(false);
   const [connFilter, setConnFilter] = useState("");
+  const [connInfo, setConnInfo] = useState<Record<string, ConnInfoDTO>>({});
   const [snLib, setSnLib] = useState(false);
   const [snFolders, setSnFolders] = useState<SnippetFolder[]>([]);
   const [snList, setSnList] = useState<Snippet[]>([]);
@@ -1485,6 +1500,15 @@ export function App() {
     const p = currentlyPinned ? api().UnpinSession(sessionId) : api().PinSession(sessionId);
     p.then(() => { refreshPinned(); load(); if (sel && sel.id === sessionId) api().SessionDetail(sessionId).then(setDetail).catch(() => {}); }).catch((e) => setErr(String(e)));
   };
+  // Fetch transport details for the active terminal's session (refreshed on
+  // tab switch and on connection changes, so a reconnect updates the bar).
+  useEffect(() => {
+    if (view.kind !== "term") return;
+    const t = tabs.find((x) => x.termId === view.id);
+    if (!t) return;
+    api().ConnInfo(t.sessionId).then((ci) => setConnInfo((m) => ({ ...m, [t.sessionId]: ci }))).catch(() => {});
+  }, [view, tabs, conns]);
+
   const closeTab = (termId: string) => {
     api().CloseTerminal(termId).catch(() => {});
     setDead((d) => { if (!d.has(termId)) return d; const n = new Set(d); n.delete(termId); return n; });
@@ -1868,6 +1892,26 @@ export function App() {
             </div>
           ) : <div class="empty">select a session</div>}
         </div>
+        {view.kind === "term" && activeTab && (() => {
+          const ci = connInfo[activeTab.sessionId];
+          const cn = conns.find((c) => c.sessionId === activeTab.sessionId);
+          const sn = tree ? walkSessions(tree, []).find((x) => x.id === activeTab.sessionId) : undefined;
+          return (
+            <div class="statusbar">
+              {cn && cn.state === "connected" ? <Uptime since={cn.since} /> : <span class="sb-dead">disconnected</span>}
+              {ci && <span title="effective target">{(ci.onwardUser ? ci.onwardUser + "@" : "") + ci.host + (ci.port && ci.port !== 22 ? ":" + ci.port : "")}</span>}
+              {ci && ci.chain !== "" && <span title="jump chain (labels resolved)">via {ci.chain}</span>}
+              {ci && ci.cipherIn !== "" && (
+                <span title={"kex " + ci.keyExchange + " \u00b7 mac " + ci.macIn + (ci.relay ? " \u00b7 hop leg; the onward leg's crypto runs on the jumphost" : "")}>
+                  {(ci.relay ? "hop: " : "") + ci.cipherIn + (ci.cipherOut !== ci.cipherIn ? " / " + ci.cipherOut : "")}
+                </span>
+              )}
+              {ci && ci.hostKey !== "" && <span title="host key algorithm">{ci.hostKey}</span>}
+              {ci && ci.socksPort > 0 && <span title="SOCKS dynamic forward">SOCKS :{ci.socksPort}</span>}
+              {sn && sn.detectedOs && <span title="detected OS">{sn.detectedOs}</span>}
+            </div>
+          );
+        })()}
         {!settings.barVertical && (
           <BarStrip global={gbar} folder={bar}
             showGlobal={settings.showGlobalBar} showFolder={settings.showFolderBar}

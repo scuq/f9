@@ -46,6 +46,42 @@ export namespace app {
 	        this.keyFile = source["keyFile"];
 	    }
 	}
+	export class ConnInfoDTO {
+	    serverVersion: string;
+	    keyExchange: string;
+	    hostKey: string;
+	    cipherIn: string;
+	    cipherOut: string;
+	    macIn: string;
+	    macOut: string;
+	    relay: boolean;
+	    host: string;
+	    port: number;
+	    onwardUser: string;
+	    chain: string;
+	    socksPort: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConnInfoDTO(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.serverVersion = source["serverVersion"];
+	        this.keyExchange = source["keyExchange"];
+	        this.hostKey = source["hostKey"];
+	        this.cipherIn = source["cipherIn"];
+	        this.cipherOut = source["cipherOut"];
+	        this.macIn = source["macIn"];
+	        this.macOut = source["macOut"];
+	        this.relay = source["relay"];
+	        this.host = source["host"];
+	        this.port = source["port"];
+	        this.onwardUser = source["onwardUser"];
+	        this.chain = source["chain"];
+	        this.socksPort = source["socksPort"];
+	    }
+	}
 	export class CredState {
 	    initialized: boolean;
 	    locked: boolean;
