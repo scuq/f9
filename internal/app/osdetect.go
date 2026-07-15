@@ -5,6 +5,53 @@ import (
 	"github.com/scuq/f9/internal/store"
 )
 
+// detectorRelay reports whether the session's effective chain contains a
+// shell-hop, in which case detection must ignore hop banner evidence.
+func (a *App) detectorRelay(sessionID string) bool {
+	_, eff, err := a.st.Resolve(sessionID)
+	if err != nil {
+		return false
+	}
+	for _, h := range eff.JumpChain {
+		if h.Mode == "shell-hop" {
+			return true
+		}
+	}
+	return false
+}
+
+// SessionRedetectOS clears the detected OS (session meta AND the host's
+// shadow-cache hint) and, when the session is connected, immediately starts a
+// fresh detection round.
+func (a *App) SessionRedetectOS(sessionID string) error {
+	m, err := a.st.Meta(sessionID)
+	if err != nil {
+		return err
+	}
+	m.SessionID = sessionID
+	m.DetectedOS = ""
+	m.OSConfidence = 0
+	m.OSPinned = false
+	if err := a.st.PutMeta(m); err != nil {
+		return err
+	}
+	if s, _, rerr := a.st.Resolve(sessionID); rerr == nil && s.Host != "" {
+		_ = a.st.DeleteOSHint(s.Host)
+	}
+	if client, ok := a.mgr.Client(sessionID); ok {
+		relay := a.detectorRelay(sessionID)
+		sv := client.ServerVersion()
+		if relay {
+			sv = ""
+		}
+		a.detMu.Lock()
+		delete(a.dets, sessionID)
+		a.detMu.Unlock()
+		a.ensureDetector(sessionID, sv, relay)
+	}
+	return nil
+}
+
 // ensureDetector starts passive OS detection for a session with no settled OS
 // yet, seeding it with the SSH server version string. Safe to call for every
 // opened terminal; only the first call per session creates a detector.

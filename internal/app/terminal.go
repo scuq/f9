@@ -89,15 +89,7 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 	if !ok {
 		return fmt.Errorf("app: session not connected")
 	}
-	relay := false
-	if _, eff, rerr := a.st.Resolve(sessionID); rerr == nil {
-		for _, h := range eff.JumpChain {
-			if h.Mode == "shell-hop" {
-				relay = true
-				break
-			}
-		}
-	}
+	relay := a.detectorRelay(sessionID)
 	sv := client.ServerVersion()
 	if relay {
 		sv = "" // the banner belongs to the hop, not the target

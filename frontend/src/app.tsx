@@ -340,6 +340,7 @@ function SettingsModal(props: {
         <label class="checkrow"><input type="checkbox" checked={settings.showTemplates} onChange={(e) => onSave({ showTemplates: (e.target as HTMLInputElement).checked })} /> template composer</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showSnippets} onChange={(e) => onSave({ showSnippets: (e.target as HTMLInputElement).checked })} /> snippet library (Ctrl+P)</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showMultiSend} onChange={(e) => onSave({ showMultiSend: (e.target as HTMLInputElement).checked })} /> multi-send (broadcast to marked tabs)</label>
+        <label class="checkrow"><input type="checkbox" checked={!settings.pasteConfirmOff} onChange={(e) => onSave({ pasteConfirmOff: !(e.target as HTMLInputElement).checked })} /> confirm multi-line paste (review/edit before sending)</label>
 
         <div class="opthead">button bar layout</div>
         <div class="formrow"><label>layout</label>
@@ -479,7 +480,7 @@ function SearchPanel(props: {
 }
 
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
-const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false, showMultiSend: false };
+const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false, showMultiSend: false, pasteConfirmOff: false };
 
 function UnresolvedModal(props: {
   names: string[];
@@ -1545,6 +1546,10 @@ export function App() {
     if (!sel || !confirm(`delete session ${sel.name}?`)) return;
     api().DeleteSession(sel.id).then(() => { setSel(null); setDetail(null); afterMutation(); }).catch((e) => setErr(String(e)));
   };
+  const redetectOS = () => {
+    if (!sel) return;
+    api().SessionRedetectOS(sel.id).then(() => load()).catch((e) => setErr(String(e)));
+  };
   const duplicateSelected = () => {
     if (!detail) return;
     api().SessionDuplicate(detail.id).then((newId) => {
@@ -1836,7 +1841,7 @@ export function App() {
         )}
         <div class="paneview">
           {tabs.map((t) => (
-            <TerminalView key={t.termId} termId={t.termId} sessionId={t.sessionId} active={view.kind === "term" && view.id === t.termId} disconnected={dead.has(t.termId)} onReconnect={() => reconnectTab(t)} />
+            <TerminalView key={t.termId} termId={t.termId} sessionId={t.sessionId} active={view.kind === "term" && view.id === t.termId} disconnected={dead.has(t.termId)} onReconnect={() => reconnectTab(t)} confirmPaste={!settings.pasteConfirmOff} />
           ))}
           {searchOpen && view.kind === "term" && (
             <SearchPanel
@@ -1885,6 +1890,7 @@ export function App() {
                 <button onClick={() => setModal("session-edit")}>edit</button>
                 <button onClick={() => setJumpEdit({ sessionId: detail.id, initial: detail.jumpChain ?? [] })}>jump chain</button>
                 <button onClick={duplicateSelected}>duplicate</button>
+                {sel.detectedOs && <button title="clear the detected OS (and its host hint) and detect again" onClick={redetectOS}>redetect os</button>}
                 {sel.generated
                   ? <span class="gen-note" title="managed by the folder's import source">local edits revert on next refresh</span>
                   : <button class="danger" onClick={deleteSelected}>delete</button>}

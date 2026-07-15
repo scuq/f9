@@ -28,6 +28,16 @@ func TestOSHintRoundtripAndPinned(t *testing.T) {
 	if h.OS != "nxos" || !h.Pinned {
 		t.Fatalf("pinned hint overwritten: %+v", h)
 	}
+	// delete removes even a pinned hint (explicit user action)
+	if err := s.DeleteOSHint("10.0.0.1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := s.OSHint("10.0.0.1"); ok {
+		t.Fatal("hint still present after delete")
+	}
+	if err := s.DeleteOSHint("10.0.0.1"); err != nil {
+		t.Fatal("delete of missing hint must be a no-op, got error")
+	}
 }
 
 func TestReconcileJoinsOSHint(t *testing.T) {

@@ -55,6 +55,25 @@ func (s *YAMLStore) OSHint(host string) (OSHint, bool) {
 	return h, ok
 }
 
+// DeleteOSHint removes the stored hint for a host (used by redetect, so a
+// stale hint cannot be re-joined onto recreated sessions).
+func (s *YAMLStore) DeleteOSHint(host string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	hints := s.loadOSHints()
+	key := normHost(host)
+	if _, ok := hints[key]; !ok {
+		return nil
+	}
+	delete(hints, key)
+	list := make([]OSHint, 0, len(hints))
+	for _, v := range hints {
+		list = append(list, v)
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].Host < list[j].Host })
+	return writeYAML(s.osHintsPath(), list)
+}
+
 // PutOSHint stores a hint for a host. A pinned hint (user-configured) is only
 // replaced by another pinned write; detected hints freely update each other.
 func (s *YAMLStore) PutOSHint(h OSHint) error {

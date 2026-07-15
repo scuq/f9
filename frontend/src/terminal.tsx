@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -15,7 +15,7 @@ function b64ToBytes(b64: string): Uint8Array {
 }
 
 export function TerminalView(
-  { termId, sessionId, active, disconnected, onReconnect }: { termId: string; sessionId: string; active: boolean; disconnected?: boolean; onReconnect?: () => void },
+  { termId, sessionId, active, disconnected, onReconnect, confirmPaste }: { termId: string; sessionId: string; active: boolean; disconnected?: boolean; onReconnect?: () => void; confirmPaste?: boolean },
 ) {
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<XTerm | null>(null);
@@ -25,6 +25,21 @@ export function TerminalView(
   const wasDisc = useRef(false);
   const onReconnectRef = useRef(onReconnect);
   onReconnectRef.current = onReconnect;
+  const confirmRef = useRef(!!confirmPaste);
+  confirmRef.current = !!confirmPaste;
+  const [pendingPaste, setPendingPaste] = useState<string | null>(null);
+  // routePaste sends text to the terminal, detouring multi-line pastes
+  // through the review overlay when enabled.
+  const routePaste = (text: string) => {
+    if (!text) return;
+    if (confirmRef.current && text.includes("\n")) {
+      setPendingPaste(text);
+      return;
+    }
+    termRef.current?.paste(text);
+  };
+  const routePasteRef = useRef(routePaste);
+  routePasteRef.current = routePaste;
 
   const fitAndSync = () => {
     const fit = fitRef.current, term = termRef.current;
@@ -79,7 +94,7 @@ export function TerminalView(
       if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "v" || e.key === "V")) {
         e.preventDefault();
         const p = window.runtime.ClipboardGetText?.();
-        if (p) p.then((t) => { if (t) term.paste(t); }).catch(() => {});
+        if (p) p.then((t) => { if (t) routePasteRef.current(t); }).catch(() => {});
         return false;
       }
       if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "f" || e.key === "F")) {
@@ -116,7 +131,7 @@ export function TerminalView(
         window.clearTimeout(suppressTimer);
         suppressTimer = window.setTimeout(() => { suppressNativePaste = false; }, 200);
         const prim = primaryRef.current;
-        if (prim) term.paste(prim);
+        if (prim) routePasteRef.current(prim);
       }
     };
     const onNativePaste = (e: ClipboardEvent) => {
@@ -156,6 +171,10 @@ export function TerminalView(
   useEffect(() => {
     if (active && fitRef.current && termRef.current) {
       requestAnimationFrame(() => { fitAndSync(); try { termRef.current!.focus(); } catch { /* noop */ } });
+      // second refit after the surrounding chrome (status bar, button strips)
+      // has settled, so the bottom row is never left clipped by a late layout.
+      const late = window.setTimeout(fitAndSync, 150);
+      return () => window.clearTimeout(late);
     }
   }, [active]);
 
@@ -170,5 +189,34 @@ export function TerminalView(
     term.options.disableStdin = true;
   }, [disconnected]);
 
-  return <div class="termhost" ref={hostRef} style={{ display: active ? "block" : "none" }} />;
+  const commitPaste = () => {
+    const t = pendingPaste;
+    setPendingPaste(null);
+    if (t) termRef.current?.paste(t);
+    try { termRef.current?.focus(); } catch { /* noop */ }
+  };
+  return (
+    <div class="termwrap" style={{ display: active ? "block" : "none" }}>
+      <div class="termhost" ref={hostRef} />
+      {pendingPaste !== null && (
+        <div class="pastebox">
+          <div class="pastebox-head">review paste ({pendingPaste.split("\n").length} lines)</div>
+          <textarea
+            ref={(el) => { if (el) el.focus(); }}
+            value={pendingPaste}
+            onInput={(e) => setPendingPaste((e.target as HTMLTextAreaElement).value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { e.preventDefault(); setPendingPaste(null); try { termRef.current?.focus(); } catch { /* noop */ } }
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitPaste(); }
+            }}
+          />
+          <div class="pastebox-actions">
+            <span class="pastebox-hint">{"Esc cancels \u00b7 Ctrl+Enter pastes"}</span>
+            <button onClick={() => { setPendingPaste(null); try { termRef.current?.focus(); } catch { /* noop */ } }}>cancel</button>
+            <button onClick={commitPaste}>paste</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

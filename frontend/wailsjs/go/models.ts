@@ -567,6 +567,7 @@ export namespace app {
 	    barVertical: boolean;
 	    barUnpinned: boolean;
 	    showMultiSend: boolean;
+	    pasteConfirmOff: boolean;
 	    keyFiles: string[];
 	    disableAgent: boolean;
 	    agentSockets: string[];
@@ -591,6 +592,7 @@ export namespace app {
 	        this.barVertical = source["barVertical"];
 	        this.barUnpinned = source["barUnpinned"];
 	        this.showMultiSend = source["showMultiSend"];
+	        this.pasteConfirmOff = source["pasteConfirmOff"];
 	        this.keyFiles = source["keyFiles"];
 	        this.disableAgent = source["disableAgent"];
 	        this.agentSockets = source["agentSockets"];

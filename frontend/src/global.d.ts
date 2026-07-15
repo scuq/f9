@@ -10,6 +10,7 @@ declare global {
           Filter(query: string): Promise<FilterHit[]>;
           SessionDetail(id: string): Promise<SessionDetail>;
           ConnInfo(id: string): Promise<ConnInfoDTO>;
+          SessionRedetectOS(id: string): Promise<void>;
           SaveSession(input: SessionInput): Promise<string>;
           SaveFolder(input: FolderInput): Promise<string>;
           DeleteSession(id: string): Promise<void>;
@@ -134,7 +135,7 @@ declare global {
     theme: string; zoom: number;
     fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
     showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean; showSnippets: boolean;
-    barVertical: boolean; barUnpinned: boolean; showMultiSend: boolean;
+    barVertical: boolean; barUnpinned: boolean; showMultiSend: boolean; pasteConfirmOff: boolean;
     keyFiles: string[] | null; disableAgent: boolean; agentSockets: string[] | null;
     altUsers: AltUser[] | null;
   }

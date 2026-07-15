@@ -81,4 +81,5 @@ type Store interface {
 	PutMeta(m SessionMeta) error
 	OSHint(host string) (OSHint, bool)
 	PutOSHint(h OSHint) error
+	DeleteOSHint(host string) error
 }

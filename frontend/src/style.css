@@ -150,8 +150,9 @@ body {
 .tab .tabx:hover { color: var(--danger); }
 .tabnew { display: flex; align-items: center; padding: 0 12px; color: var(--folder-fg); cursor: pointer; font-size: 15px; }
 .tabnew:hover { color: var(--accent); }
-.paneview { flex: 1; position: relative; overflow: hidden; }
-.termhost { position: absolute; inset: 0; padding: 6px 8px 4px; background: var(--pane-bg); }
+.paneview { flex: 1; min-height: 0; position: relative; overflow: hidden; }
+.termwrap { position: absolute; inset: 0; }
+.termhost { position: absolute; inset: 0; padding: 6px 8px 6px; background: var(--pane-bg); }
 .termhost .xterm { height: 100%; }
 .paneview .empty {
   position: absolute; inset: 0; display: flex;
@@ -652,3 +653,21 @@ select, input, textarea, option { color-scheme: dark; }
 /* --- tab close UX --- */
 .ctxmenu .ctxact { cursor: pointer; padding: 4px 10px; }
 .ctxmenu .ctxact:hover { color: var(--danger); }
+
+/* --- multi-line paste review --- */
+.pastebox { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); width: min(640px, 85%); background: var(--bg-raised); border: 1px solid var(--accent); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; z-index: 5; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); }
+.pastebox-head { font-size: 12px; color: var(--fg); font-weight: 600; }
+.pastebox textarea { width: 100%; min-height: 140px; max-height: 45vh; resize: vertical; box-sizing: border-box; font-family: "JetBrains Mono", monospace; font-size: 12px; background: var(--bg); color: var(--fg); border: 1px solid var(--border); padding: 6px; }
+.pastebox-actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+.pastebox-hint { margin-right: auto; font-size: 10px; color: var(--folder-fg); }
+
+/* --- floating surfaces follow the content palette --- */
+.modal, .ctxmenu, .pastebox, .update-toast {
+  --bg: var(--sb-bg);
+  --bg-raised: var(--sb-bg-raised);
+  --fg: var(--sb-fg);
+  --border: var(--sb-border);
+  --folder-fg: var(--sb-folder-fg);
+  --selected-bg: var(--sb-selected-bg);
+  color: var(--fg);
+}

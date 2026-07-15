@@ -222,6 +222,10 @@ export function SessionDuplicate(arg1) {
   return window['go']['app']['App']['SessionDuplicate'](arg1);
 }
 
+export function SessionRedetectOS(arg1) {
+  return window['go']['app']['App']['SessionRedetectOS'](arg1);
+}
+
 export function SessionSetJumpChain(arg1, arg2) {
   return window['go']['app']['App']['SessionSetJumpChain'](arg1, arg2);
 }
