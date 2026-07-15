@@ -152,7 +152,7 @@ body {
 .tabnew:hover { color: var(--accent); }
 .paneview { flex: 1; min-height: 0; position: relative; overflow: hidden; }
 .termwrap { position: absolute; inset: 0; }
-.termhost { position: absolute; inset: 0; padding: 6px 8px 6px; background: var(--pane-bg); }
+.termhost { position: absolute; inset: 0; padding: 6px 8px 6px; background: var(--pane-bg); box-sizing: content-box; }
 .termhost .xterm { height: 100%; }
 .paneview .empty {
   position: absolute; inset: 0; display: flex;
