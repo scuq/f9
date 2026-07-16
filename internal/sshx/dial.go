@@ -230,10 +230,13 @@ func (n *nativeClient) Close() error {
 		n.kaStop = nil
 	}
 	n.kaMu.Unlock()
+	// Tear the transport down first: on a half-dead link the proxied channel
+	// copiers only unblock once the SSH transport dies, and socks.Close waits
+	// for them to drain.
+	closeAll(n.closers)
 	if n.socks != nil {
 		_ = n.socks.Close()
 	}
-	closeAll(n.closers)
 	return nil
 }
 

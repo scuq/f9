@@ -96,9 +96,15 @@ func (m *Manager) ConnectBatch(ctx context.Context, targets []Target, p sshx.Pro
 	var wg sync.WaitGroup
 	for _, t := range targets {
 		m.mu.Lock()
-		if e, ok := m.conns[t.SessionID]; ok && (e.conn.State == StateDialing || e.conn.State == StateConnected) {
-			m.mu.Unlock()
-			continue
+		var stale sshx.Client
+		if e, ok := m.conns[t.SessionID]; ok {
+			if e.conn.State == StateDialing || e.conn.State == StateConnected {
+				m.mu.Unlock()
+				continue
+			}
+			// Replacing an entry: whatever client it still holds must be
+			// released, or its local resources (SOCKS listener) leak.
+			stale = e.client
 		}
 		now := time.Now()
 		m.conns[t.SessionID] = &entry{
@@ -110,6 +116,9 @@ func (m *Manager) ConnectBatch(ctx context.Context, targets []Target, p sshx.Pro
 			since: now,
 		}
 		m.mu.Unlock()
+		if stale != nil {
+			go stale.Close() // may block briefly on half-dead links
+		}
 		m.onChange()
 
 		wg.Add(1)
@@ -178,6 +187,11 @@ func (m *Manager) watch(id string, client sshx.Client) {
 	}
 	delete(m.conns, id)
 	m.mu.Unlock()
+	// The transport is gone, but the client wrapper may still own local
+	// resources (SOCKS listener, keepalive goroutine, tunnel legs) — release
+	// them so e.g. the SOCKS port is immediately rebindable. Close is
+	// idempotent on every client type.
+	client.Close()
 	m.onChange()
 }
 

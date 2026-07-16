@@ -33,6 +33,22 @@ func (f *fakeClient) Wait() error {
 	<-ch
 	return nil
 }
+
+// die ends Wait() without marking the client closed — simulates a transport
+// death so tests can assert that connmgr itself closes the wrapper.
+func (f *fakeClient) die() {
+	f.mu.Lock()
+	if f.done == nil {
+		f.done = make(chan struct{})
+	}
+	select {
+	case <-f.done:
+	default:
+		close(f.done)
+	}
+	f.mu.Unlock()
+}
+
 func (f *fakeClient) Close() error {
 	f.closed.Store(true)
 	f.mu.Lock()
@@ -177,5 +193,22 @@ func TestDisconnectAll(t *testing.T) {
 		if !c.closed.Load() {
 			t.Fatal("DisconnectAll did not close a client")
 		}
+	}
+}
+
+func TestWatchClosesDeadClient(t *testing.T) {
+	fc := &fakeClient{}
+	dial := func(_ context.Context, _ string, _ int, _ string, _ sshx.Prompter, _ sshx.DialOpts) (sshx.Client, error) {
+		return fc, nil
+	}
+	m := New(0, dial, func() {})
+	<-m.ConnectBatch(context.Background(), []Target{{SessionID: "s1", Host: "h"}}, nil)
+	fc.die() // transport death WITHOUT a Close: only watch can set closed
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) && !fc.closed.Load() {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if !fc.closed.Load() {
+		t.Fatal("watch must Close() the dead client so local resources (SOCKS listener) are released")
 	}
 }

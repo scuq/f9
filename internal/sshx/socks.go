@@ -7,6 +7,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"time"
 )
 
 // sshDialer is the subset of *ssh.Client used to open forwarded connections.
@@ -72,7 +73,15 @@ func (p *socksProxy) Close() error {
 		_ = c.Close()
 	}
 	p.mu.Unlock()
-	p.wg.Wait()
+	// The listener is already unbound (first statement above); bound the
+	// handler drain so a pathologically blocked copier cannot wedge the
+	// caller's death path.
+	drained := make(chan struct{})
+	go func() { p.wg.Wait(); close(drained) }()
+	select {
+	case <-drained:
+	case <-time.After(3 * time.Second):
+	}
 	return err
 }
 
