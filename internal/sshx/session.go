@@ -59,7 +59,7 @@ func wrapSession(s *ssh.Session, termType string, cols, rows int, initialCmd str
 	}
 	if err := s.Shell(); err != nil {
 		s.Close()
-		return nil, fmt.Errorf("sshx: start shell: %w", err)
+		return nil, fmt.Errorf("sshx: start shell: %w (the pty was granted, so the server refused the shell request itself; the reason is only in its sshd/PAM log \u2014 process or login limits are the usual cause)", err)
 	}
 	w := &session{s: s, stdin: stdin}
 	go w.pump(stdout)

@@ -190,7 +190,11 @@ func (n *nativeClient) NewSession(_ context.Context, termType string, cols, rows
 	if err != nil {
 		return nil, fmt.Errorf("sshx: new session: %w", err)
 	}
-	return wrapSession(s, termType, cols, rows, "")
+	sess, err := wrapSession(s, termType, cols, rows, "")
+	if err != nil {
+		return nil, fmt.Errorf("%w (target %s)", err, n.c.RemoteAddr())
+	}
+	return sess, nil
 }
 
 // connInfoFrom extracts the negotiated transport parameters from an
@@ -275,7 +279,11 @@ func (h *shellHopClient) NewSession(_ context.Context, termType string, cols, ro
 	if err != nil {
 		return nil, fmt.Errorf("sshx: new shell-hop session: %w", err)
 	}
-	return wrapSession(s, termType, cols, rows, h.cmd)
+	sess, err := wrapSession(s, termType, cols, rows, h.cmd)
+	if err != nil {
+		return nil, fmt.Errorf("%w (jump host %s \u2014 the target was not contacted yet)", err, h.hop.RemoteAddr())
+	}
+	return sess, nil
 }
 
 func (h *shellHopClient) Close() error {
