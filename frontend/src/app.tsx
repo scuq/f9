@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { TerminalView } from "./terminal";
 import { setTheme as applyThemeColors, setSettings as applyOverrides } from "./theme";
 import { onFindRequested, onPickerRequested, setPickerEnabled } from "./termsearch";
@@ -91,6 +91,20 @@ function countTree(n: FolderNode): { f: number; s: number } {
   return { f, s };
 }
 
+// pruneTree returns a copy of node containing only the sessions in keep, with
+// folders that end up empty removed entirely. null means nothing under node
+// matched. Used by the sidebar filter so results keep the tree shape.
+function pruneTree(node: FolderNode, keep: Set<string>): FolderNode | null {
+  const sessions = (node.sessions ?? []).filter((s) => keep.has(s.id));
+  const folders: FolderNode[] = [];
+  for (const c of node.folders ?? []) {
+    const kept = pruneTree(c, keep);
+    if (kept) folders.push(kept);
+  }
+  if (sessions.length === 0 && folders.length === 0) return null;
+  return { ...node, sessions, folders };
+}
+
 function SessionRow(props: {
   s: SessionNode; pathPrefix?: string; indent: number; selected: boolean; marked: boolean; showMark: boolean;
   onSelect: () => void; onToggleMark: () => void; onConnect: () => void;
@@ -113,30 +127,33 @@ function Folder(props: {
   onSelect: (s: SessionNode) => void; onSelectFolder: (f: FolderNode) => void; onToggleMark: (id: string) => void;
   onFolderCtx: (node: FolderNode, x: number, y: number) => void;
   refreshing: Set<string>; onRefreshStatus: (node: FolderNode) => void;
-  showMarks: boolean; onConnect: (s: SessionNode) => void;
+  showMarks: boolean; onConnect: (s: SessionNode) => void; forceOpen?: boolean;
 }) {
-  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx, refreshing, onRefreshStatus, showMarks, onConnect } = props;
+  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx, refreshing, onRefreshStatus, showMarks, onConnect, forceOpen } = props;
   const [open, setOpen] = useState(depth < 2);
+  // A filter must show every ancestor of a match, so it overrides the local
+  // collapse state; clearing the filter restores whatever the user had open.
+  const isOpen = forceOpen || open;
   const cnt = countTree(node);
   return (
     <div>
       <div class={"row folder" + (node.id === selectedFolder ? " selected" : "")} style={{ paddingLeft: `${depth * 14}px` }}
         onClick={() => onSelectFolder(node)}
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onFolderCtx(node, e.clientX, e.clientY); }}>
-        <span class="twist" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{open ? "\u25be" : "\u25b8"}</span>
+        <span class="twist" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{isOpen ? "\u25be" : "\u25b8"}</span>
         <span class="fname">{node.name}</span>
         <span class="fcount" title={cnt.f + " subfolders \u00b7 " + cnt.s + " sessions"}>{cnt.f > 0 ? cnt.f + "/" : ""}{cnt.s}</span>
         {node.hasSource && <span class="genmark" title="import source configured on this folder">src</span>}
         {refreshing.has(node.id) && <span class="folder-spin" title="refreshing — click for status" onClick={(e) => { e.stopPropagation(); onRefreshStatus(node); }}>{"\u21bb"}</span>}
       </div>
-      {open && (node.sessions ?? []).map((s) => (
+      {isOpen && (node.sessions ?? []).map((s) => (
         <SessionRow key={s.id} s={s} indent={(depth + 1) * 14 + 8} selected={s.id === selected} marked={!!marked[s.id]} showMark={showMarks}
           onSelect={() => onSelect(s)} onToggleMark={() => onToggleMark(s.id)} onConnect={() => onConnect(s)} />
       ))}
-      {open && (node.folders ?? []).map((c) => (
+      {isOpen && (node.folders ?? []).map((c) => (
         <Folder key={c.id} node={c} depth={depth + 1} selected={selected} selectedFolder={selectedFolder}
           marked={marked} onSelect={onSelect} onSelectFolder={onSelectFolder} onToggleMark={onToggleMark} onFolderCtx={onFolderCtx}
-          refreshing={refreshing} onRefreshStatus={onRefreshStatus} showMarks={showMarks} onConnect={onConnect} />
+          refreshing={refreshing} onRefreshStatus={onRefreshStatus} showMarks={showMarks} onConnect={onConnect} forceOpen={forceOpen} />
       ))}
     </div>
   );
@@ -1437,6 +1454,13 @@ export function App() {
     api().SessionDetail(s.id).then(setDetail).catch((e) => setErr(String(e)));
   };
   const toggleMark = (id: string) => setMarked((m) => { const n = { ...m }; if (n[id]) delete n[id]; else n[id] = true; return n; });
+  // Filtering keeps the tree shape: the backend still ranks and we still cap to
+  // FILTER_MAX_RESULTS by score, but the surviving IDs are projected back onto
+  // the loaded tree instead of being painted as a flat list.
+  const filteredTree = useMemo(() => {
+    if (!tree || hits === null) return null;
+    return pruneTree(tree, new Set(hits.slice(0, FILTER_MAX_RESULTS).map((h) => h.id)));
+  }, [tree, hits]);
   const markedIds = Object.keys(marked);
   const walkSessions = (n: FolderNode, out: SessionNode[]): SessionNode[] => {
     for (const s of n.sessions ?? []) out.push(s);
@@ -1755,20 +1779,14 @@ export function App() {
         </div>
         <div class="tree">
           {err && <div class="error" onClick={() => setErr("")}>{err}</div>}
-          {hits !== null ? (
-            hits.length === 0 ? <div class="nohits">no matches</div> : (<>
-              {hits.slice(0, FILTER_MAX_RESULTS).map((h) => (
-                <SessionRow key={h.id} s={h} pathPrefix={h.path + "/"} indent={10} selected={h.id === sel?.id}
-                  marked={!!marked[h.id]} showMark={showMarks} onSelect={() => select(h)} onToggleMark={() => toggleMark(h.id)}
-                  onConnect={() => connectAndOpen(h.id, h.name)} />
-              ))}
-              {hits.length > FILTER_MAX_RESULTS && <div class="nohits">showing first {FILTER_MAX_RESULTS} of {hits.length}, refine to narrow</div>}
+          {hits !== null && (hits.length === 0 || !filteredTree) ? <div class="nohits">no matches</div> : (
+            (hits !== null ? filteredTree : tree) && (<>
+              <Folder node={(hits !== null ? filteredTree : tree)!} forceOpen={hits !== null} depth={0} selected={sel?.id ?? ""} selectedFolder={selFolder?.id ?? ""} marked={marked}
+                onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} onFolderCtx={openFolderCtx}
+                refreshing={refreshing} onRefreshStatus={(node) => setRefreshStatus({ folderId: node.id, name: node.name })}
+                showMarks={showMarks} onConnect={(s) => connectAndOpen(s.id, s.name)} />
+              {hits !== null && hits.length > FILTER_MAX_RESULTS && <div class="nohits">showing first {FILTER_MAX_RESULTS} of {hits.length} matches, refine to narrow</div>}
             </>)
-          ) : (
-            tree && <Folder node={tree} depth={0} selected={sel?.id ?? ""} selectedFolder={selFolder?.id ?? ""} marked={marked}
-              onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} onFolderCtx={openFolderCtx}
-              refreshing={refreshing} onRefreshStatus={(node) => setRefreshStatus({ folderId: node.id, name: node.name })}
-              showMarks={showMarks} onConnect={(s) => connectAndOpen(s.id, s.name)} />
           )}
         </div>
         {conns.length > 0 && (
