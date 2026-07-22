@@ -72,7 +72,14 @@ export function TerminalView(
 
     const offData = window.runtime.EventsOn("f9:term:" + termId, (b64: string) => term.write(b64ToBytes(b64)));
     term.onData((d) => api().TermInput(termId, d));
-    api().OpenTerminal(termId, sessionId, term.cols, term.rows).catch(() => {});
+    api().OpenTerminal(termId, sessionId, term.cols, term.rows).catch((e) => {
+      // A failed attach used to leave a live tab over a black rectangle with
+      // the connection row still reading "connected". Show why instead.
+      const raw = e && typeof e === "object" && "message" in (e as object) ? (e as { message?: string }).message : e;
+      const msg = String(raw ?? "unknown error").replace(/[\r\n]+/g, " ");
+      term.write("\r\n\x1b[31mf9: could not open terminal: " + msg + "\x1b[0m\r\n");
+      term.write("\x1b[90mthe SSH connection itself is still up \u2014 close this tab and open a new terminal to retry\x1b[0m\r\n");
+    });
 
     // Intercept Ctrl/Cmd+F before xterm forwards it to the shell; open the
     // scrollback search panel instead.
