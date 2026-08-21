@@ -143,8 +143,10 @@ jobs:
           Remove-Item $pfx -Force
           # Verify the way a workstation that imported the .cer does: trust it
           # on this (ephemeral) runner first, so only real signing problems fail.
-          Import-Certificate -FilePath build/bin/f9-codesign.cer -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
-          Import-Certificate -FilePath build/bin/f9-codesign.cer -CertStoreLocation Cert:\LocalMachine\TrustedPublisher | Out-Null
+          certutil -addstore -f Root build/bin/f9-codesign.cer | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "certutil Root import failed" }
+          certutil -addstore -f TrustedPublisher build/bin/f9-codesign.cer | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "certutil TrustedPublisher import failed" }
           & $signtool verify /pa /v $exe
           if ($LASTEXITCODE -ne 0) { throw "signature verification failed" }
           "SHA-1 thumbprint: " + $cert.Thumbprint
