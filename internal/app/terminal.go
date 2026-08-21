@@ -35,9 +35,77 @@ type terminal struct {
 	running  bool
 	tail     []byte
 	lastOut  time.Time
+
+	// Output flow control (see waitCredit): bytes emitted to the frontend
+	// but not yet acknowledged via TermAck.
+	flowMu   sync.Mutex
+	flowCond *sync.Cond
+	inflight int64
 }
 
 const outputThrottle = 250 * time.Millisecond
+
+// Output flow control. The Wails event path never blocks in Go (on Linux it
+// appends to an unbounded main-thread dispatch queue) and xterm.js queues
+// writes without limit, so a flooding session (cat of a large file, yes,
+// a long paste echoing back) grew memory in both processes until the WebView
+// died. The frontend now acks consumed bytes; once more than flowWindow is
+// unacked the SSH reader blocks, which stalls the remote via the SSH window —
+// the same way a slow real terminal does. flowStall bounds the wait so a
+// reloaded/detached frontend cannot wedge the session forever.
+const (
+	flowWindow = 1 << 20
+	flowStall  = 30 * time.Second
+)
+
+func (t *terminal) waitCredit(n int) {
+	t.flowMu.Lock()
+	defer t.flowMu.Unlock()
+	if t.flowCond == nil {
+		t.flowCond = sync.NewCond(&t.flowMu)
+	}
+	deadline := time.Now().Add(flowStall)
+	for t.inflight > flowWindow && !t.closing.Load() {
+		if time.Now().After(deadline) {
+			t.inflight = 0 // frontend gone quiet; stop holding the link hostage
+			break
+		}
+		timer := time.AfterFunc(time.Second, func() { t.flowMu.Lock(); t.flowCond.Broadcast(); t.flowMu.Unlock() })
+		t.flowCond.Wait()
+		timer.Stop()
+	}
+	t.inflight += int64(n)
+}
+
+func (t *terminal) ack(n int) {
+	t.flowMu.Lock()
+	t.inflight -= int64(n)
+	if t.inflight < 0 {
+		t.inflight = 0
+	}
+	if t.flowCond != nil {
+		t.flowCond.Broadcast()
+	}
+	t.flowMu.Unlock()
+}
+
+func (t *terminal) wakeFlow() {
+	t.flowMu.Lock()
+	if t.flowCond != nil {
+		t.flowCond.Broadcast()
+	}
+	t.flowMu.Unlock()
+}
+
+// TermAck reports bytes the frontend has consumed (written into xterm.js).
+func (a *App) TermAck(termID string, n int) {
+	a.tmu.Lock()
+	t, ok := a.terms[termID]
+	a.tmu.Unlock()
+	if ok && n > 0 {
+		t.ack(n)
+	}
+}
 
 //go:embed os-tunings.yaml
 var embeddedTunings []byte
@@ -112,21 +180,29 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 
 	a.tmu.Lock()
 	a.terms[termID] = t
+	a.termSess[termID] = sessionID
 	a.tmu.Unlock()
+
+	a.rebalanceScrollback()
 
 	dataEvent := "f9:term:" + termID
 	sess.OnData(func(p []byte) {
-		a.emitEvent(dataEvent, base64.StdEncoding.EncodeToString(p))
+		// Scrollback and classifiers first: they are bounded and must see
+		// everything even while the frontend is being throttled.
 		t.sb.Append(stripANSI(p))
 		a.feedMultisend(termID, p)
 		a.detectActivity(termID, t, p)
 		a.observeOS(sessionID, p)
+		t.waitCredit(len(p))
+		a.emitEvent(dataEvent, base64.StdEncoding.EncodeToString(p))
 	})
 	go func() {
 		_ = sess.Wait()
 		a.tmu.Lock()
 		delete(a.terms, termID)
 		a.tmu.Unlock()
+		t.wakeFlow()
+		a.rebalanceScrollback()
 		a.dropDetectorIfIdle(sessionID)
 		t.sb.Close()
 		a.emitEvent("f9:termclosed", map[string]interface{}{"termId": termID, "died": !t.closing.Load()})
@@ -195,15 +271,30 @@ func (a *App) TermResize(termID string, cols, rows int) {
 	}
 }
 
+// Closing the last terminal of a session also drops the underlying
+// connection; other terminals on the same session keep it alive.
 func (a *App) CloseTerminal(termID string) {
 	a.tmu.Lock()
 	t, ok := a.terms[termID]
 	delete(a.terms, termID)
+	sessionID, tracked := a.termSess[termID]
+	delete(a.termSess, termID)
+	last := tracked
+	for _, sid := range a.termSess {
+		if sid == sessionID {
+			last = false
+			break
+		}
+	}
 	a.tmu.Unlock()
 	if ok {
 		t.closing.Store(true)
+		t.wakeFlow()
 		_ = t.session.Close()
 		t.sb.Close()
+	}
+	if last {
+		a.mgr.Disconnect(sessionID)
 	}
 }
 

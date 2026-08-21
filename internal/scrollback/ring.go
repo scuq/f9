@@ -55,14 +55,7 @@ func newRing(cfg Config) *ring {
 	if cfg.MaxBytes <= 0 {
 		cfg.MaxBytes = 512 << 20
 	}
-	enc, err := zstd.NewWriter(nil)
-	if err != nil {
-		panic("scrollback: zstd encoder: " + err.Error())
-	}
-	dec, err := zstd.NewReader(nil)
-	if err != nil {
-		panic("scrollback: zstd decoder: " + err.Error())
-	}
+	enc, dec := sharedCodec()
 	r := &ring{
 		cfg:    cfg,
 		cache:  map[*sealedChunk][]byte{},
@@ -73,6 +66,48 @@ func newRing(cfg Config) *ring {
 	r.wg.Add(1)
 	go r.compressor()
 	return r
+}
+
+var (
+	codecOnce sync.Once
+	codecEnc  *zstd.Encoder
+	codecDec  *zstd.Decoder
+)
+
+// sharedCodec returns the process-wide zstd encoder/decoder. EncodeAll and
+// DecodeAll are safe for concurrent use, and one codec sized for 1 MiB chunks
+// costs a few MiB total — a per-ring pair with default (8 MiB window,
+// GOMAXPROCS-way) settings cost tens of MiB per open terminal.
+func sharedCodec() (*zstd.Encoder, *zstd.Decoder) {
+	codecOnce.Do(func() {
+		enc, err := zstd.NewWriter(nil,
+			zstd.WithEncoderConcurrency(2),
+			zstd.WithWindowSize(1<<20),
+			zstd.WithLowerEncoderMem(true))
+		if err != nil {
+			panic("scrollback: zstd encoder: " + err.Error())
+		}
+		dec, err := zstd.NewReader(nil,
+			zstd.WithDecoderConcurrency(2),
+			zstd.WithDecoderLowmem(true))
+		if err != nil {
+			panic("scrollback: zstd decoder: " + err.Error())
+		}
+		codecEnc, codecDec = enc, dec
+	})
+	return codecEnc, codecDec
+}
+
+// SetMaxBytes changes the retained-byte cap at runtime (the app rebalances a
+// global budget across open terminals) and evicts immediately if over.
+func (r *ring) SetMaxBytes(n int64) {
+	if n <= 0 {
+		return
+	}
+	r.mu.Lock()
+	r.cfg.MaxBytes = n
+	r.evictLocked()
+	r.mu.Unlock()
 }
 
 // Append is the hot path: copy bytes, index newlines, maybe cut a chunk.
@@ -467,8 +502,7 @@ func (r *ring) Close() error {
 	r.mu.Unlock()
 	close(r.sealCh)
 	r.wg.Wait()
-	r.dec.Close()
-	_ = r.enc.Close()
+	// enc/dec are process-shared (sharedCodec); nothing to close here.
 	return nil
 }
 

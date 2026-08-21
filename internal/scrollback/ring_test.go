@@ -190,3 +190,27 @@ func BenchmarkAppend(b *testing.B) {
 		buf.Append(payload)
 	}
 }
+
+func TestSetMaxBytesEvicts(t *testing.T) {
+	b := New(Config{ChunkSize: 4096, MaxBytes: 1 << 30})
+	line := []byte("0123456789abcdef0123456789abcdef\n")
+	for i := 0; i < 2000; i++ {
+		b.Append(line)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if _, n := b.Len(); n < 8192 || time.Now().After(deadline) { // all sealed chunks compressed
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	before := b.FirstLine()
+	b.SetMaxBytes(256) // the repetitive data compresses ~90x; cap well below that
+	if b.FirstLine() <= before {
+		t.Fatalf("SetMaxBytes did not evict: first line %d -> %d", before, b.FirstLine())
+	}
+	if _, n := b.Len(); n > 256+4096 {
+		t.Fatalf("retained %d bytes after cap 256", n)
+	}
+	b.Close()
+}

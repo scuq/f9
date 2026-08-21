@@ -57,6 +57,7 @@ type Buffer interface {
 	Grep(re *regexp.Regexp, opts GrepOpts) (Iterator, error)
 	Len() (lines int, bytes int64)
 	FirstLine() int
+	SetMaxBytes(n int64) // runtime cap change; evicts oldest chunks if over
 	// OnSeal registers a callback fired (off the hot path) whenever a chunk is
 	// compressed: the audit writer consumes compressed chunks by reference
 	// (zero copy). chunk must be treated as immutable.

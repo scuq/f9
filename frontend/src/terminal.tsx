@@ -70,8 +70,33 @@ export function TerminalView(
     try { fit.fit(); } catch { /* hidden on mount */ }
     lastSize.current = { cols: term.cols, rows: term.rows };
 
-    const offData = window.runtime.EventsOn("f9:term:" + termId, (b64: string) => term.write(b64ToBytes(b64)));
-    term.onData((d) => api().TermInput(termId, d));
+    // Output flow control: ack bytes once xterm has consumed them, batched so
+    // a flood costs one IPC call per ~64 KiB rather than one per event. Go
+    // stops reading the SSH channel while >1 MiB is unacked.
+    let unacked = 0;
+    let ackTimer: number | null = null;
+    const flushAck = () => {
+      if (ackTimer !== null) { window.clearTimeout(ackTimer); ackTimer = null; }
+      if (unacked > 0) { const n = unacked; unacked = 0; api().TermAck(termId, n).catch(() => {}); }
+    };
+    const offData = window.runtime.EventsOn("f9:term:" + termId, (b64: string) => {
+      const bytes = b64ToBytes(b64);
+      term.write(bytes, () => {
+        unacked += bytes.length;
+        if (unacked >= 64 * 1024) flushAck();
+        else if (ackTimer === null) ackTimer = window.setTimeout(flushAck, 50);
+      });
+    });
+    // Input is chained and chunked so a huge paste becomes a sequence of
+    // bounded IPC calls instead of one multi-megabyte message.
+    const INPUT_CHUNK = 32 * 1024;
+    let inputChain: Promise<void> = Promise.resolve();
+    term.onData((d) => {
+      for (let i = 0; i < d.length; i += INPUT_CHUNK) {
+        const part = d.slice(i, i + INPUT_CHUNK);
+        inputChain = inputChain.then(() => api().TermInput(termId, part)).catch(() => {});
+      }
+    });
     api().OpenTerminal(termId, sessionId, term.cols, term.rows).catch((e) => {
       // A failed attach used to leave a live tab over a black rectangle with
       // the connection row still reading "connected". Show why instead.
@@ -170,6 +195,7 @@ export function TerminalView(
       offSel.dispose();
       primaryHost.removeEventListener("mousedown", onMiddlePaste, true);
       primaryHost.removeEventListener("paste", onNativePaste, true);
+      if (ackTimer !== null) window.clearTimeout(ackTimer);
       api().CloseTerminal(termId).catch(() => {});
       term.dispose();
     };
