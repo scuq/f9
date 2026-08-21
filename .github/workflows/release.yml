@@ -150,7 +150,7 @@ jobs:
           & $signtool verify /pa /v $exe
           if ($LASTEXITCODE -ne 0) { throw "signature verification failed" }
           "SHA-1 thumbprint: " + $cert.Thumbprint
-          "SHA-256 fingerprint: " + ($cert.GetCertHash("SHA256") | ForEach-Object { $_.ToString("X2") }) -join ":"
+          "SHA-256 fingerprint: " + (($cert.GetCertHash("SHA256") | ForEach-Object { $_.ToString("X2") }) -join ":")
 
       - name: Package (windows)
         if: matrix.os == 'windows'
