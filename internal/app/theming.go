@@ -31,7 +31,10 @@ type UISettings struct {
 	ShowMultiSend bool    `yaml:"show_multisend,omitempty" json:"showMultiSend"`
 	// PasteConfirmOff disables the multi-line paste review overlay; the zero
 	// value keeps the confirmation ON by default.
-	PasteConfirmOff bool      `yaml:"paste_confirm_off,omitempty" json:"pasteConfirmOff"`
+	PasteConfirmOff bool `yaml:"paste_confirm_off,omitempty" json:"pasteConfirmOff"`
+	// FilterMatchPath lets the tree filter also match the folder path; by
+	// default only session name, host and tags are matched.
+	FilterMatchPath bool      `yaml:"filter_match_path,omitempty" json:"filterMatchPath"`
 	KeyFiles        []string  `yaml:"key_files,omitempty" json:"keyFiles"`
 	DisableAgent    bool      `yaml:"disable_agent,omitempty" json:"disableAgent"`
 	AgentSockets    []string  `yaml:"agent_sockets,omitempty" json:"agentSockets"`

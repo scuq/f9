@@ -32,9 +32,21 @@ const (
 	weightPath = 40
 )
 
-// Rank scores items against query and returns matches, best first (ties by
-// name). Empty query returns all items in input order with score 0.
+// Options tunes which fields Rank considers. Name, host and tags are always
+// matched; the folder path only when MatchPath is set.
+type Options struct {
+	MatchPath bool
+}
+
+// Rank scores items against query over every field (including the folder
+// path) and returns matches, best first (ties by name). Empty query returns
+// all items in input order with score 0.
 func Rank(query string, items []Item) []Hit {
+	return RankWith(query, items, Options{MatchPath: true})
+}
+
+// RankWith is Rank with explicit field Options.
+func RankWith(query string, items []Item, opts Options) []Hit {
 	q := strings.ToLower(strings.TrimSpace(query))
 	if q == "" {
 		out := make([]Hit, len(items))
@@ -49,8 +61,10 @@ func Rank(query string, items []Item) []Hit {
 		if v := fieldScore(q, it.Host, weightHost); v > s {
 			s = v
 		}
-		if v := fieldScore(q, it.Path, weightPath); v > s {
-			s = v
+		if opts.MatchPath {
+			if v := fieldScore(q, it.Path, weightPath); v > s {
+				s = v
+			}
 		}
 		for _, tag := range it.Tags {
 			if v := fieldScore(q, tag, weightTag); v > s {

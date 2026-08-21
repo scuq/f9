@@ -88,3 +88,17 @@ func BenchmarkRank10k(b *testing.B) {
 		Rank("sw12", items)
 	}
 }
+
+func TestRankWithoutPath(t *testing.T) {
+	items := []Item{
+		{ID: "1", Name: "SU00CNS003", Path: "Sessions/servers", Host: "10.0.0.3"},
+		{ID: "2", Name: "NX00NS-OSP-02", Path: "Sessions/netbox/CNSHAME", Host: "10.0.0.4"},
+	}
+	hits := RankWith("cns", items, Options{})
+	if len(hits) != 1 || hits[0].ID != "1" {
+		t.Fatalf("path must be ignored without MatchPath: %+v", hits)
+	}
+	if hits := RankWith("cns", items, Options{MatchPath: true}); len(hits) != 2 {
+		t.Fatalf("path match should hit both: %+v", hits)
+	}
+}
