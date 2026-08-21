@@ -104,12 +104,54 @@ jobs:
             ditto -c -k --keepParent "$app" "f9-$V-${{ matrix.name }}.zip"
           fi
 
+      # Authenticode-sign with the repo's self-signed certificate (see
+      # scripts/make-signing-cert.sh). Skipped when the secrets are not set, so
+      # forks still release unsigned binaries. The public .cer ships next to
+      # the exe so workstations can trust it manually (README: "Windows code
+      # signing").
+      - name: Sign (windows)
+        if: matrix.os == 'windows' && env.WIN_SIGN_PFX_B64 != ''
+        shell: pwsh
+        env:
+          WIN_SIGN_PFX_B64: ${{ secrets.WIN_SIGN_PFX_B64 }}
+          WIN_SIGN_PFX_PASSWORD: ${{ secrets.WIN_SIGN_PFX_PASSWORD }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $pfx = Join-Path $env:RUNNER_TEMP "f9-codesign.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_SIGN_PFX_B64))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\*\signtool.exe" |
+            Where-Object { $_.Directory.Name -in @("x64", "arm64") } |
+            Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $signtool) { throw "signtool.exe not found in the Windows SDK" }
+          $exe = "build/bin/f9-gui.exe"
+          # RFC 3161 timestamp so the signature outlives the certificate; retry
+          # without one if every TSA is unreachable rather than fail the release.
+          $ok = $false
+          foreach ($tsa in @("http://timestamp.digicert.com", "http://timestamp.sectigo.com")) {
+            & $signtool sign /f $pfx /p $env:WIN_SIGN_PFX_PASSWORD /fd SHA256 /tr $tsa /td SHA256 /d "f9" $exe
+            if ($LASTEXITCODE -eq 0) { $ok = $true; break }
+          }
+          if (-not $ok) {
+            Write-Warning "timestamping failed; signing without a timestamp"
+            & $signtool sign /f $pfx /p $env:WIN_SIGN_PFX_PASSWORD /fd SHA256 /d "f9" $exe
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
+          }
+          & $signtool verify /pa /v $exe
+          # Export the public certificate for users to import.
+          $cert = Get-PfxCertificate -FilePath $pfx -Password (ConvertTo-SecureString $env:WIN_SIGN_PFX_PASSWORD -AsPlainText -Force)
+          [IO.File]::WriteAllBytes("build/bin/f9-codesign.cer", $cert.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+          Copy-Item build/bin/f9-codesign.cer f9-codesign.cer
+          Remove-Item $pfx -Force
+          "SHA-256 thumbprint: " + $cert.Thumbprint
+
       - name: Package (windows)
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
           $V = "${{ steps.ver.outputs.version }}"
-          Compress-Archive -Path build/bin/f9-gui.exe -DestinationPath "f9-$V-${{ matrix.name }}.zip"
+          $files = @("build/bin/f9-gui.exe")
+          if (Test-Path build/bin/f9-codesign.cer) { $files += "build/bin/f9-codesign.cer" }
+          Compress-Archive -Path $files -DestinationPath "f9-$V-${{ matrix.name }}.zip"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -117,6 +159,7 @@ jobs:
           path: |
             f9-*.tar.gz
             f9-*.zip
+            f9-codesign.cer
           if-no-files-found: error
 
   release:

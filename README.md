@@ -107,6 +107,33 @@ icon for the current user.
   and publishes a GitHub Release with the assets.
 - A weekly workflow cuts an automatic patch release each Sunday.
 
+### Windows code signing
+
+Windows release binaries are Authenticode-signed with a **self-signed**
+certificate (no public CA yet). SmartScreen/"unknown publisher" warnings go
+away on a workstation once that certificate is trusted there:
+
+1. Get `f9-codesign.cer` — it is inside every Windows release zip and attached
+   to the GitHub Release. Compare its SHA-256 thumbprint with the one printed
+   in the release workflow log before trusting it.
+2. Import it into the **machine** store (admin prompt):
+
+   ```powershell
+   certutil -addstore -f Root f9-codesign.cer
+   certutil -addstore -f TrustedPublisher f9-codesign.cer
+   ```
+
+   (or `certutil -user -addstore …` for the current user only; or double-click
+   the `.cer` → *Install Certificate* → *Trusted Root Certification Authorities*
+   and *Trusted Publishers*).
+3. `Get-AuthenticodeSignature .\f9-gui.exe` should now report `Valid`.
+
+Maintainers: `scripts/make-signing-cert.sh` generates the certificate and
+prints the two repo secrets to set (`WIN_SIGN_PFX_B64`,
+`WIN_SIGN_PFX_PASSWORD`). Without them the workflow skips signing and releases
+unsigned binaries. Replacing the certificate means workstations must import
+the new `.cer`, so keep the generated `signing/` directory backed up and private.
+
 ### Runtime dependencies
 
 Wails uses the platform webview, so the binaries are not fully static:

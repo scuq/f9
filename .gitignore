@@ -43,3 +43,7 @@ Desktop.ini
 # ===== Env / secrets =====
 .env
 .env.*
+# Windows code-signing material (scripts/make-signing-cert.sh)
+/signing/
+*.pfx
+*.p12
