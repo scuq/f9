@@ -18,7 +18,7 @@ import (
 
 // Dial establishes the (possibly multi-hop) connection. Proxyjump hops fold
 // into a TCP-forwarding chain; a shell-hop (last hop only, for bastions that
-// forbid forwarding) returns a client whose sessions run `ssh user@target`
+// forbid forwarding) returns a client whose sessions run `exec ssh user@target`
 // on the hop's shell.
 func Dial(ctx context.Context, host string, port int, user string, p Prompter, o DialOpts) (Client, error) {
 	if o.Timeout <= 0 {
@@ -244,7 +244,7 @@ func (n *nativeClient) Close() error {
 	return nil
 }
 
-// shellHopClient runs `ssh user@target` on the hop's shell for every session.
+// shellHopClient runs `exec ssh user@target` on the hop's shell for every session.
 // Auth to the target happens interactively through the data stream (or the
 // hop's own agent) — f9 never persists anything (ADR-0005).
 type shellHopClient struct {
@@ -310,7 +310,10 @@ func shellHopCommand(host string, port int, user string) (string, error) {
 	if user != "" && !safeArg.MatchString(user) {
 		return "", fmt.Errorf("sshx: unsafe shell-hop target user %q", user)
 	}
-	cmd := "ssh"
+	// exec replaces the bastion's shell with ssh: when the target is
+	// unreachable (or the user logs out) the hop session ends instead of
+	// leaving an open console on the jump host.
+	cmd := "exec ssh"
 	if port > 0 && port != 22 {
 		cmd += " -p " + strconv.Itoa(port)
 	}

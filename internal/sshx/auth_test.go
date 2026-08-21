@@ -79,14 +79,14 @@ func TestShellHopCommand(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cmd != "ssh -p 2222 admin@10.21.194.1" {
+	if cmd != "exec ssh -p 2222 admin@10.21.194.1" {
 		t.Fatalf("cmd = %q", cmd)
 	}
 	cmd, err = shellHopCommand("sw00net050.kages.ad.local", 22, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cmd != "ssh sw00net050.kages.ad.local" {
+	if cmd != "exec ssh sw00net050.kages.ad.local" {
 		t.Fatalf("cmd = %q", cmd)
 	}
 	if _, err := shellHopCommand("host; rm -rf /", 22, "admin"); err == nil {
