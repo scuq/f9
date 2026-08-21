@@ -136,13 +136,19 @@ jobs:
             & $signtool sign /f $pfx /p $env:WIN_SIGN_PFX_PASSWORD /fd SHA256 /d "f9" $exe
             if ($LASTEXITCODE -ne 0) { throw "signtool failed" }
           }
-          & $signtool verify /pa /v $exe
           # Export the public certificate for users to import.
           $cert = Get-PfxCertificate -FilePath $pfx -Password (ConvertTo-SecureString $env:WIN_SIGN_PFX_PASSWORD -AsPlainText -Force)
           [IO.File]::WriteAllBytes("build/bin/f9-codesign.cer", $cert.Export([Security.Cryptography.X509Certificates.X509ContentType]::Cert))
           Copy-Item build/bin/f9-codesign.cer f9-codesign.cer
           Remove-Item $pfx -Force
-          "SHA-256 thumbprint: " + $cert.Thumbprint
+          # Verify the way a workstation that imported the .cer does: trust it
+          # on this (ephemeral) runner first, so only real signing problems fail.
+          Import-Certificate -FilePath build/bin/f9-codesign.cer -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+          Import-Certificate -FilePath build/bin/f9-codesign.cer -CertStoreLocation Cert:\LocalMachine\TrustedPublisher | Out-Null
+          & $signtool verify /pa /v $exe
+          if ($LASTEXITCODE -ne 0) { throw "signature verification failed" }
+          "SHA-1 thumbprint: " + $cert.Thumbprint
+          "SHA-256 fingerprint: " + ($cert.GetCertHash("SHA256") | ForEach-Object { $_.ToString("X2") }) -join ":"
 
       - name: Package (windows)
         if: matrix.os == 'windows'
