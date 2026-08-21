@@ -568,6 +568,7 @@ export namespace app {
 	    barUnpinned: boolean;
 	    showMultiSend: boolean;
 	    pasteConfirmOff: boolean;
+	    filterMatchPath: boolean;
 	    keyFiles: string[];
 	    disableAgent: boolean;
 	    agentSockets: string[];
@@ -593,6 +594,7 @@ export namespace app {
 	        this.barUnpinned = source["barUnpinned"];
 	        this.showMultiSend = source["showMultiSend"];
 	        this.pasteConfirmOff = source["pasteConfirmOff"];
+	        this.filterMatchPath = source["filterMatchPath"];
 	        this.keyFiles = source["keyFiles"];
 	        this.disableAgent = source["disableAgent"];
 	        this.agentSockets = source["agentSockets"];

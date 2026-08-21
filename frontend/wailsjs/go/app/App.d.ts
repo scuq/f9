@@ -144,6 +144,8 @@ export function SnippetSaveFolder(arg1:snippets.Folder):Promise<snippets.Folder>
 
 export function TemplateUnresolved(arg1:string,arg2:string):Promise<Array<string>>;
 
+export function TermAck(arg1:string,arg2:number):Promise<void>;
+
 export function TermInput(arg1:string,arg2:string):Promise<void>;
 
 export function TermResize(arg1:string,arg2:number,arg3:number):Promise<void>;

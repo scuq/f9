@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import type { ComponentChildren } from "preact";
 import { TerminalView } from "./terminal";
 import { setTheme as applyThemeColors, setSettings as applyOverrides } from "./theme";
 import { onFindRequested, onPickerRequested, setPickerEnabled } from "./termsearch";
@@ -77,7 +78,7 @@ function Uptime({ since }: { since: string }) {
   const secs = Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 1000));
   const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), sec = secs % 60;
   const pad = (n: number) => String(n).padStart(2, "0");
-  return <span class="sb-uptime" title="connected for">{h > 0 ? h + ":" + pad(m) + ":" + pad(sec) : m + ":" + pad(sec)}</span>;
+  return <span class="sb-uptime" title="connected for">{pad(h) + ":" + pad(m) + ":" + pad(sec)}</span>;
 }
 
 // countTree returns deep subfolder/session counts for a folder node.
@@ -358,6 +359,7 @@ function SettingsModal(props: {
         <label class="checkrow"><input type="checkbox" checked={settings.showSnippets} onChange={(e) => onSave({ showSnippets: (e.target as HTMLInputElement).checked })} /> snippet library (Ctrl+P)</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showMultiSend} onChange={(e) => onSave({ showMultiSend: (e.target as HTMLInputElement).checked })} /> multi-send (broadcast to marked tabs)</label>
         <label class="checkrow"><input type="checkbox" checked={!settings.pasteConfirmOff} onChange={(e) => onSave({ pasteConfirmOff: !(e.target as HTMLInputElement).checked })} /> confirm multi-line paste (review/edit before sending)</label>
+        <label class="checkrow"><input type="checkbox" checked={settings.filterMatchPath} onChange={(e) => onSave({ filterMatchPath: (e.target as HTMLInputElement).checked })} /> session filter also matches folder path (default: name / host / tags only)</label>
 
         <div class="opthead">button bar layout</div>
         <div class="formrow"><label>layout</label>
@@ -497,7 +499,7 @@ function SearchPanel(props: {
 }
 
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
-const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false, showMultiSend: false, pasteConfirmOff: false };
+const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false, showMultiSend: false, pasteConfirmOff: false, filterMatchPath: false };
 
 function UnresolvedModal(props: {
   names: string[];
@@ -882,6 +884,77 @@ function MultiSendModal(props: {
 }
 
 type ImportState = { folderId: string; dto: SourceDTO; secret: string; test: TestResult | null; testing: boolean; err: string };
+
+// Tab strip with custom edge scrolling: arrows appear only on overflow; click = page,
+// hold = continuous scroll, double-click / shift-click / ctrl-click = jump to the end.
+function TabScroller(props: { activeKey: string; children: ComponentChildren }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [ov, setOv] = useState({ left: false, right: false });
+  const holdRef = useRef<number | null>(null);
+
+  const update = () => {
+    const el = ref.current; if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    const left = el.scrollLeft > 1, right = el.scrollLeft < max - 1;
+    setOv((o) => (o.left === left && o.right === right ? o : { left, right }));
+  };
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    for (const c of Array.from(el.children)) ro.observe(c);
+    el.addEventListener("scroll", update, { passive: true });
+    return () => { ro.disconnect(); el.removeEventListener("scroll", update); };
+  });
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const t = el.querySelector<HTMLElement>(".tab.active");
+    if (t) t.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [props.activeKey]);
+
+  const stopHold = () => { if (holdRef.current !== null) { cancelAnimationFrame(holdRef.current); holdRef.current = null; } };
+  const page = (dir: -1 | 1) => { const el = ref.current; if (el) el.scrollBy({ left: dir * Math.max(120, el.clientWidth * 0.6), behavior: "smooth" }); };
+  const jump = (dir: -1 | 1) => { const el = ref.current; if (el) el.scrollTo({ left: dir < 0 ? 0 : el.scrollWidth, behavior: "smooth" }); };
+  const startHold = (dir: -1 | 1) => {
+    stopHold();
+    let start = 0;
+    const step = (ts: number) => {
+      if (!start) start = ts;
+      const el = ref.current;
+      if (el && ts - start > 350) el.scrollLeft += dir * 8;   // after a short delay, glide continuously
+      holdRef.current = requestAnimationFrame(step);
+    };
+    holdRef.current = requestAnimationFrame(step);
+  };
+  useEffect(() => stopHold, []);
+
+  const arrow = (dir: -1 | 1, kind: "step" | "jump") => {
+    const on = dir < 0 ? ov.left : ov.right;
+    const glyph = kind === "jump" ? (dir < 0 ? "\u00ab" : "\u00bb") : (dir < 0 ? "\u2039" : "\u203a");
+    const title = kind === "jump" ? (dir < 0 ? "jump to first tab" : "jump to last tab") : (dir < 0 ? "scroll left (hold to glide)" : "scroll right (hold to glide)");
+    return kind === "jump" ? (
+      <span class={"tabarrow" + (on ? "" : " off")} title={title} onClick={() => jump(dir)}>{glyph}</span>
+    ) : (
+      <span class={"tabarrow" + (on ? "" : " off")} title={title}
+        onMouseDown={(e) => { if (e.button === 0) startHold(dir); }}
+        onMouseUp={stopHold} onMouseLeave={stopHold}
+        onClick={() => page(dir)}>{glyph}</span>
+    );
+  };
+  const scrollable = ov.left || ov.right;
+  return (
+    <div class={"tabstrip" + (scrollable ? " scrollable" : "")}>
+      {scrollable && arrow(-1, "jump")}
+      {scrollable && arrow(-1, "step")}
+      <div class="tabscroll" ref={ref} onWheel={(e) => { if (e.deltaY !== 0) { e.currentTarget.scrollLeft += e.deltaY; e.preventDefault(); } }}>
+        {props.children}
+      </div>
+      {scrollable && arrow(1, "step")}
+      {scrollable && arrow(1, "jump")}
+    </div>
+  );
+}
 
 function FolderCtxMenu(props: {
   x: number; y: number; hasSource: boolean;
@@ -1821,7 +1894,7 @@ export function App() {
 
       <div class="mainpane">
         {displayTabs.length > 0 && (
-          <div class="tabstrip" onWheel={(e) => { if (e.deltaY !== 0) { (e.currentTarget as HTMLDivElement).scrollLeft += e.deltaY; e.preventDefault(); } }}>
+          <TabScroller activeKey={view.kind === "term" ? view.id : ""}>
             {displayTabs.map((d) => d.type === "term" ? (
               <div key={d.tab.termId} class={"tab" + (view.kind === "term" && view.id === d.tab.termId ? " active" : "") + (dead.has(d.tab.termId) ? " down" : "")}
                 onClick={() => activateTerm(d.tab.termId)}
@@ -1854,8 +1927,7 @@ export function App() {
             {dead.size > 0 && (
               <button class="tabdeadclose" title="close all disconnected tabs" onClick={closeAllDead}>close dead ({dead.size})</button>
             )}
-
-          </div>
+          </TabScroller>
         )}
         <div class="paneview">
           {tabs.map((t) => (

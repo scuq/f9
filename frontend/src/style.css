@@ -133,8 +133,22 @@ body {
 .mainpane { --fg: var(--ch-fg); --folder-fg: var(--ch-folder-fg); --border: var(--ch-border); flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--pane-bg); }
 .tabstrip {
   display: flex; align-items: stretch; background: var(--tabstrip-bg);
-  border-bottom: 1px solid var(--border); overflow-x: auto; min-height: 30px;
+  border-bottom: 1px solid var(--border); overflow: hidden; min-height: 30px;
 }
+.tabscroll {
+  display: flex; align-items: stretch; flex: 1; min-width: 0;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.tabscroll::-webkit-scrollbar { display: none; }
+.tabarrow {
+  display: flex; align-items: center; justify-content: center; flex: none; width: 22px;
+  color: var(--folder-fg); cursor: pointer; user-select: none; font-size: 18px; line-height: 1;
+  background: var(--tabstrip-bg); border-right: 1px solid var(--border);
+}
+.tabscroll + .tabarrow, .tabscroll + .tabarrow + .tabarrow { border-right: none; border-left: 1px solid var(--border); }
+.tabarrow:hover { color: var(--accent); background: var(--tab-hover-bg); }
+.tabarrow.off { opacity: 0.3; cursor: default; }
+.tabarrow.off:hover { color: var(--folder-fg); background: var(--tabstrip-bg); }
 .tab {
   display: flex; align-items: center; gap: 6px; padding: 0 10px;
   color: var(--folder-fg); cursor: pointer; border-right: 1px solid var(--border);
@@ -671,3 +685,5 @@ select, input, textarea, option { color-scheme: dark; }
   --selected-bg: var(--sb-selected-bg);
   color: var(--fg);
 }
+
+.sb-uptime { font-variant-numeric: tabular-nums; }

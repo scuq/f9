@@ -274,6 +274,10 @@ export function TemplateUnresolved(arg1, arg2) {
   return window['go']['app']['App']['TemplateUnresolved'](arg1, arg2);
 }
 
+export function TermAck(arg1, arg2) {
+  return window['go']['app']['App']['TermAck'](arg1, arg2);
+}
+
 export function TermInput(arg1, arg2) {
   return window['go']['app']['App']['TermInput'](arg1, arg2);
 }

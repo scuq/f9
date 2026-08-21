@@ -23,6 +23,7 @@ declare global {
           ResolvePrompt(id: string, reply: PromptReply): Promise<void>;
           OpenTerminal(termId: string, sessionId: string, cols: number, rows: number): Promise<void>;
           TermInput(termId: string, data: string): Promise<void>;
+          TermAck(termId: string, n: number): Promise<void>;
           TermResize(termId: string, cols: number, rows: number): Promise<void>;
           CloseTerminal(termId: string): Promise<void>;
           SetTerminalWatch(termId: string, pattern: string): Promise<void>;
@@ -135,7 +136,7 @@ declare global {
     theme: string; zoom: number;
     fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
     showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean; showSnippets: boolean;
-    barVertical: boolean; barUnpinned: boolean; showMultiSend: boolean; pasteConfirmOff: boolean;
+    barVertical: boolean; barUnpinned: boolean; showMultiSend: boolean; pasteConfirmOff: boolean; filterMatchPath: boolean;
     keyFiles: string[] | null; disableAgent: boolean; agentSockets: string[] | null;
     altUsers: AltUser[] | null;
   }
