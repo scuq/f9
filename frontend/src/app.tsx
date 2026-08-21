@@ -108,16 +108,17 @@ function pruneTree(node: FolderNode, keep: Set<string>): FolderNode | null {
 
 function SessionRow(props: {
   s: SessionNode; pathPrefix?: string; indent: number; selected: boolean; marked: boolean; showMark: boolean;
-  onSelect: () => void; onToggleMark: () => void; onConnect: () => void;
+  onSelect: () => void; onToggleMark: () => void; onConnect: () => void; onTogglePin: () => void;
 }) {
-  const { s, pathPrefix, indent, selected, marked, showMark, onSelect, onToggleMark, onConnect } = props;
+  const { s, pathPrefix, indent, selected, marked, showMark, onSelect, onToggleMark, onConnect, onTogglePin } = props;
   return (
     <div class={"row session" + (selected ? " selected" : "")} style={{ paddingLeft: `${indent}px` }} onClick={onSelect}
       onDblClick={onConnect} title="double-click to connect">
       {showMark && <input type="checkbox" checked={marked} onClick={(e) => { e.stopPropagation(); onToggleMark(); }} />}
       {pathPrefix && <span class="hitpath">{pathPrefix}</span>}
       <span class="sname">{s.name}</span>
-      {s.pinned && <span class="pinbadge">{"\u2605"}</span>}
+      <span class={"pinbadge" + (s.pinned ? "" : " empty")} title={s.pinned ? "favourite \u2014 click to remove" : "add to favourites"}
+        onClick={(e) => { e.stopPropagation(); onTogglePin(); }} onDblClick={(e) => e.stopPropagation()}>{s.pinned ? "\u2605" : "\u2606"}</span>
       {s.detectedOs && <span class="ostag">{s.detectedOs}</span>}
     </div>
   );
@@ -128,9 +129,9 @@ function Folder(props: {
   onSelect: (s: SessionNode) => void; onSelectFolder: (f: FolderNode) => void; onToggleMark: (id: string) => void;
   onFolderCtx: (node: FolderNode, x: number, y: number) => void;
   refreshing: Set<string>; onRefreshStatus: (node: FolderNode) => void;
-  showMarks: boolean; onConnect: (s: SessionNode) => void; forceOpen?: boolean;
+  showMarks: boolean; onConnect: (s: SessionNode) => void; onTogglePin: (s: SessionNode) => void; forceOpen?: boolean;
 }) {
-  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx, refreshing, onRefreshStatus, showMarks, onConnect, forceOpen } = props;
+  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx, refreshing, onRefreshStatus, showMarks, onConnect, onTogglePin, forceOpen } = props;
   const [open, setOpen] = useState(depth < 2);
   // A filter must show every ancestor of a match, so it overrides the local
   // collapse state; clearing the filter restores whatever the user had open.
@@ -149,12 +150,12 @@ function Folder(props: {
       </div>
       {isOpen && (node.sessions ?? []).map((s) => (
         <SessionRow key={s.id} s={s} indent={(depth + 1) * 14 + 8} selected={s.id === selected} marked={!!marked[s.id]} showMark={showMarks}
-          onSelect={() => onSelect(s)} onToggleMark={() => onToggleMark(s.id)} onConnect={() => onConnect(s)} />
+          onSelect={() => onSelect(s)} onToggleMark={() => onToggleMark(s.id)} onConnect={() => onConnect(s)} onTogglePin={() => onTogglePin(s)} />
       ))}
       {isOpen && (node.folders ?? []).map((c) => (
         <Folder key={c.id} node={c} depth={depth + 1} selected={selected} selectedFolder={selectedFolder}
           marked={marked} onSelect={onSelect} onSelectFolder={onSelectFolder} onToggleMark={onToggleMark} onFolderCtx={onFolderCtx}
-          refreshing={refreshing} onRefreshStatus={onRefreshStatus} showMarks={showMarks} onConnect={onConnect} forceOpen={forceOpen} />
+          refreshing={refreshing} onRefreshStatus={onRefreshStatus} showMarks={showMarks} onConnect={onConnect} onTogglePin={onTogglePin} forceOpen={forceOpen} />
       ))}
     </div>
   );
@@ -1534,6 +1535,18 @@ export function App() {
     if (!tree || hits === null) return null;
     return pruneTree(tree, new Set(hits.slice(0, FILTER_MAX_RESULTS).map((h) => h.id)));
   }, [tree, hits]);
+  // Favourites toggle (★ next to the filter box): restricts whatever the text
+  // filter left to pinned sessions. Pinned state comes from the tree itself.
+  const [favOnly, setFavOnly] = useState(false);
+  const shownTree = useMemo(() => {
+    const base = hits !== null ? filteredTree : tree;
+    if (!base || !favOnly) return base;
+    const keep = new Set<string>();
+    const walk = (n: FolderNode) => { for (const x of n.sessions ?? []) if (x.pinned) keep.add(x.id); for (const c of n.folders ?? []) walk(c); };
+    walk(base);
+    return pruneTree(base, keep);
+  }, [tree, hits, filteredTree, favOnly]);
+  const filtering = hits !== null || favOnly;
   const markedIds = Object.keys(marked);
   const walkSessions = (n: FolderNode, out: SessionNode[]): SessionNode[] => {
     for (const s of n.sessions ?? []) out.push(s);
@@ -1848,16 +1861,17 @@ export function App() {
         </div>
         <div class="filterbar">
           <input type="text" placeholder="filter sessions..." value={q} onInput={(e) => onQuery((e.target as HTMLInputElement).value)} />
+          <button class={"favtoggle" + (favOnly ? " on" : "")} title={favOnly ? "showing favourites only \u2014 click to show all" : "show favourites only"} onClick={() => setFavOnly(!favOnly)}>{favOnly ? "\u2605" : "\u2606"}</button>
           <button title="reload store" onClick={load}>&#x21bb;</button>
         </div>
         <div class="tree">
           {err && <div class="error" onClick={() => setErr("")}>{err}</div>}
-          {hits !== null && (hits.length === 0 || !filteredTree) ? <div class="nohits">no matches</div> : (
-            (hits !== null ? filteredTree : tree) && (<>
-              <Folder node={(hits !== null ? filteredTree : tree)!} forceOpen={hits !== null} depth={0} selected={sel?.id ?? ""} selectedFolder={selFolder?.id ?? ""} marked={marked}
+          {filtering && !shownTree ? <div class="nohits">{favOnly && hits === null ? "no favourites yet \u2014 click \u2606 on a session" : "no matches"}</div> : (
+            shownTree && (<>
+              <Folder node={shownTree} forceOpen={filtering} depth={0} selected={sel?.id ?? ""} selectedFolder={selFolder?.id ?? ""} marked={marked}
                 onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} onFolderCtx={openFolderCtx}
                 refreshing={refreshing} onRefreshStatus={(node) => setRefreshStatus({ folderId: node.id, name: node.name })}
-                showMarks={showMarks} onConnect={(s) => connectAndOpen(s.id, s.name)} />
+                showMarks={showMarks} onConnect={(s) => connectAndOpen(s.id, s.name)} onTogglePin={(s) => togglePin(s.id, !!s.pinned)} />
               {hits !== null && hits.length > FILTER_MAX_RESULTS && <div class="nohits">showing first {FILTER_MAX_RESULTS} of {hits.length} matches, refine to narrow</div>}
             </>)
           )}
@@ -1897,7 +1911,7 @@ export function App() {
           <TabScroller activeKey={view.kind === "term" ? view.id : ""}>
             {displayTabs.map((d) => d.type === "term" ? (
               <div key={d.tab.termId} class={"tab" + (view.kind === "term" && view.id === d.tab.termId ? " active" : "") + (dead.has(d.tab.termId) ? " down" : "")}
-                onClick={() => activateTerm(d.tab.termId)}
+                onClick={(e) => { if (e.button === 0) activateTerm(d.tab.termId); }}
                 onMouseDown={(e) => { if (e.button === 1) e.preventDefault(); }}
                 onAuxClick={(e) => { if (e.button === 1) { e.preventDefault(); closeTab(d.tab.termId); } }}
                 onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ termId: d.tab.termId, x: e.clientX, y: e.clientY }); }}>
@@ -1913,7 +1927,12 @@ export function App() {
                 <span class="tabx" title={d.pinned ? "close terminal (tab stays pinned \u2014 unpin via \u2605)" : "close"} onClick={(e) => { e.stopPropagation(); closeTab(d.tab.termId); }}>{"\u2715"}</span>
               </div>
             ) : (
-              <div key={"pin:" + d.sessionId} class="tab pinned-empty" title="pinned — not connected; click to connect" onClick={() => connectAndOpen(d.sessionId, d.name)}>
+              // WebKitGTK also fires `click` for the middle button; only the primary button may connect,
+              // otherwise middle-closing a neighbour tab connects the pinned tab that slides under the pointer.
+              <div key={"pin:" + d.sessionId} class="tab pinned-empty" title="pinned — not connected; click to connect"
+                onClick={(e) => { if (e.button === 0) connectAndOpen(d.sessionId, d.name); }}
+                onMouseDown={(e) => { if (e.button === 1) e.preventDefault(); }}
+                onAuxClick={(e) => e.preventDefault()}>
                 <span class="pin filled" title="unpin" onClick={(e) => { e.stopPropagation(); togglePin(d.sessionId, true); }}>{"\u2605"}</span>
                 <span class="tabname">{d.name}</span>
               </div>
