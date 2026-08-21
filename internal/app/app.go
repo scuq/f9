@@ -134,9 +134,10 @@ type App struct {
 	prompts map[string]chan PromptReply
 	reqSeq  int64
 
-	tmu     sync.Mutex
-	terms   map[string]*terminal
-	tunings map[osdetect.Family]osdetect.Tuning
+	tmu      sync.Mutex
+	terms    map[string]*terminal
+	termSess map[string]string // termID -> sessionID, for every tab the UI still shows
+	tunings  map[osdetect.Family]osdetect.Tuning
 
 	detMu sync.Mutex
 	dets  map[string]osdetect.Detector
@@ -166,11 +167,12 @@ func New() (*App, error) {
 		return nil, err
 	}
 	a := &App{
-		st:      st,
-		prompts: map[string]chan PromptReply{},
-		terms:   map[string]*terminal{},
-		tunings: loadTunings(),
-		themes:  theme.LoadAll(),
+		st:       st,
+		prompts:  map[string]chan PromptReply{},
+		terms:    map[string]*terminal{},
+		termSess: map[string]string{},
+		tunings:  loadTunings(),
+		themes:   theme.LoadAll(),
 	}
 	a.themeName = initialThemeName(a.themes)
 	a.mgr = connmgr.New(64, sshx.Dial, a.emitConns)
@@ -259,7 +261,7 @@ func (a *App) Filter(query string) ([]FilterHit, error) {
 		}
 		byID[s.ID] = s
 	}
-	hits := filter.Rank(query, items)
+	hits := filter.RankWith(query, items, filter.Options{MatchPath: loadUISettings().FilterMatchPath})
 	out := make([]FilterHit, 0, len(hits))
 	for _, h := range hits {
 		s := byID[h.ID]

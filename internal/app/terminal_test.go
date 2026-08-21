@@ -219,3 +219,21 @@ func TestTerminalActivityPrompt(t *testing.T) {
 		t.Fatal("prompt activity not emitted after command completion")
 	}
 }
+
+func TestCloseLastTerminalDisconnects(t *testing.T) {
+	a, id, _ := setupConnectedTerminal(t)
+	if err := a.OpenTerminal("T1", id, 80, 24); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.OpenTerminal("T2", id, 80, 24); err != nil {
+		t.Fatal(err)
+	}
+	a.CloseTerminal("T1")
+	if _, ok := a.mgr.Client(id); !ok {
+		t.Fatal("connection dropped while another terminal was still open")
+	}
+	a.CloseTerminal("T2")
+	if _, ok := a.mgr.Client(id); ok {
+		t.Fatal("connection still open after last terminal closed")
+	}
+}
