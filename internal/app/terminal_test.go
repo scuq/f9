@@ -1,6 +1,8 @@
 package app
 
 import (
+	"golang.org/x/crypto/ssh"
+
 	"context"
 	"encoding/base64"
 	"io"
@@ -60,6 +62,7 @@ func (c *fakeTermClient) NewSession(context.Context, string, int, int) (sshx.Ses
 }
 func (c *fakeTermClient) ServerVersion() string   { return "SSH-2.0-fake" }
 func (c *fakeTermClient) SocksActive() bool       { return false }
+func (c *fakeTermClient) SSHClient() *ssh.Client  { return nil }
 func (c *fakeTermClient) ConnInfo() sshx.ConnInfo { return sshx.ConnInfo{} }
 func (c *fakeTermClient) Wait() error {
 	var never chan struct{}

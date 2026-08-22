@@ -693,3 +693,31 @@ select, input, textarea, option { color-scheme: dark; }
 .sb-uptime { font-variant-numeric: tabular-nums; }
 
 .row.folder .foldermark { margin: 0 2px 0 0; cursor: pointer; }
+
+/* Active-window border: subtle when inactive, accent-coloured while f9 has focus. */
+#root { box-sizing: border-box; box-shadow: inset 0 0 0 1px rgba(127,127,127,0.25); transition: box-shadow 120ms; }
+html[data-winfocus="1"] #root { box-shadow: inset 0 0 0 1px var(--accent); }
+
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.modal-head h2 { margin: 0; }
+
+/* --- upload (sftp) modal --- */
+.upload-modal { width: 640px; }
+.upload-modal select { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--fg); padding: 5px 8px; }
+.upload-modal .hint { color: var(--folder-fg); font-size: 11px; margin: 2px 0 8px; }
+.upload-modal .hint.warn { color: var(--danger); }
+.xferlist { border: 1px solid var(--border); background: var(--bg); height: 220px; overflow-y: auto; margin-bottom: 8px; font-size: 12px; }
+.xrow { display: flex; justify-content: space-between; padding: 3px 8px; }
+.xrow.dir { cursor: pointer; color: var(--fg); }
+.xrow.dir:hover { background: var(--tab-hover-bg); }
+.xrow:not(.dir) { color: var(--folder-fg); }
+.xrow .xsize { font-variant-numeric: tabular-nums; color: var(--folder-fg); }
+.xferfiles { max-height: 160px; overflow-y: auto; margin-bottom: 8px; font-size: 12px; }
+.xfile { display: grid; grid-template-columns: 1fr 140px 50px; gap: 8px; align-items: center; padding: 2px 0; }
+.xfile .xname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xfile .xbar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.xfile .xfill { display: block; height: 100%; background: var(--accent); transition: width 120ms; }
+.xfile.ok .xfill { background: #3fbf6a; }
+.xfile.bad .xfill { background: var(--danger); }
+.xfile .xstat { text-align: right; color: var(--folder-fg); font-variant-numeric: tabular-nums; }
+.xfile .error { grid-column: 1 / -1; }

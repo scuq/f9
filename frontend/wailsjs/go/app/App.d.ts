@@ -94,6 +94,8 @@ export function OpenTerminal(arg1:string,arg2:string,arg3:number,arg4:number):Pr
 
 export function OpenURL(arg1:string):Promise<void>;
 
+export function PickUploadFiles():Promise<Array<string>>;
+
 export function PinSession(arg1:string):Promise<void>;
 
 export function PinnedSessions():Promise<Array<app.SessionNode>>;
@@ -167,3 +169,15 @@ export function VarsDelete(arg1:app.VarsScopeDTO,arg2:string,arg3:string):Promis
 export function VarsList(arg1:app.VarsScopeDTO,arg2:string):Promise<Record<string, string>>;
 
 export function VarsPut(arg1:app.VarsScopeDTO,arg2:string,arg3:string,arg4:string):Promise<void>;
+
+export function XferClose(arg1:string):Promise<void>;
+
+export function XferList(arg1:string,arg2:string):Promise<app.XferListing>;
+
+export function XferMkdir(arg1:string,arg2:string):Promise<void>;
+
+export function XferOpen(arg1:string,arg2:string):Promise<string>;
+
+export function XferTargetFor(arg1:string):Promise<app.XferTarget>;
+
+export function XferUpload(arg1:string,arg2:Array<string>,arg3:string):Promise<void>;

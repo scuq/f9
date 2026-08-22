@@ -224,46 +224,69 @@ func resolveAltRefs(alts []AltUser, user string, chain []store.JumpHop) (string,
 	return user, out, keys
 }
 
-func (a *App) ConnectSessions(ids []string) error {
+// targetFor builds the dial target for one session: effective options, alt
+// users, key files and jump chain resolved.
+func (a *App) targetFor(id string) (connmgr.Target, error) {
 	gs := a.Settings()
+	s, eff, err := a.st.Resolve(id)
+	if err != nil {
+		return connmgr.Target{}, err
+	}
+	sUser, hopChain, altKeys := resolveAltRefs(gs.AltUsers, s.User, eff.JumpChain)
+	keyFiles := gs.KeyFiles
+	if eff.KeyFile != nil && *eff.KeyFile != "" {
+		keyFiles = []string{*eff.KeyFile}
+	}
+	if len(altKeys) > 0 {
+		keyFiles = append(append([]string{}, altKeys...), keyFiles...)
+	}
+	noAgent := gs.DisableAgent
+	if eff.UseAgent != nil {
+		noAgent = !*eff.UseAgent
+	}
+	t := connmgr.Target{
+		SessionID: s.ID, Name: s.Name, Host: s.Host, Port: s.Port, User: s.User,
+		Keepalive:    10 * time.Second,
+		KeyFiles:     keyFiles,
+		NoAgent:      noAgent,
+		AgentSockets: gs.AgentSockets,
+	}
+	if eff.KeepaliveInterval != nil {
+		t.Keepalive = *eff.KeepaliveInterval
+	}
+	if eff.SocksPort != nil {
+		t.SocksPort = *eff.SocksPort
+	}
+	if eff.SocksOnly != nil {
+		t.SocksOnly = *eff.SocksOnly
+	}
+	for _, j := range hopChain {
+		t.JumpChain = append(t.JumpChain, sshx.Hop{Host: j.Host, Port: j.Port, User: j.User, Mode: j.Mode})
+	}
+	t.User = resolveTargetUser(sUser, hopChain)
+	return t, nil
+}
+
+// dialOptsFor mirrors connmgr's Target -> DialOpts mapping for dials the app
+// makes itself (file transfers).
+func dialOptsFor(t connmgr.Target) sshx.DialOpts {
+	return sshx.DialOpts{
+		KeepaliveInterval: t.Keepalive,
+		JumpChain:         t.JumpChain,
+		KeyFiles:          t.KeyFiles,
+		NoAgent:           t.NoAgent,
+		AgentSockets:      t.AgentSockets,
+		SocksPort:         t.SocksPort,
+	}
+}
+
+func (a *App) ConnectSessions(ids []string) error {
 	targets := make([]connmgr.Target, 0, len(ids))
 	for _, id := range ids {
-		s, eff, err := a.st.Resolve(id)
+		t, err := a.targetFor(id)
 		if err != nil {
 			return err
 		}
-		sUser, hopChain, altKeys := resolveAltRefs(gs.AltUsers, s.User, eff.JumpChain)
-		keyFiles := gs.KeyFiles
-		if eff.KeyFile != nil && *eff.KeyFile != "" {
-			keyFiles = []string{*eff.KeyFile}
-		}
-		if len(altKeys) > 0 {
-			keyFiles = append(append([]string{}, altKeys...), keyFiles...)
-		}
-		noAgent := gs.DisableAgent
-		if eff.UseAgent != nil {
-			noAgent = !*eff.UseAgent
-		}
-		t := connmgr.Target{
-			SessionID: s.ID, Name: s.Name, Host: s.Host, Port: s.Port, User: s.User,
-			Keepalive:    10 * time.Second,
-			KeyFiles:     keyFiles,
-			NoAgent:      noAgent,
-			AgentSockets: gs.AgentSockets,
-		}
-		if eff.KeepaliveInterval != nil {
-			t.Keepalive = *eff.KeepaliveInterval
-		}
-		if eff.SocksPort != nil {
-			t.SocksPort = *eff.SocksPort
-		}
-		if eff.SocksOnly != nil {
-			t.SocksOnly = *eff.SocksOnly
-		}
-		for _, j := range hopChain {
-			t.JumpChain = append(t.JumpChain, sshx.Hop{Host: j.Host, Port: j.Port, User: j.User, Mode: j.Mode})
-		}
-		t.User = resolveTargetUser(sUser, hopChain)
 		targets = append(targets, t)
 	}
 	if len(targets) == 0 {

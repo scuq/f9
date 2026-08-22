@@ -9,6 +9,8 @@ import (
 	"errors"
 	"io"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 // Prompter is implemented by the CLI (terminal prompts) and by the Wails UI
@@ -37,10 +39,15 @@ type DialOpts struct {
 	KeepaliveInterval time.Duration // 0 = no keepalives
 	JumpChain         []Hop         // applied in order
 
-	KeyFiles       []string     // default: existing ~/.ssh/{id_ed25519,id_ecdsa,id_rsa}
-	NoAgent        bool         // skip the ssh-agent (key files / password only)
-	AgentSockets   []string     // explicit agent sockets (empty = $SSH_AUTH_SOCK)
-	SocksPort      int          // local SOCKS5 dynamic-forward port (0 = off)
+	KeyFiles     []string // default: existing ~/.ssh/{id_ed25519,id_ecdsa,id_rsa}
+	NoAgent      bool     // skip the ssh-agent (key files / password only)
+	AgentSockets []string // explicit agent sockets (empty = $SSH_AUTH_SOCK)
+	SocksPort    int      // local SOCKS5 dynamic-forward port (0 = off)
+	// Via, when set, dials the first TCP leg through this established SSH
+	// client's tunnel (direct-tcpip) instead of the local network — e.g. a
+	// file transfer to a target reachable only through another session's
+	// SOCKS-capable connection. Hops in JumpChain still apply afterwards.
+	Via            *ssh.Client
 	KnownHostsPath string       // default: ~/.config/f9/known_hosts
 	OnBanner       func(string) // login banner tap (osdetect consumer, 00d)
 }
@@ -71,6 +78,10 @@ type Client interface {
 	// ConnInfo describes the established transport (negotiated algorithms,
 	// server version). For shell-hop clients it describes the HOP leg.
 	ConnInfo() ConnInfo
+	// SSHClient exposes the target-leg SSH client for subsystems such as SFTP
+	// and for tunnelling further dials (DialOpts.Via). nil for shell-hop
+	// clients, whose target is only reachable through the hop's shell.
+	SSHClient() *ssh.Client
 	Close() error
 }
 

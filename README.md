@@ -40,6 +40,11 @@ Named after its launcher hotkey.
   and **Enter reconnects in place**; `close dead (N)` clears them all.
 - **Connections panel** — live state per session, filter box, reconnect for
   failed dials (single or all), SOCKS badge (red on port-bind conflict).
+- **File upload (SFTP)** — right-click a tab → *upload files…*: browse the remote
+  directory tree, pick local files, watch per-file progress. Targets behind a
+  shell-hop (or only reachable from another box) can be uploaded to *via* any
+  connected session that has a SOCKS port: f9 dials a fresh SSH connection to the
+  target through that session's tunnel.
 - **SOCKS dynamic forwarding** — per-session `ssh -D` (`socksPort` option);
   **SOCKS-only sessions** connect without a terminal and live as their
   connections entry.

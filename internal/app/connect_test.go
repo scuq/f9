@@ -1,6 +1,8 @@
 package app
 
 import (
+	"golang.org/x/crypto/ssh"
+
 	"context"
 	"sync"
 	"sync/atomic"
@@ -82,6 +84,7 @@ func (fakeGUIClient) NewSession(_ context.Context, _ string, _, _ int) (sshx.Ses
 }
 func (fakeGUIClient) ServerVersion() string   { return "SSH-2.0-fake" }
 func (fakeGUIClient) SocksActive() bool       { return false }
+func (fakeGUIClient) SSHClient() *ssh.Client  { return nil }
 func (fakeGUIClient) ConnInfo() sshx.ConnInfo { return sshx.ConnInfo{} }
 func (fakeGUIClient) Wait() error {
 	var never chan struct{}

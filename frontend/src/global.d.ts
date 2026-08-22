@@ -36,6 +36,13 @@ declare global {
           GrepTerminal(termId: string, pattern: string, opts: GrepOptsInput): Promise<GrepResult>;
           TerminalStats(termId: string): Promise<number>;
           TerminalPeek(termId: string, lineNo0: number, context: number): Promise<PeekResult>;
+          XferTargetFor(termId: string): Promise<XferTarget>;
+          XferOpen(sessionId: string, viaSessionId: string): Promise<string>;
+          XferList(id: string, dir: string): Promise<XferListing>;
+          XferMkdir(id: string, dir: string): Promise<void>;
+          XferUpload(id: string, locals: string[], remoteDir: string): Promise<void>;
+          XferClose(id: string): Promise<void>;
+          PickUploadFiles(): Promise<string[]>;
           PinSession(id: string): Promise<void>;
           UnpinSession(id: string): Promise<void>;
           PinnedSessions(): Promise<SessionNode[]>;
@@ -126,6 +133,10 @@ declare global {
     // (ConnInfoDTO lives below)
     socksPort: number; socksActive: boolean; socksOnly: boolean;
   }
+  interface XferTarget { sessionId: string; name: string; host: string; port: number; user: string; shellHop: boolean; }
+  interface XferEntry { name: string; size: number; dir: boolean; mode: string; modTime: string; }
+  interface XferListing { dir: string; entries: XferEntry[]; }
+  interface XferProgress { id: string; file: string; done: number; total: number; finished: boolean; error: string; }
   interface PromptRequest {
     id: string; kind: "password" | "passphrase" | "hostkey" | "kbi";
     user: string; host: string; keyPath: string; fingerprint: string;

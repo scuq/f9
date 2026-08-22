@@ -329,9 +329,9 @@ function SettingsModal(props: {
     api().MapScriptDelete(mapSel).then(() => { setMapErr(""); selectMapScript(""); loadMapScripts(); }).catch((e) => setMapErr(String(e)));
   };
   return (
-    <div class="modal-overlay" onClick={onClose}>
+    <div class="modal-overlay">{/* settings never close on backdrop clicks — only via the X / done button (or Esc) */}
       <div class="modal settings-modal" onClick={(e) => e.stopPropagation()}>
-        <h2>settings</h2>
+        <div class="modal-head"><h2>settings</h2><button class="searchx" title="close" onClick={onClose}>{"\u2715"}</button></div>
 
         <div class="opthead">theme</div>
         <div class="formrow">
@@ -972,6 +972,136 @@ function TabScroller(props: { activeKey: string; children: ComponentChildren }) 
   );
 }
 
+function fmtBytes(n: number): string {
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KiB";
+  if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + " MiB";
+  return (n / 1024 / 1024 / 1024).toFixed(2) + " GiB";
+}
+
+// UploadModal: SFTP upload into a remote directory, browsed live. Route is
+// either the tab's own connection or a new connection tunnelled through a
+// SOCKS-capable session (required for shell-hop targets).
+function UploadModal(props: { target: XferTarget; socksSessions: Conn[]; onClose: () => void }) {
+  const { target, socksSessions, onClose } = props;
+  const [via, setVia] = useState<string>(target.shellHop && socksSessions.length ? socksSessions[0].sessionId : "");
+  const [xid, setXid] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [dir, setDir] = useState("");
+  const [dirInput, setDirInput] = useState("");
+  const [entries, setEntries] = useState<XferEntry[]>([]);
+  const [files, setFiles] = useState<string[]>([]);
+  const [prog, setProg] = useState<Record<string, XferProgress>>({});
+  const [uploading, setUploading] = useState(false);
+  const xidRef = useRef("");
+  xidRef.current = xid;
+
+  const list = (id: string, d: string) => {
+    setBusy(true); setErr("");
+    return api().XferList(id, d).then((l) => { setDir(l.dir); setDirInput(l.dir); setEntries(l.entries ?? []); })
+      .catch((e) => setErr(String(e))).finally(() => setBusy(false));
+  };
+  const connect = () => {
+    setBusy(true); setErr("");
+    api().XferOpen(target.sessionId, via).then((id) => { setXid(id); return list(id, ""); })
+      .catch((e) => { setErr(String(e)); setBusy(false); });
+  };
+  useEffect(() => () => { if (xidRef.current) api().XferClose(xidRef.current).catch(() => {}); }, []);
+  useEffect(() => {
+    const off = window.runtime.EventsOn("f9:xferprogress", (p: XferProgress) => {
+      if (p.id !== xidRef.current) return;
+      setProg((m) => ({ ...m, [p.file]: p }));
+    });
+    return () => off();
+  }, []);
+  const allDone = files.length > 0 && files.every((f) => prog[basename(f)]?.finished);
+  useEffect(() => { if (uploading && allDone) { setUploading(false); if (xid) list(xid, dir); } }, [uploading, allDone]);
+
+  const pick = () => api().PickUploadFiles().then((p) => { if (p && p.length) { setFiles((f) => Array.from(new Set([...f, ...p]))); setProg({}); } }).catch((e) => setErr(String(e)));
+  const upload = () => {
+    if (!xid || !files.length) return;
+    setProg({}); setUploading(true); setErr("");
+    api().XferUpload(xid, files, dir).catch((e) => { setErr(String(e)); setUploading(false); });
+  };
+  const mkdir = () => {
+    const name = window.prompt("new folder name");
+    if (!name || !xid) return;
+    api().XferMkdir(xid, dir + "/" + name).then(() => list(xid, dir)).catch((e) => setErr(String(e)));
+  };
+  const up = () => { if (xid) list(xid, dir.replace(/\/[^/]*$/, "") || "/"); };
+  const socksLabel = (c: Conn) => c.name + " (SOCKS :" + c.socksPort + ")";
+
+  return (
+    <div class="modal-overlay">
+      <div class="modal upload-modal" onClick={(e) => e.stopPropagation()}>
+        <div class="modal-head"><h2>upload to {target.name}</h2><button class="searchx" title="close" onClick={onClose}>{"✕"}</button></div>
+        <div class="formrow">
+          <label>route</label>
+          <select value={via} disabled={!!xid} onChange={(e) => setVia((e.target as HTMLSelectElement).value)}>
+            <option value="" disabled={target.shellHop}>{target.shellHop ? "session connection (shell-hop: not available)" : "session connection"}</option>
+            {socksSessions.map((c) => <option value={c.sessionId} key={c.sessionId}>via {socksLabel(c)}</option>)}
+          </select>
+          {!xid && <button class="primary" disabled={busy || (target.shellHop && !via)} onClick={connect}>{busy ? "connecting…" : "connect"}</button>}
+        </div>
+        {via && !xid && <div class="hint">a new SSH connection to {target.user ? target.user + "@" : ""}{target.host} is dialed through that session's tunnel; you may be asked to authenticate.</div>}
+        {target.shellHop && !socksSessions.length && <div class="hint warn">this session reaches its target through a shell-hop; open a session with a SOCKS port to copy through it.</div>}
+        {err && <div class="error" onClick={() => setErr("")}>{err}</div>}
+
+        {xid && (<>
+          <div class="formrow">
+            <label>remote dir</label>
+            <input type="text" value={dirInput} onInput={(e) => setDirInput((e.target as HTMLInputElement).value)}
+              onKeyDown={(e) => { if (e.key === "Enter") list(xid, dirInput); }} />
+            <button title="parent directory" onClick={up}>{"↑"}</button>
+            <button title="new folder here" onClick={mkdir}>+dir</button>
+            <button title="refresh" onClick={() => list(xid, dir)}>{"↻"}</button>
+          </div>
+          <div class="xferlist">
+            {busy && <div class="hint">loading…</div>}
+            {!busy && entries.length === 0 && <div class="hint">empty directory</div>}
+            {entries.map((en) => (
+              <div key={en.name} class={"xrow" + (en.dir ? " dir" : "")} onDblClick={() => { if (en.dir) list(xid, dir + "/" + en.name); }}
+                onClick={() => { if (en.dir) list(xid, dir + "/" + en.name); }} title={en.dir ? "open" : en.mode}>
+                <span class="xname">{en.dir ? "📁 " : ""}{en.name}</span>
+                <span class="xsize">{en.dir ? "" : fmtBytes(en.size)}</span>
+              </div>
+            ))}
+          </div>
+          <div class="formrow">
+            <label>files</label>
+            <button onClick={pick} disabled={uploading}>choose files…</button>
+            {files.length > 0 && <button onClick={() => { setFiles([]); setProg({}); }} disabled={uploading}>clear</button>}
+            <span class="hint">{files.length ? files.length + " selected" : "none selected"}</span>
+          </div>
+          {files.length > 0 && (
+            <div class="xferfiles">
+              {files.map((f) => {
+                const p = prog[basename(f)];
+                const pct = p && p.total > 0 ? Math.min(100, Math.round((p.done / p.total) * 100)) : (p?.finished ? 100 : 0);
+                return (
+                  <div key={f} class={"xfile" + (p?.error ? " bad" : p?.finished ? " ok" : "")}>
+                    <span class="xname" title={f}>{basename(f)}</span>
+                    <span class="xbar"><span class="xfill" style={{ width: pct + "%" }} /></span>
+                    <span class="xstat">{p?.error ? "failed" : p?.finished ? "done" : p ? pct + "%" : ""}</span>
+                    {p?.error && <div class="error">{p.error}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div class="modal-actions">
+            <button class="primary" disabled={!files.length || uploading} onClick={upload}>{uploading ? "uploading…" : "upload to " + dir}</button>
+            <button onClick={onClose}>{uploading ? "cancel" : "close"}</button>
+          </div>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
+function basename(p: string): string { return p.replace(/\\/g, "/").replace(/\/+$/, "").split("/").pop() ?? p; }
+
 function FolderCtxMenu(props: {
   x: number; y: number; hasSource: boolean;
   onImport: () => void; onRefresh: () => void; onClear: () => void;
@@ -1244,6 +1374,8 @@ export function App() {
   const [selFolder, setSelFolder] = useState<{ id: string; path: string } | null>(null);
   const [marked, setMarked] = useState<Record<string, true>>({});
   const [conns, setConns] = useState<Conn[]>([]);
+  const [upload, setUpload] = useState<XferTarget | null>(null);
+  const openUpload = (termId: string) => api().XferTargetFor(termId).then(setUpload).catch((e) => setErr(String(e)));
   const [promptQ, setPromptQ] = useState<PromptRequest[]>([]);
   const [ver, setVer] = useState("");
   const [modal, setModal] = useState<"" | "session-new" | "session-edit" | "folder">("");
@@ -1538,6 +1670,16 @@ export function App() {
     if (raw.trim() === "") { setHits(null); return; }
     debounce.current = window.setTimeout(() => api().Filter(raw).then(setHits).catch((e) => setErr(String(e))), filterDebounceMs(raw.trim().length));
   };
+  // Active-window border (mirrors the GTK :focus-within accent trick): the
+  // frameless window draws its own edge, so mark the root while focused.
+  useEffect(() => {
+    const set = () => { document.documentElement.dataset.winfocus = document.hasFocus() ? "1" : "0"; };
+    set();
+    window.addEventListener("focus", set);
+    window.addEventListener("blur", set);
+    document.addEventListener("visibilitychange", set);
+    return () => { window.removeEventListener("focus", set); window.removeEventListener("blur", set); document.removeEventListener("visibilitychange", set); };
+  }, []);
   // clearFilter: Esc in the filter box, or Ctrl/Cmd+Shift+F from anywhere
   // (also while a terminal has focus) — clears text + favourites toggle and
   // focuses the box so you can type a new query straight away.
@@ -2079,6 +2221,7 @@ export function App() {
       {ctxMenu && ctxCfg && (
         <div class="ctxmenu" style={{ left: `${ctxMenu.x}px`, top: `${ctxMenu.y}px` }} onClick={(e) => e.stopPropagation()}>
           <div class="mrow ctxact" onClick={() => { closeTab(ctxMenu.termId); setCtxMenu(null); }}>close tab</div>
+          <div class="mrow ctxact" onClick={() => { openUpload(ctxMenu.termId); setCtxMenu(null); }}>upload files… (sftp)</div>
           <div class="mhead">tab indicators</div>
           <label class="mrow"><input type="checkbox" checked={ctxCfg.output} onChange={(e) => setCfg(ctxMenu.termId, { output: (e.target as HTMLInputElement).checked })} /> <span class="swatch output" /> output</label>
           <label class="mrow"><input type="checkbox" checked={ctxCfg.prompt} onChange={(e) => setCfg(ctxMenu.termId, { prompt: (e.target as HTMLInputElement).checked })} /> <span class="swatch prompt" /> command done</label>
@@ -2089,6 +2232,9 @@ export function App() {
               onInput={(e) => setCfg(ctxMenu.termId, { watch: (e.target as HTMLInputElement).value })} />
           </div>
         </div>
+      )}
+      {upload && (
+        <UploadModal target={upload} socksSessions={conns.filter((c) => c.state === "connected" && c.socksActive && c.sessionId !== upload.sessionId)} onClose={() => setUpload(null)} />
       )}
       {folderCtx && (
         <FolderCtxMenu x={folderCtx.x} y={folderCtx.y} hasSource={folderCtx.node.hasSource}

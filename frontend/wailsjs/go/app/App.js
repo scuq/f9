@@ -174,6 +174,10 @@ export function OpenURL(arg1) {
   return window['go']['app']['App']['OpenURL'](arg1);
 }
 
+export function PickUploadFiles() {
+  return window['go']['app']['App']['PickUploadFiles']();
+}
+
 export function PinSession(arg1) {
   return window['go']['app']['App']['PinSession'](arg1);
 }
@@ -320,4 +324,28 @@ export function VarsList(arg1, arg2) {
 
 export function VarsPut(arg1, arg2, arg3, arg4) {
   return window['go']['app']['App']['VarsPut'](arg1, arg2, arg3, arg4);
+}
+
+export function XferClose(arg1) {
+  return window['go']['app']['App']['XferClose'](arg1);
+}
+
+export function XferList(arg1, arg2) {
+  return window['go']['app']['App']['XferList'](arg1, arg2);
+}
+
+export function XferMkdir(arg1, arg2) {
+  return window['go']['app']['App']['XferMkdir'](arg1, arg2);
+}
+
+export function XferOpen(arg1, arg2) {
+  return window['go']['app']['App']['XferOpen'](arg1, arg2);
+}
+
+export function XferTargetFor(arg1) {
+  return window['go']['app']['App']['XferTargetFor'](arg1);
+}
+
+export function XferUpload(arg1, arg2, arg3) {
+  return window['go']['app']['App']['XferUpload'](arg1, arg2, arg3);
 }

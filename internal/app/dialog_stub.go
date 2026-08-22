@@ -8,3 +8,8 @@ import "errors"
 func (a *App) ImportITermTheme() (string, error) {
 	return "", errors.New("app: file dialog unavailable without the gui build")
 }
+
+// PickUploadFiles requires the Wails runtime file dialog (gui build).
+func (a *App) PickUploadFiles() ([]string, error) {
+	return nil, errors.New("app: file dialog unavailable without the gui build")
+}

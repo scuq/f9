@@ -137,6 +137,8 @@ type App struct {
 	tmu      sync.Mutex
 	terms    map[string]*terminal
 	termSess map[string]string // termID -> sessionID, for every tab the UI still shows
+	xferMu   sync.Mutex
+	xfers    map[string]*xferHandle // open SFTP handles (upload dialog)
 	tunings  map[osdetect.Family]osdetect.Tuning
 
 	detMu sync.Mutex

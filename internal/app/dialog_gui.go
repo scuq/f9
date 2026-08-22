@@ -21,3 +21,16 @@ func (a *App) ImportITermTheme() (string, error) {
 	}
 	return a.importITermFile(path)
 }
+
+// PickUploadFiles opens a native multi-file picker for the upload dialog.
+// Returns the chosen paths ([] if cancelled).
+func (a *App) PickUploadFiles() ([]string, error) {
+	paths, err := runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{Title: "Upload files"})
+	if err != nil {
+		return nil, err
+	}
+	if paths == nil {
+		paths = []string{}
+	}
+	return paths, nil
+}

@@ -65,7 +65,9 @@ func Dial(ctx context.Context, host string, port int, user string, p Prompter, o
 		addr := net.JoinHostPort(h, strconv.Itoa(prt))
 		var raw net.Conn
 		var derr error
-		if via == nil {
+		if via == nil && o.Via != nil {
+			raw, derr = o.Via.Dial("tcp", addr) // tunnelled first leg (see DialOpts.Via)
+		} else if via == nil {
 			raw, derr = dialer.DialContext(ctx, "tcp", addr)
 			if derr == nil {
 				ac := newActivityConn(raw)
@@ -215,6 +217,9 @@ func connInfoFrom(c *ssh.Client, relay bool) ConnInfo {
 
 func (n *nativeClient) ConnInfo() ConnInfo   { return connInfoFrom(n.c, false) }
 func (h *shellHopClient) ConnInfo() ConnInfo { return connInfoFrom(h.hop, true) }
+
+func (n *nativeClient) SSHClient() *ssh.Client   { return n.c }
+func (h *shellHopClient) SSHClient() *ssh.Client { return nil }
 
 func (n *nativeClient) startKeepalive(interval time.Duration, act *activityConn) {
 	if interval <= 0 {
