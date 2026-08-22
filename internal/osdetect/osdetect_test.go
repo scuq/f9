@@ -128,7 +128,7 @@ func TestWeakEvidenceLowConfidence(t *testing.T) {
 }
 
 func TestRelayIgnoresHopBanner(t *testing.T) {
-	d := NewRelay()
+	d := NewRelay("") // no marker: conservative mode for the whole session
 	// what an OpenBSD jumphost prints before the onward hop
 	d.ObserveOutput([]byte("OpenBSD 7.5 (GENERIC.MP) #82: welcome\n"))
 	if g := d.Guess(); g.Family == FamilyOpenBSD {
@@ -148,5 +148,54 @@ func TestRelayIgnoresHopBanner(t *testing.T) {
 	n.ObserveOutput([]byte("$ "))
 	if g := n.Guess(); g.Family != FamilyOpenBSD {
 		t.Fatalf("normal detector lost the banner rule: %+v", g)
+	}
+}
+
+// A shell-hop transcript as seen in the wild: OpenBSD hop motd + its Debian-
+// style prompt, the echoed onward command, then an NX-OS target whose only
+// strong line is the "Cisco Nexus" product banner. Before the marker logic the
+// hop prompt's Linux evidence pinned this at 0.71 < threshold.
+func TestRelayMarkerSplitsHopAndTarget(t *testing.T) {
+	hop := "Last login: Sat Aug 22 01:48:46 2026\r\nOpenBSD 7.9 (GENERIC.MP) #449\r\nste9933@su00nju100:~$ "
+	cmd := "exec ssh zas-hybridkja@10.222.204.215\r\nWarning: Permanently added '10.222.204.215' (RSA) to the list of known hosts.\r\n"
+	d := NewRelay("10.222.204.215")
+	d.ObserveOutput([]byte(hop))
+	if g := d.Guess(); g.Family != FamilyUnknown {
+		t.Fatalf("hop phase produced evidence: %+v", g)
+	}
+	d.ObserveOutput([]byte(cmd))
+	d.ObserveOutput([]byte("| Hostname NG0230.net.kages.at\r\nNG0230# show version\r\nCisco Nexus Operating System Software\r\nNG0230# "))
+	g := d.Guess()
+	if g.Family != FamilyNXOS || g.Confidence < DefaultThreshold {
+		t.Fatalf("nx-os behind shell-hop not settled: %+v", g)
+	}
+
+	// A Linux target behind the hop is detectable once the marker passed.
+	l := NewRelay("10.0.0.9")
+	l.ObserveOutput([]byte(hop + "exec ssh root@10.0.0.9\r\nLinux srv 6.1.0 #1 SMP\r\nroot@srv:~# "))
+	if g := l.Guess(); g.Family != FamilyLinux || g.Confidence < DefaultThreshold {
+		t.Fatalf("linux behind shell-hop: %+v", g)
+	}
+
+	// Marker never echoed (echo off): hop prompt still must not count.
+	n := NewRelay("")
+	n.ObserveOutput([]byte(hop))
+	if g := n.Guess(); g.Family == FamilyLinux {
+		t.Fatalf("hop shell prompt counted as Linux evidence: %+v", g)
+	}
+}
+
+func TestRelayRearmOnNewTerminal(t *testing.T) {
+	hop := "OpenBSD 7.9 (GENERIC.MP) #449\r\nste9933@su00nju100:~$ exec ssh admin@10.0.0.5\r\n"
+	d := NewRelay("10.0.0.5")
+	d.ObserveOutput([]byte(hop + "sw1# "))
+	d.RearmRelay()
+	d.ObserveOutput([]byte(hop)) // second tab: hop motd replays
+	if g := d.Guess(); g.Family == FamilyOpenBSD {
+		t.Fatalf("replayed hop banner counted after rearm: %+v", g)
+	}
+	d.ObserveOutput([]byte("Cisco IOS Software\r\n% Invalid input detected at '^' marker.\r\nsw1# "))
+	if g := d.Guess(); g.Family != FamilyIOS || g.Confidence < DefaultThreshold {
+		t.Fatalf("target after rearm: %+v", g)
 	}
 }

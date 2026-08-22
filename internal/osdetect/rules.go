@@ -63,10 +63,11 @@ var promptRules = []rule{
 	// user@host> / user@host# — PAN-OS and Junos operational/config CLI
 	{re: regexp.MustCompile(`^\w[\w.-]*@[\w.-]+[>#]\s?$`),
 		weights: []famWeight{{FamilyPANOS, 1.5}, {FamilyJunos, 1.5}}},
-	// user@host:~/dir$ — Debian-style shell prompt
+	// user@host:~/dir$ — Debian-style shell prompt (a unix jumphost's own
+	// prompt looks like this too, hence hostBanner)
 	{re: regexp.MustCompile(`^\w[\w.-]*@[\w.-]+:.*[$#]\s?$`),
-		weights: []famWeight{{FamilyLinux, 1.5}}},
+		weights: []famWeight{{FamilyLinux, 1.5}}, hostBanner: true},
 	// [user@host dir]$ — RHEL-style shell prompt
 	{re: regexp.MustCompile(`^\[\w[\w.-]*@[\w.-]+[^\]]*\][$#]\s?$`),
-		weights: []famWeight{{FamilyLinux, 1}}},
+		weights: []famWeight{{FamilyLinux, 1}}, hostBanner: true},
 }

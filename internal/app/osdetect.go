@@ -64,12 +64,19 @@ func (a *App) ensureDetector(sessionID, serverVersion string, relay bool) {
 	if a.dets == nil {
 		a.dets = map[string]osdetect.Detector{}
 	}
-	if _, ok := a.dets[sessionID]; ok {
+	if det, ok := a.dets[sessionID]; ok {
+		det.RearmRelay() // a new terminal replays the hop's motd/prompt first
 		return
 	}
 	det := osdetect.New()
 	if relay {
-		det = osdetect.NewRelay()
+		// The target host is the marker: the hop echoes "exec ssh user@host"
+		// right before the target's stream starts.
+		marker := ""
+		if s, _, err := a.st.Resolve(sessionID); err == nil {
+			marker = s.Host
+		}
+		det = osdetect.NewRelay(marker)
 	}
 	if serverVersion != "" {
 		det.ObserveServerVersion(serverVersion)

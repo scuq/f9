@@ -41,7 +41,8 @@ const (
 // the OnData fan-out goroutine concurrently with Guess() callers.
 type Detector interface {
 	ObserveServerVersion(v string)
-	ObserveOutput(p []byte) // banner, prompts, pager markers, error idioms
+	ObserveOutput(p []byte)
+	RearmRelay() // relay: back to hop phase for a fresh terminal; no-op otherwise // banner, prompts, pager markers, error idioms
 	Guess() Guess
 }
 
@@ -56,9 +57,15 @@ type detector struct {
 	firedLine    []bool
 	firedPrompt  []bool
 
-	// relay: the byte stream passes through a unix jumphost (shell-hop), so
-	// host-banner evidence must be ignored — it describes the hop.
-	relay bool
+	// relay: the byte stream passes through a unix jumphost (shell-hop).
+	// Until the hop echoes the onward command (a line containing marker —
+	// the target host) every byte describes the hop and is ignored; after
+	// that the stream is the target's and all rules apply. With no marker
+	// (or one that never shows up, e.g. echo off) host-banner evidence is
+	// skipped for the whole session, as before.
+	relay  bool
+	marker []byte
+	passed bool
 }
 
 func New() Detector {
@@ -71,14 +78,35 @@ func New() Detector {
 }
 
 // NewRelay returns a detector for sessions whose stream passes through a
-// unix jumphost (shell-hop): unix host-banner line rules are ignored so the
-// hop's motd cannot label the target. Device-idiom evidence (prompts, error
-// strings, pagers, product banners) still applies.
-func NewRelay() Detector {
+// unix jumphost (shell-hop). marker is the target host as it appears in the
+// hop's echoed "ssh user@host" line: output before that line is the hop's
+// (motd, its shell prompt) and is ignored entirely; everything after is the
+// target's. An empty marker keeps the conservative mode for the whole
+// session: unix host-banner and unix-shell-prompt rules are skipped so the
+// hop cannot label the target, device idioms still count.
+func NewRelay(marker string) Detector {
 	d := New().(*detector)
 	d.relay = true
+	if marker != "" {
+		d.marker = []byte(marker)
+	}
 	return d
 }
+
+// RearmRelay puts a relay detector back into the hop phase: call it when
+// another terminal opens on the same session, since the hop's motd and
+// prompt replay before the new onward command echoes. No-op otherwise.
+func (d *detector) RearmRelay() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.relay && d.marker != nil {
+		d.passed = false
+		d.tail = nil
+	}
+}
+
+// hopPhase reports whether evidence currently describes the jumphost.
+func (d *detector) hopPhase() bool { return d.relay && !d.passed }
 
 func (d *detector) ObserveServerVersion(v string) {
 	d.mu.Lock()
@@ -134,8 +162,14 @@ func (d *detector) matchLine(line []byte) {
 	if len(line) == 0 {
 		return
 	}
+	if d.hopPhase() && d.marker != nil {
+		if bytes.Contains(line, d.marker) {
+			d.passed = true // the onward ssh command echoed; target from here on
+		}
+		return
+	}
 	for i, r := range lineRules {
-		if d.relay && r.hostBanner {
+		if d.hopPhase() && r.hostBanner {
 			continue
 		}
 		if d.firedLine[i] || !bytes.Contains(line, r.hint) {
@@ -150,7 +184,13 @@ func (d *detector) matchPrompt(tail []byte) {
 	if len(tail) == 0 {
 		return
 	}
+	if d.hopPhase() && d.marker != nil {
+		return // still on the hop: its prompt is not evidence
+	}
 	for i, r := range promptRules {
+		if d.hopPhase() && r.hostBanner {
+			continue
+		}
 		if d.firedPrompt[i] || !r.re.Match(tail) {
 			continue
 		}
