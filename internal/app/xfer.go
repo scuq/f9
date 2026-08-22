@@ -65,6 +65,9 @@ func (a *App) XferTargetFor(termID string) (XferTarget, error) {
 		return XferTarget{}, err
 	}
 	t := XferTarget{SessionID: s.ID, Name: s.Name, Host: s.Host, Port: s.Port, User: s.User}
+	if rt, err := a.targetFor(sessionID); err == nil {
+		t.User = rt.User // alt-user labels (@name) resolved, as the dial sees them
+	}
 	for _, h := range eff.JumpChain {
 		if h.Mode == "shell-hop" {
 			t.ShellHop = true
@@ -117,9 +120,29 @@ func (a *App) openViaHop(sessionID string) (*xfer.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Attempt 1: plain exec. Attempt 2: through a login shell, because a
+	// non-interactive exec on the hop does not source the profile that the
+	// interactive login did — typically where SSH_AUTH_SOCK / agent keys come
+	// from. (cmd passed the safeArg allowlist, so single-quoting is safe.)
+	attempts := []string{cmd, "sh -lc '" + cmd + "'"}
+	var errs []string
+	for _, c := range attempts {
+		conn, why := a.startHopSFTP(hop, c)
+		if why == nil {
+			return conn, nil
+		}
+		errs = append(errs, why.Error())
+	}
+	return nil, fmt.Errorf("app: sftp through the jump host failed\n\u2022 %s", strings.Join(errs, "\n\u2022 "))
+}
+
+// startHopSFTP runs one sftp-carrier command on the hop and attaches the
+// SFTP client. On failure it waits (bounded) for the process so its stderr —
+// the hop's ssh explaining why — is complete, and returns it in the error.
+func (a *App) startHopSFTP(hop *ssh.Client, cmd string) (*xfer.Conn, error) {
 	sess, err := hop.NewSession()
 	if err != nil {
-		return nil, fmt.Errorf("app: jump host session: %w", err)
+		return nil, fmt.Errorf("jump host session: %w", err)
 	}
 	stdin, err := sess.StdinPipe()
 	if err != nil {
@@ -135,19 +158,25 @@ func (a *App) openViaHop(sessionID string) (*xfer.Conn, error) {
 	sess.Stderr = &limitedBuffer{b: hs.stderr, max: 4096}
 	if err := sess.Start(cmd); err != nil {
 		sess.Close()
-		return nil, fmt.Errorf("app: start %q on jump host: %w", cmd, err)
+		return nil, fmt.Errorf("start %q: %w", cmd, err)
 	}
 	conn, err := xfer.OpenPipe(stdout, stdin, hs)
-	if err != nil {
-		sess.Close()
-		// the hop's ssh usually says why (key refused, host unreachable)
-		msg := strings.TrimSpace(hs.stderr.String())
-		if msg != "" {
-			return nil, fmt.Errorf("%w — jump host ssh: %s", err, strings.TrimSpace(string(lastLine([]byte(msg)))))
-		}
-		return nil, err
+	if err == nil {
+		return conn, nil
 	}
-	return conn, nil
+	// let the hop's ssh finish writing its complaint
+	done := make(chan struct{})
+	go func() { _ = sess.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+	}
+	sess.Close()
+	msg := strings.TrimSpace(hs.stderr.String())
+	if msg == "" {
+		return nil, fmt.Errorf("%q: %v (the hop's ssh printed nothing)", cmd, err)
+	}
+	return nil, fmt.Errorf("%q: %v\n  jump host ssh said: %s", cmd, err, strings.ReplaceAll(msg, "\n", "\n  "))
 }
 
 // limitedBuffer keeps the tail of stderr bounded.

@@ -729,3 +729,5 @@ html[data-winborder="0"] body::after { display: none; }
 .xfile.bad .xfill { background: var(--danger); }
 .xfile .xstat { text-align: right; color: var(--folder-fg); font-variant-numeric: tabular-nums; }
 .xfile .error { grid-column: 1 / -1; }
+
+.upload-modal .error { white-space: pre-wrap; }
