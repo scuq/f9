@@ -4,6 +4,7 @@
 package filter
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -46,6 +47,11 @@ func Rank(query string, items []Item) []Hit {
 }
 
 // RankWith is Rank with explicit field Options.
+//
+// Query forms: a plain query is a case-insensitive literal substring — every
+// character must appear contiguously (no scattered-subsequence fuzzing, which
+// made "0102" hit "NWR501-HB01-125A"). A query wrapped in slashes, /re/, is a
+// case-insensitive Go regexp; an invalid pattern matches nothing.
 func RankWith(query string, items []Item, opts Options) []Hit {
 	q := strings.ToLower(strings.TrimSpace(query))
 	if q == "" {
@@ -55,19 +61,38 @@ func RankWith(query string, items []Item, opts Options) []Hit {
 		}
 		return out
 	}
+	var re *regexp.Regexp
+	if len(q) >= 2 && strings.HasPrefix(q, "/") && strings.HasSuffix(q, "/") {
+		pat := strings.TrimSpace(query)
+		pat = pat[1 : len(pat)-1]
+		if pat == "" {
+			return nil
+		}
+		var err error
+		re, err = regexp.Compile("(?i)" + pat)
+		if err != nil {
+			return nil
+		}
+	}
+	match := func(field string, weight int) int {
+		if re != nil {
+			return regexScore(re, field, weight)
+		}
+		return fieldScore(q, field, weight)
+	}
 	out := make([]Hit, 0, 32)
 	for _, it := range items {
-		s := fieldScore(q, it.Name, weightName)
-		if v := fieldScore(q, it.Host, weightHost); v > s {
+		s := match(it.Name, weightName)
+		if v := match(it.Host, weightHost); v > s {
 			s = v
 		}
 		if opts.MatchPath {
-			if v := fieldScore(q, it.Path, weightPath); v > s {
+			if v := match(it.Path, weightPath); v > s {
 				s = v
 			}
 		}
 		for _, tag := range it.Tags {
-			if v := fieldScore(q, tag, weightTag); v > s {
+			if v := match(tag, weightTag); v > s {
 				s = v
 			}
 		}
@@ -84,48 +109,43 @@ func RankWith(query string, items []Item, opts Options) []Hit {
 	return out
 }
 
-// fieldScore scores query q (already lowercased) against one field.
-// Exact substring always outranks a scattered subsequence of the same field;
-// bonuses: prefix, early position, consecutive runs, shorter targets.
+// regexScore scores a /re/ query: leftmost match position and shorter
+// targets rank higher, mirroring the substring bonuses.
+func regexScore(re *regexp.Regexp, s string, weight int) int {
+	if s == "" {
+		return 0
+	}
+	loc := re.FindStringIndex(s)
+	if loc == nil {
+		return 0
+	}
+	score := weight*10 - loc[0]*3 - len(s)
+	if loc[0] == 0 {
+		score += weight * 2
+	}
+	if score < weight {
+		score = weight
+	}
+	return score
+}
+
+// fieldScore scores query q (already lowercased) against one field as a
+// literal substring; bonuses: prefix, early position, shorter targets.
 func fieldScore(q, s string, weight int) int {
 	if s == "" || len(q) > len(s) {
 		return 0
 	}
 	ls := strings.ToLower(s)
-
-	if idx := strings.Index(ls, q); idx >= 0 {
-		score := weight*10 - idx*3 - len(ls)
-		if idx == 0 {
-			score += weight * 2
-		}
-		if score < weight {
-			score = weight // any substring match is worth at least the weight
-		}
-		return score
+	idx := strings.Index(ls, q)
+	if idx < 0 {
+		return 0
 	}
-
-	// Subsequence scan: all query bytes in order, gaps penalized,
-	// consecutive matches rewarded.
-	j := 0
-	prev := -2
-	gaps := 0
-	bonus := 0
-	for i := 0; i < len(q); i++ {
-		k := strings.IndexByte(ls[j:], q[i])
-		if k < 0 {
-			return 0
-		}
-		abs := j + k
-		if abs == prev+1 {
-			bonus += 3
-		}
-		gaps += k
-		prev = abs
-		j = abs + 1
+	score := weight*10 - idx*3 - len(ls)
+	if idx == 0 {
+		score += weight * 2
 	}
-	score := weight*5 - gaps*2 - len(ls) + bonus
-	if score < weight/2 {
-		score = weight / 2
+	if score < weight {
+		score = weight // any substring match is worth at least the weight
 	}
 	return score
 }

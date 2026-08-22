@@ -27,8 +27,12 @@ func TestRankBasics(t *testing.T) {
 		{ID: "3", Name: "dev-behind-bastion", Path: "Sessions/lab", Host: "10.21.201.5"},
 	}
 	hits := Rank("swlab", items)
+	if len(hits) != 0 {
+		t.Fatalf("scattered subsequence must not match: %+v", hits)
+	}
+	hits = Rank("sw-lab", items)
 	if len(hits) != 1 || hits[0].ID != "1" {
-		t.Fatalf("subsequence swlab: %+v", hits)
+		t.Fatalf("literal substring sw-lab: %+v", hits)
 	}
 	hits = Rank("behind", items)
 	if len(hits) != 2 {
@@ -100,5 +104,36 @@ func TestRankWithoutPath(t *testing.T) {
 	}
 	if hits := RankWith("cns", items, Options{MatchPath: true}); len(hits) != 2 {
 		t.Fatalf("path match should hit both: %+v", hits)
+	}
+}
+
+func TestLiteralVsRegex(t *testing.T) {
+	items := []Item{
+		{ID: "1", Name: "NWR501-HB01-125A"},
+		{ID: "2", Name: "ND0102-O71A"},
+		{ID: "3", Name: "NM0102-EG1A"},
+	}
+	hits := RankWith("0102", items, Options{})
+	if len(hits) != 2 {
+		t.Fatalf("0102 must match only literal holders, got %+v", hits)
+	}
+	for _, h := range hits {
+		if h.ID == "1" {
+			t.Fatalf("scattered 0-1-0-2 matched: %+v", hits)
+		}
+	}
+	hits = RankWith("/^nd0102/", items, Options{})
+	if len(hits) != 1 || hits[0].ID != "2" {
+		t.Fatalf("regex anchored: %+v", hits)
+	}
+	hits = RankWith("/01.*25a/", items, Options{})
+	if len(hits) != 1 || hits[0].ID != "1" {
+		t.Fatalf("regex wildcard: %+v", hits)
+	}
+	if got := RankWith("/[/", items, Options{}); len(got) != 0 {
+		t.Fatalf("invalid regex must match nothing: %+v", got)
+	}
+	if got := RankWith("/", items, Options{}); len(got) != 0 {
+		t.Fatalf("lone slash is a literal with no match: %+v", got)
 	}
 }

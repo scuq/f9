@@ -124,12 +124,12 @@ func TestFilterBinding(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	hits, err := a.Filter("swlab")
+	hits, err := a.Filter("sw-lab")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(hits) != 1 || hits[0].Name != "sw-lab-01" || hits[0].Path != "Sessions/lab" {
-		t.Fatalf("Filter(swlab) = %+v", hits)
+		t.Fatalf("Filter(sw-lab) = %+v", hits)
 	}
 }
 

@@ -1523,6 +1523,18 @@ export function App() {
     if (raw.trim() === "") { setHits(null); return; }
     debounce.current = window.setTimeout(() => api().Filter(raw).then(setHits).catch((e) => setErr(String(e))), filterDebounceMs(raw.trim().length));
   };
+  // clearFilter: Esc in the filter box, or Ctrl/Cmd+Shift+F from anywhere
+  // (also while a terminal has focus) — clears text + favourites toggle and
+  // focuses the box so you can type a new query straight away.
+  const filterRef = useRef<HTMLInputElement>(null);
+  const clearFilter = () => { onQuery(""); setFavOnly(false); filterRef.current?.focus(); };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "f") { e.preventDefault(); clearFilter(); }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  });
   const select = (s: SessionNode) => {
     setSel(s); setView({ kind: "details", id: s.id });
     api().SessionDetail(s.id).then(setDetail).catch((e) => setErr(String(e)));
@@ -1860,7 +1872,9 @@ export function App() {
           <button onClick={connectFolder} disabled={!selFolder}>connect folder</button>
         </div>
         <div class="filterbar">
-          <input type="text" placeholder="filter sessions..." value={q} onInput={(e) => onQuery((e.target as HTMLInputElement).value)} />
+          <input type="text" ref={filterRef} placeholder="filter sessions... (/regex/ for patterns, Esc clears)" value={q}
+            onInput={(e) => onQuery((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); clearFilter(); } }} />
           <button class={"favtoggle" + (favOnly ? " on" : "")} title={favOnly ? "showing favourites only \u2014 click to show all" : "show favourites only"} onClick={() => setFavOnly(!favOnly)}>{favOnly ? "\u2605" : "\u2606"}</button>
           <button title="reload store" onClick={load}>&#x21bb;</button>
         </div>
