@@ -376,6 +376,21 @@ function SettingsModal(props: {
         <label class="checkrow"><input type="checkbox" checked={settings.showMultiSend} onChange={(e) => onSave({ showMultiSend: (e.target as HTMLInputElement).checked })} /> multi-send (broadcast to marked tabs)</label>
         <label class="checkrow"><input type="checkbox" checked={!settings.pasteConfirmOff} onChange={(e) => onSave({ pasteConfirmOff: !(e.target as HTMLInputElement).checked })} /> confirm multi-line paste (review/edit before sending)</label>
         <label class="checkrow"><input type="checkbox" checked={settings.filterMatchPath} onChange={(e) => onSave({ filterMatchPath: (e.target as HTMLInputElement).checked })} /> session filter also matches folder path (default: name / host / tags only)</label>
+        <label class="checkrow"><input type="checkbox" checked={!settings.windowBorderOff} onChange={(e) => onSave({ windowBorderOff: !(e.target as HTMLInputElement).checked })} /> border on the active window</label>
+        {!settings.windowBorderOff && (<>
+          <div class="formrow">
+            <label>border width</label>
+            <input type="number" min="1" max="8" value={String(settings.windowBorderPx || 1)}
+              onInput={(e) => onSave({ windowBorderPx: Math.max(1, Math.min(8, parseInt((e.target as HTMLInputElement).value, 10) || 1)) })} />
+            <span class="hint">px</span>
+          </div>
+          <div class="formrow">
+            <label>border color</label>
+            <input type="color" value={settings.windowBorderColor || accentColor()} onInput={(e) => onSave({ windowBorderColor: (e.target as HTMLInputElement).value })} />
+            <input type="text" placeholder="theme accent" value={settings.windowBorderColor} onInput={(e) => onSave({ windowBorderColor: (e.target as HTMLInputElement).value.trim() })} />
+            {settings.windowBorderColor && <button onClick={() => onSave({ windowBorderColor: "" })}>use theme accent</button>}
+          </div>
+        </>)}
 
         <div class="opthead">button bar layout</div>
         <div class="formrow"><label>layout</label>
@@ -515,7 +530,7 @@ function SearchPanel(props: {
 }
 
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
-const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false, showMultiSend: false, pasteConfirmOff: false, filterMatchPath: false };
+const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false, showMultiSend: false, pasteConfirmOff: false, filterMatchPath: false, windowBorderOff: false, windowBorderPx: 0, windowBorderColor: "" };
 
 function UnresolvedModal(props: {
   names: string[];
@@ -972,6 +987,12 @@ function TabScroller(props: { activeKey: string; children: ComponentChildren }) 
   );
 }
 
+// accentColor reads the theme's accent as a #rrggbb for the color input.
+function accentColor(): string {
+  const v = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+  return /^#[0-9a-f]{6}$/i.test(v) ? v : "#4db2f0";
+}
+
 function fmtBytes(n: number): string {
   if (n < 1024) return n + " B";
   if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KiB";
@@ -1395,6 +1416,13 @@ export function App() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [themeList, setThemeList] = useState<string[]>([]);
   const [settings, setSettings] = useState<UISettings>(EMPTY_SETTINGS);
+  useEffect(() => {
+    const r = document.documentElement;
+    r.dataset.winborder = settings.windowBorderOff ? "0" : "1";
+    r.style.setProperty("--winborder-px", (settings.windowBorderPx || 1) + "px");
+    if (settings.windowBorderColor) r.style.setProperty("--winborder-color", settings.windowBorderColor);
+    else r.style.removeProperty("--winborder-color");
+  }, [settings.windowBorderOff, settings.windowBorderPx, settings.windowBorderColor]);
   const [settingsModal, setSettingsModal] = useState(false);
   const [jumpEdit, setJumpEdit] = useState<{ sessionId: string; initial: JumpHop[] } | null>(null);
   const [folderJump, setFolderJump] = useState<{ folderId: string; initial: JumpHop[] } | null>(null);
@@ -1674,6 +1702,7 @@ export function App() {
   // frameless window draws its own edge, so mark the root while focused.
   useEffect(() => {
     const set = () => { document.documentElement.dataset.winfocus = document.hasFocus() ? "1" : "0"; };
+    // (the border itself is gated by data-winborder, kept in sync with settings below)
     set();
     window.addEventListener("focus", set);
     window.addEventListener("blur", set);

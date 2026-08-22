@@ -34,11 +34,16 @@ type UISettings struct {
 	PasteConfirmOff bool `yaml:"paste_confirm_off,omitempty" json:"pasteConfirmOff"`
 	// FilterMatchPath lets the tree filter also match the folder path; by
 	// default only session name, host and tags are matched.
-	FilterMatchPath bool      `yaml:"filter_match_path,omitempty" json:"filterMatchPath"`
-	KeyFiles        []string  `yaml:"key_files,omitempty" json:"keyFiles"`
-	DisableAgent    bool      `yaml:"disable_agent,omitempty" json:"disableAgent"`
-	AgentSockets    []string  `yaml:"agent_sockets,omitempty" json:"agentSockets"`
-	AltUsers        []AltUser `yaml:"alt_users,omitempty" json:"altUsers"`
+	FilterMatchPath bool `yaml:"filter_match_path,omitempty" json:"filterMatchPath"`
+	// WindowBorderOff hides the accent border drawn while f9 is the active
+	// window; the zero value keeps it ON by default.
+	WindowBorderOff   bool      `yaml:"window_border_off,omitempty" json:"windowBorderOff"`
+	WindowBorderPx    int       `yaml:"window_border_px,omitempty" json:"windowBorderPx"`       // 0 = 1px
+	WindowBorderColor string    `yaml:"window_border_color,omitempty" json:"windowBorderColor"` // "" = theme accent
+	KeyFiles          []string  `yaml:"key_files,omitempty" json:"keyFiles"`
+	DisableAgent      bool      `yaml:"disable_agent,omitempty" json:"disableAgent"`
+	AgentSockets      []string  `yaml:"agent_sockets,omitempty" json:"agentSockets"`
+	AltUsers          []AltUser `yaml:"alt_users,omitempty" json:"altUsers"`
 }
 
 // AltUser is a named alternative login (e.g. jumphost -> ste9933), available

@@ -569,6 +569,9 @@ export namespace app {
 	    showMultiSend: boolean;
 	    pasteConfirmOff: boolean;
 	    filterMatchPath: boolean;
+	    windowBorderOff: boolean;
+	    windowBorderPx: number;
+	    windowBorderColor: string;
 	    keyFiles: string[];
 	    disableAgent: boolean;
 	    agentSockets: string[];
@@ -595,6 +598,9 @@ export namespace app {
 	        this.showMultiSend = source["showMultiSend"];
 	        this.pasteConfirmOff = source["pasteConfirmOff"];
 	        this.filterMatchPath = source["filterMatchPath"];
+	        this.windowBorderOff = source["windowBorderOff"];
+	        this.windowBorderPx = source["windowBorderPx"];
+	        this.windowBorderColor = source["windowBorderColor"];
 	        this.keyFiles = source["keyFiles"];
 	        this.disableAgent = source["disableAgent"];
 	        this.agentSockets = source["agentSockets"];

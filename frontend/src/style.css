@@ -695,8 +695,16 @@ select, input, textarea, option { color-scheme: dark; }
 .row.folder .foldermark { margin: 0 2px 0 0; cursor: pointer; }
 
 /* Active-window border: subtle when inactive, accent-coloured while f9 has focus. */
-#root { box-sizing: border-box; box-shadow: inset 0 0 0 1px rgba(127,127,127,0.25); transition: box-shadow 120ms; }
-html[data-winfocus="1"] #root { box-shadow: inset 0 0 0 1px var(--accent); }
+:root { --winborder-px: 1px; }
+/* drawn as a click-through overlay: an inset shadow on #root would be hidden
+   under the opaque panes that fill the window */
+body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 100000;
+  box-shadow: inset 0 0 0 var(--winborder-px) rgba(127,127,127,0.25); transition: box-shadow 120ms;
+}
+html[data-winfocus="1"] body::after { box-shadow: inset 0 0 0 var(--winborder-px) var(--winborder-color, var(--accent)); }
+html[data-winborder="0"] body::after { display: none; }
+.settings-modal input[type=color] { width: 36px; height: 26px; padding: 0; border: 1px solid var(--border); background: none; flex: none; }
 
 .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .modal-head h2 { margin: 0; }
