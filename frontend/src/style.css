@@ -691,3 +691,5 @@ select, input, textarea, option { color-scheme: dark; }
 }
 
 .sb-uptime { font-variant-numeric: tabular-nums; }
+
+.row.folder .foldermark { margin: 0 2px 0 0; cursor: pointer; }

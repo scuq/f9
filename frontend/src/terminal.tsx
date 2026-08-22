@@ -166,13 +166,19 @@ export function TerminalView(
         if (prim) routePasteRef.current(prim);
       }
     };
+    // Every native paste (Ctrl+V, context menu, the WebView's own middle-click)
+    // is taken over here so it passes the same multi-line review guard as
+    // Ctrl+Shift+V and our middle-click handler; xterm never sees it.
     const onNativePaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      e.stopImmediatePropagation();
       if (suppressNativePaste) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
         suppressNativePaste = false;
         window.clearTimeout(suppressTimer);
+        return;
       }
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      if (text) routePasteRef.current(text);
     };
     primaryHost.addEventListener("mousedown", onMiddlePaste, true);
     primaryHost.addEventListener("paste", onNativePaste, true);

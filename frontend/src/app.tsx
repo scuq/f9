@@ -130,9 +130,18 @@ function Folder(props: {
   onFolderCtx: (node: FolderNode, x: number, y: number) => void;
   refreshing: Set<string>; onRefreshStatus: (node: FolderNode) => void;
   showMarks: boolean; onConnect: (s: SessionNode) => void; onTogglePin: (s: SessionNode) => void; forceOpen?: boolean;
+  onMarkFolder: (node: FolderNode, on: boolean) => void;
 }) {
-  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx, refreshing, onRefreshStatus, showMarks, onConnect, onTogglePin, forceOpen } = props;
+  const { node, depth, selected, selectedFolder, marked, onSelect, onSelectFolder, onToggleMark, onFolderCtx, refreshing, onRefreshStatus, showMarks, onConnect, onTogglePin, forceOpen, onMarkFolder } = props;
   const [open, setOpen] = useState(depth < 2);
+  // Folder checkbox (selection mode): reflects the whole subtree — all marked,
+  // some marked (indeterminate), or none — and toggles every session in it.
+  let subTotal = 0, subMarked = 0;
+  if (showMarks) {
+    const count = (n: FolderNode) => { for (const x of n.sessions ?? []) { subTotal++; if (marked[x.id]) subMarked++; } for (const c of n.folders ?? []) count(c); };
+    count(node);
+  }
+  const allMarked = subTotal > 0 && subMarked === subTotal;
   // A filter must show every ancestor of a match, so it overrides the local
   // collapse state; clearing the filter restores whatever the user had open.
   const isOpen = forceOpen || open;
@@ -143,6 +152,12 @@ function Folder(props: {
         onClick={() => onSelectFolder(node)}
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onFolderCtx(node, e.clientX, e.clientY); }}>
         <span class="twist" onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>{isOpen ? "\u25be" : "\u25b8"}</span>
+        {showMarks && subTotal > 0 && (
+          <input type="checkbox" class="foldermark" checked={allMarked}
+            ref={(el) => { if (el) el.indeterminate = subMarked > 0 && !allMarked; }}
+            title={allMarked ? "unmark all " + subTotal + " sessions in this folder" : "mark all " + subTotal + " sessions in this folder" + (subMarked ? " (" + subMarked + " marked)" : "")}
+            onClick={(e) => { e.stopPropagation(); onMarkFolder(node, !allMarked); }} />
+        )}
         <span class="fname">{node.name}</span>
         <span class="fcount" title={cnt.f + " subfolders \u00b7 " + cnt.s + " sessions"}>{cnt.f > 0 ? cnt.f + "/" : ""}{cnt.s}</span>
         {node.hasSource && <span class="genmark" title="import source configured on this folder">src</span>}
@@ -155,7 +170,7 @@ function Folder(props: {
       {isOpen && (node.folders ?? []).map((c) => (
         <Folder key={c.id} node={c} depth={depth + 1} selected={selected} selectedFolder={selectedFolder}
           marked={marked} onSelect={onSelect} onSelectFolder={onSelectFolder} onToggleMark={onToggleMark} onFolderCtx={onFolderCtx}
-          refreshing={refreshing} onRefreshStatus={onRefreshStatus} showMarks={showMarks} onConnect={onConnect} onTogglePin={onTogglePin} forceOpen={forceOpen} />
+          refreshing={refreshing} onRefreshStatus={onRefreshStatus} showMarks={showMarks} onConnect={onConnect} onTogglePin={onTogglePin} forceOpen={forceOpen} onMarkFolder={onMarkFolder} />
       ))}
     </div>
   );
@@ -1540,6 +1555,12 @@ export function App() {
     api().SessionDetail(s.id).then(setDetail).catch((e) => setErr(String(e)));
   };
   const toggleMark = (id: string) => setMarked((m) => { const n = { ...m }; if (n[id]) delete n[id]; else n[id] = true; return n; });
+  const markFolder = (node: FolderNode, on: boolean) => setMarked((m) => {
+    const n = { ...m };
+    const walk = (f: FolderNode) => { for (const x of f.sessions ?? []) { if (on) n[x.id] = true; else delete n[x.id]; } for (const c of f.folders ?? []) walk(c); };
+    walk(node);
+    return n;
+  });
   // Filtering keeps the tree shape: the backend still ranks and we still cap to
   // FILTER_MAX_RESULTS by score, but the surviving IDs are projected back onto
   // the loaded tree instead of being painted as a flat list.
@@ -1883,7 +1904,7 @@ export function App() {
           {filtering && !shownTree ? <div class="nohits">{favOnly && hits === null ? "no favourites yet \u2014 click \u2606 on a session" : "no matches"}</div> : (
             shownTree && (<>
               <Folder node={shownTree} forceOpen={filtering} depth={0} selected={sel?.id ?? ""} selectedFolder={selFolder?.id ?? ""} marked={marked}
-                onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} onFolderCtx={openFolderCtx}
+                onSelect={select} onSelectFolder={(f) => setSelFolder({ id: f.id, path: f.path })} onToggleMark={toggleMark} onMarkFolder={markFolder} onFolderCtx={openFolderCtx}
                 refreshing={refreshing} onRefreshStatus={(node) => setRefreshStatus({ folderId: node.id, name: node.name })}
                 showMarks={showMarks} onConnect={(s) => connectAndOpen(s.id, s.name)} onTogglePin={(s) => togglePin(s.id, !!s.pinned)} />
               {hits !== null && hits.length > FILTER_MAX_RESULTS && <div class="nohits">showing first {FILTER_MAX_RESULTS} of {hits.length} matches, refine to narrow</div>}
