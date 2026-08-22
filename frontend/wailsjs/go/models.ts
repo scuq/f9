@@ -678,6 +678,7 @@ export namespace app {
 	    port: number;
 	    user: string;
 	    shellHop: boolean;
+	    hopLabel: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new XferTarget(source);
@@ -691,6 +692,7 @@ export namespace app {
 	        this.port = source["port"];
 	        this.user = source["user"];
 	        this.shellHop = source["shellHop"];
+	        this.hopLabel = source["hopLabel"];
 	    }
 	}
 

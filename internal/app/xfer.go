@@ -1,10 +1,14 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/scuq/f9/internal/sshx"
 	"github.com/scuq/f9/internal/store"
@@ -31,6 +35,7 @@ type XferTarget struct {
 	Port      int    `json:"port"`
 	User      string `json:"user"`
 	ShellHop  bool   `json:"shellHop"` // session's own connection cannot carry SFTP
+	HopLabel  string `json:"hopLabel"` // "user@host" of the shell-hop, for the route picker
 }
 
 type XferListing struct {
@@ -63,9 +68,102 @@ func (a *App) XferTargetFor(termID string) (XferTarget, error) {
 	for _, h := range eff.JumpChain {
 		if h.Mode == "shell-hop" {
 			t.ShellHop = true
+			t.HopLabel = h.Host
+			if h.User != "" {
+				t.HopLabel = h.User + "@" + h.Host
+			}
 		}
 	}
 	return t, nil
+}
+
+// XferViaHop is the viaSessionID value selecting the "through the jump host"
+// route: the hop's own ssh binary opens the target's sftp subsystem, so the
+// hop's keys/agent authenticate — exactly as the interactive shell-hop does.
+const XferViaHop = "@hop"
+
+// hopClientOf returns the jump host's SSH client for a shell-hop session.
+func hopClientOf(c sshx.Client) (*ssh.Client, bool) {
+	h, ok := c.(interface{ HopClient() *ssh.Client })
+	if !ok {
+		return nil, false
+	}
+	return h.HopClient(), true
+}
+
+// hopSession is the carrier for the hop route: one exec session on the jump
+// host running ssh -s ... sftp; closing it ends that process.
+type hopSession struct {
+	sess   *ssh.Session
+	stderr *bytes.Buffer
+}
+
+func (h *hopSession) Close() error { return h.sess.Close() }
+
+func (a *App) openViaHop(sessionID string) (*xfer.Conn, error) {
+	client, ok := a.mgr.Client(sessionID)
+	if !ok {
+		return nil, fmt.Errorf("app: session not connected")
+	}
+	hop, ok := hopClientOf(client)
+	if !ok || hop == nil {
+		return nil, fmt.Errorf("app: this session has no shell-hop; use its own connection")
+	}
+	t, err := a.targetFor(sessionID)
+	if err != nil {
+		return nil, err
+	}
+	cmd, err := sshx.SFTPViaHopCommand(t.Host, t.Port, t.User)
+	if err != nil {
+		return nil, err
+	}
+	sess, err := hop.NewSession()
+	if err != nil {
+		return nil, fmt.Errorf("app: jump host session: %w", err)
+	}
+	stdin, err := sess.StdinPipe()
+	if err != nil {
+		sess.Close()
+		return nil, err
+	}
+	stdout, err := sess.StdoutPipe()
+	if err != nil {
+		sess.Close()
+		return nil, err
+	}
+	hs := &hopSession{sess: sess, stderr: &bytes.Buffer{}}
+	sess.Stderr = &limitedBuffer{b: hs.stderr, max: 4096}
+	if err := sess.Start(cmd); err != nil {
+		sess.Close()
+		return nil, fmt.Errorf("app: start %q on jump host: %w", cmd, err)
+	}
+	conn, err := xfer.OpenPipe(stdout, stdin, hs)
+	if err != nil {
+		sess.Close()
+		// the hop's ssh usually says why (key refused, host unreachable)
+		msg := strings.TrimSpace(hs.stderr.String())
+		if msg != "" {
+			return nil, fmt.Errorf("%w — jump host ssh: %s", err, strings.TrimSpace(string(lastLine([]byte(msg)))))
+		}
+		return nil, err
+	}
+	return conn, nil
+}
+
+// limitedBuffer keeps the tail of stderr bounded.
+type limitedBuffer struct {
+	b   *bytes.Buffer
+	max int
+}
+
+func (l *limitedBuffer) Write(p []byte) (int, error) {
+	l.b.Write(p)
+	if l.b.Len() > l.max {
+		tail := l.b.Bytes()[l.b.Len()-l.max:]
+		nb := bytes.NewBuffer(append([]byte(nil), tail...))
+		*l.b = *nb
+	}
+	return len(p), nil
 }
 
 // XferOpen opens an SFTP handle for sessionID. viaSessionID == "" uses the
@@ -74,14 +172,20 @@ func (a *App) XferTargetFor(termID string) (XferTarget, error) {
 // is stored — ADR-0005). Returns the handle id.
 func (a *App) XferOpen(sessionID, viaSessionID string) (string, error) {
 	h := &xferHandle{}
-	if viaSessionID == "" {
+	if viaSessionID == XferViaHop {
+		c, err := a.openViaHop(sessionID)
+		if err != nil {
+			return "", err
+		}
+		h.conn = c
+	} else if viaSessionID == "" {
 		client, ok := a.mgr.Client(sessionID)
 		if !ok {
 			return "", fmt.Errorf("app: session not connected")
 		}
 		raw := client.SSHClient()
 		if raw == nil {
-			return "", fmt.Errorf("app: this session runs through a shell-hop; choose a SOCKS session to copy through instead")
+			return "", fmt.Errorf("app: this session runs through a shell-hop; choose the jump-host route (or a SOCKS session) instead")
 		}
 		c, err := xfer.Open(raw)
 		if err != nil {

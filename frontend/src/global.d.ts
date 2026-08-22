@@ -133,7 +133,7 @@ declare global {
     // (ConnInfoDTO lives below)
     socksPort: number; socksActive: boolean; socksOnly: boolean;
   }
-  interface XferTarget { sessionId: string; name: string; host: string; port: number; user: string; shellHop: boolean; }
+  interface XferTarget { sessionId: string; name: string; host: string; port: number; user: string; shellHop: boolean; hopLabel: string; }
   interface XferEntry { name: string; size: number; dir: boolean; mode: string; modTime: string; }
   interface XferListing { dir: string; entries: XferEntry[]; }
   interface XferProgress { id: string; file: string; done: number; total: number; finished: boolean; error: string; }

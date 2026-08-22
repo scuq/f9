@@ -31,7 +31,8 @@ type Entry struct {
 // uploads on the same Conn from multiple goroutines beyond what pkg/sftp
 // allows (it is request-pipelined and goroutine-safe).
 type Conn struct {
-	c *sftp.Client
+	c     *sftp.Client
+	extra io.Closer // OpenPipe: the carrier session/process
 }
 
 // Open starts the sftp subsystem on an established SSH client. A server
@@ -45,6 +46,17 @@ func Open(client *ssh.Client) (*Conn, error) {
 		return nil, fmt.Errorf("xfer: sftp subsystem: %w (the server may not offer SFTP; scp-only devices are not supported yet)", err)
 	}
 	return &Conn{c: c}, nil
+}
+
+// OpenPipe speaks SFTP over an arbitrary byte pipe — e.g. the stdin/stdout of
+// "ssh -s user@target sftp" executed on a jump host. closer is closed with the
+// Conn (the remote process/session).
+func OpenPipe(rd io.Reader, wr io.WriteCloser, closer io.Closer) (*Conn, error) {
+	c, err := sftp.NewClientPipe(rd, wr, sftp.UseConcurrentWrites(true), sftp.MaxConcurrentRequestsPerFile(16))
+	if err != nil {
+		return nil, fmt.Errorf("xfer: sftp over pipe: %w", err)
+	}
+	return &Conn{c: c, extra: closer}, nil
 }
 
 // Home returns the remote working directory (normally the login home).
@@ -177,5 +189,12 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-// Close ends the SFTP channel (not the SSH connection).
-func (x *Conn) Close() error { return x.c.Close() }
+// Close ends the SFTP channel (not the SSH connection) and, for OpenPipe
+// conns, the carrier.
+func (x *Conn) Close() error {
+	err := x.c.Close()
+	if x.extra != nil {
+		_ = x.extra.Close()
+	}
+	return err
+}

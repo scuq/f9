@@ -1005,7 +1005,7 @@ function fmtBytes(n: number): string {
 // SOCKS-capable session (required for shell-hop targets).
 function UploadModal(props: { target: XferTarget; socksSessions: Conn[]; onClose: () => void }) {
   const { target, socksSessions, onClose } = props;
-  const [via, setVia] = useState<string>(target.shellHop && socksSessions.length ? socksSessions[0].sessionId : "");
+  const [via, setVia] = useState<string>(target.shellHop ? "@hop" : "");
   const [xid, setXid] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -1061,12 +1061,13 @@ function UploadModal(props: { target: XferTarget; socksSessions: Conn[]; onClose
           <label>route</label>
           <select value={via} disabled={!!xid} onChange={(e) => setVia((e.target as HTMLSelectElement).value)}>
             <option value="" disabled={target.shellHop}>{target.shellHop ? "session connection (shell-hop: not available)" : "session connection"}</option>
-            {socksSessions.map((c) => <option value={c.sessionId} key={c.sessionId}>via {socksLabel(c)}</option>)}
+            {target.shellHop && <option value="@hop">through jump host {target.hopLabel} (its ssh keys, like the interactive login)</option>}
+            {socksSessions.map((c) => <option value={c.sessionId} key={c.sessionId}>via {socksLabel(c)} (new connection, local keys)</option>)}
           </select>
           {!xid && <button class="primary" disabled={busy || (target.shellHop && !via)} onClick={connect}>{busy ? "connecting…" : "connect"}</button>}
         </div>
-        {via && !xid && <div class="hint">a new SSH connection to {target.user ? target.user + "@" : ""}{target.host} is dialed through that session's tunnel; you may be asked to authenticate.</div>}
-        {target.shellHop && !socksSessions.length && <div class="hint warn">this session reaches its target through a shell-hop; open a session with a SOCKS port to copy through it.</div>}
+        {via === "@hop" && !xid && <div class="hint">runs <code>ssh -s {target.user ? target.user + "@" : ""}{target.host} sftp</code> on the jump host, so the jump host's keys/agent authenticate — no password prompt is possible on this route.</div>}
+        {via && via !== "@hop" && !xid && <div class="hint">a new SSH connection to {target.user ? target.user + "@" : ""}{target.host} is dialed from this machine through that session's tunnel; you may be asked to authenticate.</div>}
         {err && <div class="error" onClick={() => setErr("")}>{err}</div>}
 
         {xid && (<>

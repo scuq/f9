@@ -221,6 +221,35 @@ func (h *shellHopClient) ConnInfo() ConnInfo { return connInfoFrom(h.hop, true) 
 func (n *nativeClient) SSHClient() *ssh.Client   { return n.c }
 func (h *shellHopClient) SSHClient() *ssh.Client { return nil }
 
+// HopClient exposes the jump host's SSH client so callers can run commands
+// there (e.g. the sftp subsystem via the hop's own ssh binary and keys —
+// the same way the interactive shell-hop authenticates). Optional interface:
+// assert for it, only shell-hop clients implement it.
+func (h *shellHopClient) HopClient() *ssh.Client { return h.hop }
+
+// SFTPViaHopCommand builds the command run on a shell-hop to open the target's
+// sftp subsystem through the hop's ssh (BatchMode: the hop's keys/agent must
+// suffice, there is no tty for a password). Same allowlist as the shell-hop
+// login command.
+func SFTPViaHopCommand(host string, port int, user string) (string, error) {
+	if !safeArg.MatchString(host) {
+		return "", fmt.Errorf("sshx: unsafe shell-hop target host %q", host)
+	}
+	if user != "" && !safeArg.MatchString(user) {
+		return "", fmt.Errorf("sshx: unsafe shell-hop target user %q", user)
+	}
+	cmd := "ssh -o BatchMode=yes"
+	if port > 0 && port != 22 {
+		cmd += " -p " + strconv.Itoa(port)
+	}
+	if user != "" {
+		cmd += " -s " + user + "@" + host + " sftp"
+	} else {
+		cmd += " -s " + host + " sftp"
+	}
+	return cmd, nil
+}
+
 func (n *nativeClient) startKeepalive(interval time.Duration, act *activityConn) {
 	if interval <= 0 {
 		return
