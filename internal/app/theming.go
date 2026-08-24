@@ -32,6 +32,10 @@ type UISettings struct {
 	// PasteConfirmOff disables the multi-line paste review overlay; the zero
 	// value keeps the confirmation ON by default.
 	PasteConfirmOff bool `yaml:"paste_confirm_off,omitempty" json:"pasteConfirmOff"`
+	// WebGL enables xterm.js's GPU renderer (opt-in): much faster on a flood,
+	// but WebKitGTK composites the canvas black when the DMABUF renderer is
+	// disabled (which f9 forces on Linux), so the default stays the DOM renderer.
+	WebGL bool `yaml:"webgl,omitempty" json:"webgl"`
 	// FilterMatchPath lets the tree filter also match the folder path; by
 	// default only session name, host and tags are matched.
 	FilterMatchPath bool `yaml:"filter_match_path,omitempty" json:"filterMatchPath"`

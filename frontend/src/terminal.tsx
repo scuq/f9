@@ -16,7 +16,7 @@ function b64ToBytes(b64: string): Uint8Array {
 }
 
 export function TerminalView(
-  { termId, sessionId, active, disconnected, onReconnect, confirmPaste }: { termId: string; sessionId: string; active: boolean; disconnected?: boolean; onReconnect?: () => void; confirmPaste?: boolean },
+  { termId, sessionId, active, disconnected, onReconnect, confirmPaste, webgl }: { termId: string; sessionId: string; active: boolean; disconnected?: boolean; onReconnect?: () => void; confirmPaste?: boolean; webgl?: boolean },
 ) {
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<XTerm | null>(null);
@@ -87,15 +87,6 @@ export function TerminalView(
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(hostRef.current!);
-    // GPU renderer: several times the parse/paint throughput of the default
-    // DOM renderer, which is what keeps the backend flow-control window from
-    // stalling on a big flood. No WebGL2 (or a lost context) falls back to
-    // the DOM renderer transparently.
-    try {
-      const gl = new WebglAddon();
-      gl.onContextLoss(() => gl.dispose());
-      term.loadAddon(gl);
-    } catch { /* DOM renderer */ }
     // Viewport scrollback follows the session's scrollbackLines option
     // (clamped in Go); the Go ring keeps the full history for search.
     api().TermScrollback(sessionId).then((n) => { if (n > 0) term.options.scrollback = n; }).catch(() => {});
@@ -247,6 +238,27 @@ export function TerminalView(
       term.dispose();
     };
   }, [termId]);
+
+  // GPU renderer (opt-in setting): several times the parse/paint throughput
+  // of the DOM renderer. Loaded/disposed as the setting changes; no WebGL2 or
+  // a lost context leaves xterm on the DOM renderer. Off by default because
+  // WebKitGTK without the DMABUF renderer draws the canvas black.
+  const glRef = useRef<WebglAddon | null>(null);
+  useEffect(() => {
+    const term = termRef.current;
+    if (!term) return;
+    if (webgl && !glRef.current) {
+      try {
+        const gl = new WebglAddon();
+        gl.onContextLoss(() => { gl.dispose(); glRef.current = null; });
+        term.loadAddon(gl);
+        glRef.current = gl;
+      } catch { glRef.current = null; }
+    } else if (!webgl && glRef.current) {
+      glRef.current.dispose();
+      glRef.current = null;
+    }
+  }, [webgl]);
 
   useEffect(() => {
     if (active && fitRef.current && termRef.current) {

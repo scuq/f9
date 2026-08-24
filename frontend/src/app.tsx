@@ -375,6 +375,7 @@ function SettingsModal(props: {
         <label class="checkrow"><input type="checkbox" checked={settings.showSnippets} onChange={(e) => onSave({ showSnippets: (e.target as HTMLInputElement).checked })} /> snippet library (Ctrl+P)</label>
         <label class="checkrow"><input type="checkbox" checked={settings.showMultiSend} onChange={(e) => onSave({ showMultiSend: (e.target as HTMLInputElement).checked })} /> multi-send (broadcast to marked tabs)</label>
         <label class="checkrow"><input type="checkbox" checked={!settings.pasteConfirmOff} onChange={(e) => onSave({ pasteConfirmOff: !(e.target as HTMLInputElement).checked })} /> confirm multi-line paste (review/edit before sending)</label>
+        <label class="checkrow"><input type="checkbox" checked={settings.webgl} onChange={(e) => onSave({ webgl: (e.target as HTMLInputElement).checked })} /> GPU terminal renderer (WebGL; faster on big output, but shows a black terminal on some Linux/WebKit setups — turn off if so)</label>
         <label class="checkrow"><input type="checkbox" checked={settings.filterMatchPath} onChange={(e) => onSave({ filterMatchPath: (e.target as HTMLInputElement).checked })} /> session filter also matches folder path (default: name / host / tags only)</label>
         <label class="checkrow"><input type="checkbox" checked={!settings.windowBorderOff} onChange={(e) => onSave({ windowBorderOff: !(e.target as HTMLInputElement).checked })} /> border on the active window</label>
         {!settings.windowBorderOff && (<>
@@ -530,7 +531,7 @@ function SearchPanel(props: {
 }
 
 const STATE_LABEL: Record<string, string> = { dialing: "dialing…", connected: "connected", error: "error" };
-const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false, showMultiSend: false, pasteConfirmOff: false, filterMatchPath: false, windowBorderOff: false, windowBorderPx: 0, windowBorderColor: "" };
+const EMPTY_SETTINGS: UISettings = { theme: "", zoom: 1, fontUI: "", fontMono: "", fontUISize: 0, fontTermSize: 0, showGlobalBar: false, showFolderBar: false, showTemplates: false, showSnippets: false, barVertical: false, barUnpinned: false, showMultiSend: false, pasteConfirmOff: false, webgl: false, filterMatchPath: false, windowBorderOff: false, windowBorderPx: 0, windowBorderColor: "" };
 
 function UnresolvedModal(props: {
   names: string[];
@@ -2157,7 +2158,7 @@ export function App() {
         )}
         <div class="paneview">
           {tabs.map((t) => (
-            <TerminalView key={t.termId} termId={t.termId} sessionId={t.sessionId} active={view.kind === "term" && view.id === t.termId} disconnected={dead.has(t.termId)} onReconnect={() => reconnectTab(t)} confirmPaste={!settings.pasteConfirmOff} />
+            <TerminalView key={t.termId} termId={t.termId} sessionId={t.sessionId} active={view.kind === "term" && view.id === t.termId} disconnected={dead.has(t.termId)} onReconnect={() => reconnectTab(t)} confirmPaste={!settings.pasteConfirmOff} webgl={settings.webgl} />
           ))}
           {searchOpen && view.kind === "term" && (
             <SearchPanel

@@ -149,7 +149,7 @@ declare global {
     theme: string; zoom: number;
     fontUI: string; fontMono: string; fontUISize: number; fontTermSize: number;
     showGlobalBar: boolean; showFolderBar: boolean; showTemplates: boolean; showSnippets: boolean;
-    barVertical: boolean; barUnpinned: boolean; showMultiSend: boolean; pasteConfirmOff: boolean; filterMatchPath: boolean; windowBorderOff: boolean; windowBorderPx: number; windowBorderColor: string;
+    barVertical: boolean; barUnpinned: boolean; showMultiSend: boolean; pasteConfirmOff: boolean; webgl: boolean; filterMatchPath: boolean; windowBorderOff: boolean; windowBorderPx: number; windowBorderColor: string;
     keyFiles: string[] | null; disableAgent: boolean; agentSockets: string[] | null;
     altUsers: AltUser[] | null;
   }
