@@ -47,6 +47,13 @@ type terminal struct {
 	flowMu   sync.Mutex
 	flowCond *sync.Cond
 	inflight int64
+
+	// Output coalescing (see queueOutput). emit is called with outMu held so
+	// events leave in read order; outBuf holds reads waiting for the timer.
+	outMu      sync.Mutex
+	outBuf     []byte
+	outPending bool
+	emit       func(p []byte)
 }
 
 const outputThrottle = 250 * time.Millisecond
@@ -61,7 +68,23 @@ const outputThrottle = 250 * time.Millisecond
 // reloaded/detached frontend cannot wedge the session forever.
 const (
 	flowWindow = 4 << 20
-	flowStall  = 30 * time.Second
+	flowStall  = 10 * time.Second
+)
+
+// Output coalescing. Every emitted event costs a main-thread dispatch, a
+// webkit run-javascript IPC round trip and a separate JS evaluation in the
+// WebView, so the event count — not the byte count — is what floods the
+// frontend. Peers like Cisco IOS write a line or less per SSH packet: a 4 MiB
+// "show tech" arrived as tens of thousands of events, the WebView spent
+// seconds evaluating them one by one, xterm's timer-driven parser (and with it
+// the acks) starved, and the reader sat in waitCredit until flowStall reset
+// it. Reads are therefore batched: the first read after idle goes out at
+// once (keystroke echo stays instant), reads landing inside the following
+// outCoalesce window accumulate and leave as one event when the timer fires
+// or the batch reaches outChunk, whichever is first.
+const (
+	outCoalesce = 5 * time.Millisecond
+	outChunk    = 64 << 10
 )
 
 // Viewport scrollback. xterm.js keeps its own line buffer in the WebView
@@ -122,6 +145,51 @@ func (t *terminal) ack(n int) {
 		t.flowCond.Broadcast()
 	}
 	t.flowMu.Unlock()
+}
+
+// queueOutput hands p to the frontend, coalescing bursts (see outCoalesce).
+func (t *terminal) queueOutput(p []byte) {
+	t.outMu.Lock()
+	defer t.outMu.Unlock()
+	if !t.outPending {
+		// Idle: nothing queued ahead of p, so it can go out immediately;
+		// open a coalescing window for whatever follows.
+		t.outPending = true
+		time.AfterFunc(outCoalesce, t.flushOutput)
+		t.emit(p)
+		return
+	}
+	t.outBuf = append(t.outBuf, p...)
+	if len(t.outBuf) >= outChunk {
+		t.emit(t.outBuf)
+		t.outBuf = t.outBuf[:0]
+	}
+}
+
+// flushOutput emits the batch collected during the coalescing window. A
+// non-empty batch keeps the window open (a sustained flood emits once per
+// outCoalesce); an empty one returns the terminal to idle.
+func (t *terminal) flushOutput() {
+	t.outMu.Lock()
+	defer t.outMu.Unlock()
+	if len(t.outBuf) == 0 {
+		t.outPending = false
+		return
+	}
+	t.emit(t.outBuf)
+	t.outBuf = t.outBuf[:0]
+	time.AfterFunc(outCoalesce, t.flushOutput)
+}
+
+// drainOutput emits anything still queued, synchronously; used before the
+// closed notification so no data trails f9:termclosed.
+func (t *terminal) drainOutput() {
+	t.outMu.Lock()
+	defer t.outMu.Unlock()
+	if len(t.outBuf) > 0 {
+		t.emit(t.outBuf)
+		t.outBuf = nil
+	}
 }
 
 func (t *terminal) wakeFlow() {
@@ -221,6 +289,7 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 	a.rebalanceScrollback()
 
 	dataEvent := "f9:term:" + termID
+	t.emit = func(p []byte) { a.emitEvent(dataEvent, base64.StdEncoding.EncodeToString(p)) }
 	sess.OnData(func(p []byte) {
 		// Scrollback and classifiers first: they are bounded and must see
 		// everything even while the frontend is being throttled.
@@ -229,7 +298,7 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 		a.detectActivity(termID, t, p)
 		a.observeOS(sessionID, p)
 		t.waitCredit(len(p))
-		a.emitEvent(dataEvent, base64.StdEncoding.EncodeToString(p))
+		t.queueOutput(p)
 	})
 	go func() {
 		_ = sess.Wait()
@@ -237,6 +306,7 @@ func (a *App) OpenTerminal(termID, sessionID string, cols, rows int) error {
 		delete(a.terms, termID)
 		a.tmu.Unlock()
 		t.wakeFlow()
+		t.drainOutput()
 		a.rebalanceScrollback()
 		a.dropDetectorIfIdle(sessionID)
 		t.sb.Close()

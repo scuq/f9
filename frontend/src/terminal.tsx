@@ -97,7 +97,8 @@ export function TerminalView(
 
     // Output flow control: ack bytes once xterm has consumed them, batched so
     // a flood costs one IPC call per ~64 KiB rather than one per event. Go
-    // stops reading the SSH channel while >4 MiB is unacked.
+    // stops reading the SSH channel while >4 MiB is unacked (and coalesces
+    // reads into few, larger events so this ack path is never starved).
     let unacked = 0;
     let ackTimer: number | null = null;
     const flushAck = () => {
