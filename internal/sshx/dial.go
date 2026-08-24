@@ -238,7 +238,9 @@ func SFTPViaHopCommand(host string, port int, user string) (string, error) {
 	if user != "" && !safeArg.MatchString(user) {
 		return "", fmt.Errorf("sshx: unsafe shell-hop target user %q", user)
 	}
-	cmd := "ssh -o BatchMode=yes"
+	// -v: the hop's ssh narrates auth/subsystem on stderr, which the app
+	// shows when the route fails; stdout (the sftp stream) is unaffected.
+	cmd := "ssh -v -o BatchMode=yes"
 	if port > 0 && port != 22 {
 		cmd += " -p " + strconv.Itoa(port)
 	}

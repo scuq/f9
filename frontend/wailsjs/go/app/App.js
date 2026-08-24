@@ -286,8 +286,16 @@ export function TermInput(arg1, arg2) {
   return window['go']['app']['App']['TermInput'](arg1, arg2);
 }
 
+export function TermLastOutput(arg1) {
+  return window['go']['app']['App']['TermLastOutput'](arg1);
+}
+
 export function TermResize(arg1, arg2, arg3) {
   return window['go']['app']['App']['TermResize'](arg1, arg2, arg3);
+}
+
+export function TermScrollback(arg1) {
+  return window['go']['app']['App']['TermScrollback'](arg1);
 }
 
 export function TerminalPeek(arg1, arg2, arg3) {

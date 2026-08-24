@@ -99,11 +99,11 @@ func TestShellHopCommand(t *testing.T) {
 
 func TestSFTPViaHopCommand(t *testing.T) {
 	c, err := SFTPViaHopCommand("10.1.2.3", 2222, "admin")
-	if err != nil || c != "ssh -o BatchMode=yes -p 2222 -s admin@10.1.2.3 sftp" {
+	if err != nil || c != "ssh -v -o BatchMode=yes -p 2222 -s admin@10.1.2.3 sftp" {
 		t.Fatalf("got %q, %v", c, err)
 	}
 	c, err = SFTPViaHopCommand("sw1", 22, "")
-	if err != nil || c != "ssh -o BatchMode=yes -s sw1 sftp" {
+	if err != nil || c != "ssh -v -o BatchMode=yes -s sw1 sftp" {
 		t.Fatalf("got %q, %v", c, err)
 	}
 	if _, err := SFTPViaHopCommand("h;id", 22, "a"); err == nil {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import { currentTermConfig, onTermConfig } from "./theme";
 import { requestFind, requestPicker, pickerIsEnabled } from "./termsearch";
@@ -41,6 +42,27 @@ export function TerminalView(
   const routePasteRef = useRef(routePaste);
   routePasteRef.current = routePaste;
 
+  // "copied N lines" badge shown briefly after Ctrl/Cmd+Shift+O.
+  const [copyNote, setCopyNote] = useState<string | null>(null);
+  const copyNoteTimer = useRef<number | null>(null);
+  const showCopyNote = (msg: string) => {
+    setCopyNote(msg);
+    if (copyNoteTimer.current !== null) window.clearTimeout(copyNoteTimer.current);
+    copyNoteTimer.current = window.setTimeout(() => setCopyNote(null), 1800);
+  };
+  const copyLastOutput = () => {
+    api().TermLastOutput(termId).then((text) => {
+      if (!text) { showCopyNote("nothing to copy"); return; }
+      window.runtime.ClipboardSetText?.(text);
+      showCopyNote(`copied ${text.split("\n").length.toLocaleString()} lines`);
+    }).catch((e) => {
+      const raw = e && typeof e === "object" && "message" in (e as object) ? (e as { message?: string }).message : e;
+      showCopyNote(String(raw ?? "copy failed"));
+    });
+  };
+  const copyLastOutputRef = useRef(copyLastOutput);
+  copyLastOutputRef.current = copyLastOutput;
+
   const fitAndSync = () => {
     const fit = fitRef.current, term = termRef.current;
     if (!fit || !term) return;
@@ -60,11 +82,23 @@ export function TerminalView(
       lineHeight: 1.1,
       theme: c.theme,
       cursorBlink: true,
-      scrollback: 5000,
+      scrollback: 80000, // replaced by the session's resolved value below
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(hostRef.current!);
+    // GPU renderer: several times the parse/paint throughput of the default
+    // DOM renderer, which is what keeps the backend flow-control window from
+    // stalling on a big flood. No WebGL2 (or a lost context) falls back to
+    // the DOM renderer transparently.
+    try {
+      const gl = new WebglAddon();
+      gl.onContextLoss(() => gl.dispose());
+      term.loadAddon(gl);
+    } catch { /* DOM renderer */ }
+    // Viewport scrollback follows the session's scrollbackLines option
+    // (clamped in Go); the Go ring keeps the full history for search.
+    api().TermScrollback(sessionId).then((n) => { if (n > 0) term.options.scrollback = n; }).catch(() => {});
     termRef.current = term;
     fitRef.current = fit;
     try { fit.fit(); } catch { /* hidden on mount */ }
@@ -72,7 +106,7 @@ export function TerminalView(
 
     // Output flow control: ack bytes once xterm has consumed them, batched so
     // a flood costs one IPC call per ~64 KiB rather than one per event. Go
-    // stops reading the SSH channel while >1 MiB is unacked.
+    // stops reading the SSH channel while >4 MiB is unacked.
     let unacked = 0;
     let ackTimer: number | null = null;
     const flushAck = () => {
@@ -120,6 +154,13 @@ export function TerminalView(
         const sel = term.getSelection();
         if (sel) window.runtime.ClipboardSetText?.(sel);
         e.preventDefault();
+        return false;
+      }
+      // Ctrl/Cmd+Shift+O: copy the output of the last command (everything
+      // since Enter was last sent) from the Go scrollback to the clipboard.
+      if (e.type === "keydown" && (e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "o" || e.key === "O")) {
+        e.preventDefault();
+        copyLastOutputRef.current();
         return false;
       }
       // Ctrl/Cmd+Shift+V: paste the clipboard into the terminal.
@@ -237,6 +278,7 @@ export function TerminalView(
   return (
     <div class="termwrap" style={{ display: active ? "block" : "none" }}>
       <div class="termhost" ref={hostRef} />
+      {copyNote !== null && <div class="copynote">{copyNote}</div>}
       {pendingPaste !== null && (
         <div class="pastebox">
           <div class="pastebox-head">review paste ({pendingPaste.split("\n").length} lines)</div>

@@ -35,6 +35,12 @@ type terminal struct {
 	running  bool
 	tail     []byte
 	lastOut  time.Time
+	// mark is the absolute scrollback line where the output of the most
+	// recent command starts (the line after the one Enter was typed on).
+	// typed records a non-whitespace keystroke since the previous Enter, so
+	// a bare Enter (fresh prompt) or Space+Enter (paging) leaves mark alone.
+	mark  int
+	typed bool
 
 	// Output flow control (see waitCredit): bytes emitted to the frontend
 	// but not yet acknowledged via TermAck.
@@ -54,9 +60,38 @@ const outputThrottle = 250 * time.Millisecond
 // the same way a slow real terminal does. flowStall bounds the wait so a
 // reloaded/detached frontend cannot wedge the session forever.
 const (
-	flowWindow = 1 << 20
+	flowWindow = 4 << 20
 	flowStall  = 30 * time.Second
 )
+
+// Viewport scrollback. xterm.js keeps its own line buffer in the WebView
+// (about 12 bytes per cell: 200 columns x 80k lines is ~190 MiB), separate
+// from the Go ring that backs search and holds the full history. The viewport
+// follows the session's scrollbackLines option so it can be tuned per folder,
+// clamped so a ring-sized value (5,000,000) does not allocate gigabytes in
+// the browser.
+const (
+	viewportScrollbackDefault = 80_000
+	viewportScrollbackMax     = 500_000
+)
+
+// viewportScrollback maps the resolved scrollbackLines option (0 = unset)
+// to the xterm.js scrollback line count.
+func viewportScrollback(lines int) int {
+	if lines <= 0 {
+		return viewportScrollbackDefault
+	}
+	if lines > viewportScrollbackMax {
+		return viewportScrollbackMax
+	}
+	return lines
+}
+
+// TermScrollback returns the xterm.js scrollback (in lines) for a session's
+// terminal viewport.
+func (a *App) TermScrollback(sessionID string) int {
+	return viewportScrollback(a.scrollbackLines(sessionID))
+}
 
 func (t *terminal) waitCredit(n int) {
 	t.flowMu.Lock()
@@ -255,11 +290,79 @@ func (a *App) TermInput(termID, data string) {
 		return
 	}
 	if strings.ContainsAny(data, "\r\n") {
+		lines, _ := t.sb.Len()
+		end := t.sb.FirstLine() + lines // the partial prompt+command line is end-1
 		t.mu.Lock()
 		t.running = true
+		for i := 0; i < len(data); i++ {
+			switch data[i] {
+			case '\r', '\n':
+				if t.typed {
+					t.mark = end
+					t.typed = false
+				}
+			case ' ', '\t':
+			default:
+				t.typed = true
+			}
+		}
+		t.mu.Unlock()
+	} else if strings.IndexFunc(data, func(r rune) bool { return r != ' ' && r != '\t' }) >= 0 {
+		t.mu.Lock()
+		t.typed = true
 		t.mu.Unlock()
 	}
 	_, _ = t.session.Stdin().Write([]byte(data))
+}
+
+// lastOutputMax bounds what one TermLastOutput call hands to the clipboard:
+// the text crosses the IPC bridge as a single JSON string.
+const lastOutputMax = 64 << 20
+
+// TermLastOutput returns the terminal's scrollback since the last command was
+// sent (everything, if none was): the "copy last output" shortcut. A command
+// is an Enter preceded by at least one non-whitespace keystroke since the
+// previous Enter; bare Enters and Space+Enter (pager) do not count. A trailing
+// line that matches the detected OS's prompt regex is dropped so the copied
+// text ends with the command's output rather than the next prompt. ANSI is
+// already stripped in the scrollback, so the text is plain.
+func (a *App) TermLastOutput(termID string) (string, error) {
+	a.tmu.Lock()
+	t, ok := a.terms[termID]
+	a.tmu.Unlock()
+	if !ok {
+		return "", fmt.Errorf("app: terminal not open")
+	}
+	t.mu.Lock()
+	from, promptRe := t.mark, t.promptRe
+	t.mu.Unlock()
+	lines, size := t.sb.Len()
+	first := t.sb.FirstLine()
+	end := first + lines
+	if from < first {
+		from = first // evicted: start at the oldest retained line
+	}
+	if from >= end {
+		return "", nil
+	}
+	if size > lastOutputMax {
+		return "", fmt.Errorf("app: last output exceeds %d MiB; use search to extract what you need", lastOutputMax>>20)
+	}
+	out, err := t.sb.Lines(from, end)
+	if err != nil {
+		return "", err
+	}
+	if n := len(out); n > 0 && promptRe != nil && promptRe.Match(out[n-1]) {
+		out = out[:n-1]
+	}
+	var sb strings.Builder
+	for i, ln := range out {
+		if i > 0 {
+			sb.WriteByte('\n')
+		}
+		sb.Write(ln)
+	}
+	return sb.String(), nil
 }
 
 func (a *App) TermResize(termID string, cols, rows int) {

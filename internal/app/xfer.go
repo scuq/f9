@@ -155,7 +155,7 @@ func (a *App) startHopSFTP(hop *ssh.Client, cmd string) (*xfer.Conn, error) {
 		return nil, err
 	}
 	hs := &hopSession{sess: sess, stderr: &bytes.Buffer{}}
-	sess.Stderr = &limitedBuffer{b: hs.stderr, max: 4096}
+	sess.Stderr = &limitedBuffer{b: hs.stderr, max: 16384}
 	if err := sess.Start(cmd); err != nil {
 		sess.Close()
 		return nil, fmt.Errorf("start %q: %w", cmd, err)
@@ -176,7 +176,12 @@ func (a *App) startHopSFTP(hop *ssh.Client, cmd string) (*xfer.Conn, error) {
 	if msg == "" {
 		return nil, fmt.Errorf("%q: %v (the hop's ssh printed nothing)", cmd, err)
 	}
-	return nil, fmt.Errorf("%q: %v\n  jump host ssh said: %s", cmd, err, strings.ReplaceAll(msg, "\n", "\n  "))
+	// keep the last 25 lines of the -v narration: the end is where it died
+	lines := strings.Split(msg, "\n")
+	if len(lines) > 25 {
+		lines = lines[len(lines)-25:]
+	}
+	return nil, fmt.Errorf("%q: %v\n  jump host ssh said:\n  %s", cmd, err, strings.Join(lines, "\n  "))
 }
 
 // limitedBuffer keeps the tail of stderr bounded.

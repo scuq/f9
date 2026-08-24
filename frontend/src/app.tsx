@@ -34,7 +34,7 @@ const OPTION_KEYS: { key: string; label: string; hint: string }[] = [
   { key: "keepaliveInterval", label: "keepalive", hint: "30s" },
   { key: "reconnect", label: "reconnect", hint: "off | prompt | auto" },
   { key: "theme", label: "theme", hint: "oled-black" },
-  { key: "scrollbackLines", label: "scrollback lines", hint: "5000000" },
+  { key: "scrollbackLines", label: "scrollback lines", hint: "search history 5000000; viewport uses it clamped to 500000 (default 80000)" },
   { key: "auditScope", label: "audit scope", hint: "off | events | events+input | full-io" },
   { key: "keyFile", label: "SSH key file", hint: "~/.ssh/id_ed25519 (overrides global)" },
   { key: "useAgent", label: "use SSH agent", hint: "true | false (empty = inherit)" },

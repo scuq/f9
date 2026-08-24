@@ -24,6 +24,8 @@ declare global {
           OpenTerminal(termId: string, sessionId: string, cols: number, rows: number): Promise<void>;
           TermInput(termId: string, data: string): Promise<void>;
           TermAck(termId: string, n: number): Promise<void>;
+          TermScrollback(sessionId: string): Promise<number>;
+          TermLastOutput(termId: string): Promise<string>;
           TermResize(termId: string, cols: number, rows: number): Promise<void>;
           CloseTerminal(termId: string): Promise<void>;
           SetTerminalWatch(termId: string, pattern: string): Promise<void>;

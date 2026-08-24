@@ -31,7 +31,10 @@ Named after its launcher hotkey.
 ### Terminals & connections
 - **Terminals** — xterm.js with chunked scrollback, a virtual grep panel
   (Ctrl/Cmd+F), clipboard copy/paste (Ctrl/Cmd+Shift+C/V, middle-click primary
-  paste), and a wheel-scrollable tab strip.
+  paste), copy-last-output (Ctrl/Cmd+Shift+O copies everything since the last
+  command was sent — an Enter after real keystrokes, so bare Enters and pager
+  Spaces don't count — straight from the Go scrollback), and a
+  wheel-scrollable tab strip.
 - **Multi-connect** — connect marked sessions or a whole folder; terminal tabs
   open as each connection lands.
 - **Dead-link detection** — SSH keepalive with a bounded reply wait: a dropped

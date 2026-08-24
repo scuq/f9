@@ -240,3 +240,76 @@ func TestCloseLastTerminalDisconnects(t *testing.T) {
 		t.Fatal("connection still open after last terminal closed")
 	}
 }
+
+func TestViewportScrollback(t *testing.T) {
+	cases := map[int]int{0: viewportScrollbackDefault, -1: viewportScrollbackDefault, 500: 500, 5_000_000: viewportScrollbackMax}
+	for in, want := range cases {
+		if got := viewportScrollback(in); got != want {
+			t.Errorf("viewportScrollback(%d) = %d, want %d", in, got, want)
+		}
+	}
+}
+
+func TestTermLastOutput(t *testing.T) {
+	a, id, fs := setupConnectedTerminal(t)
+	if err := a.OpenTerminal("t1", id, 80, 24); err != nil {
+		t.Fatal(err)
+	}
+	defer a.CloseTerminal("t1")
+	fs.onData([]byte("banner\r\nrouter> "))
+	a.TermInput("t1", "show x")
+	fs.onData([]byte("show x")) // echoed while typing
+	a.TermInput("t1", "\r")
+	fs.onData([]byte("\r\nline1\r\nline2\r\nrouter> "))
+	got, err := a.TermLastOutput("t1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "line1\nline2\nrouter> "; got != want {
+		t.Fatalf("last output = %q, want %q", got, want)
+	}
+	// With a prompt regex the trailing prompt line is dropped.
+	a.tmu.Lock()
+	a.terms["t1"].promptRe = regexp.MustCompile(`^router> $`)
+	a.tmu.Unlock()
+	got, err = a.TermLastOutput("t1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "line1\nline2"; got != want {
+		t.Fatalf("last output (prompt stripped) = %q, want %q", got, want)
+	}
+	// Bare Enter (fresh prompt) and Space+Enter (pager) do not move the mark.
+	a.TermInput("t1", "\r")
+	fs.onData([]byte("\r\nrouter> "))
+	a.TermInput("t1", " ")
+	a.TermInput("t1", "\r")
+	fs.onData([]byte("\r\nrouter> "))
+	got, _ = a.TermLastOutput("t1")
+	if want := "line1\nline2\nrouter> \nrouter> "; got != want {
+		t.Fatalf("after bare enters = %q, want %q", got, want)
+	}
+	// A real second command moves the mark; the earlier output is excluded.
+	// Keystrokes arrive one per input call, like a typed command.
+	for _, ch := range []string{"s", "h", "o", "w", " ", "y"} {
+		fs.onData([]byte(ch))
+		a.TermInput("t1", ch)
+	}
+	a.TermInput("t1", "\n")
+	fs.onData([]byte("\r\nonly\r\n"))
+	got, _ = a.TermLastOutput("t1")
+	if got != "only" {
+		t.Fatalf("after second command = %q, want %q", got, "only")
+	}
+	// A pasted multi-line command marks at its last line.
+	fs.onData([]byte("router> "))
+	a.TermInput("t1", "conf t\nhostname r\n")
+	fs.onData([]byte("\r\nrouter(config)# \r\nrouter(config)# "))
+	got, _ = a.TermLastOutput("t1")
+	if want := "router(config)# \nrouter(config)# "; got != want {
+		t.Fatalf("after paste = %q, want %q", got, want)
+	}
+	if _, err := a.TermLastOutput("nope"); err == nil {
+		t.Fatal("expected error for unknown terminal")
+	}
+}

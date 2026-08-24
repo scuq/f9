@@ -678,6 +678,7 @@ select, input, textarea, option { color-scheme: dark; }
 .pastebox textarea { width: 100%; min-height: 140px; max-height: 45vh; resize: vertical; box-sizing: border-box; font-family: "JetBrains Mono", monospace; font-size: 12px; background: var(--bg); color: var(--fg); border: 1px solid var(--border); padding: 6px; }
 .pastebox-actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
 .pastebox-hint { margin-right: auto; font-size: 10px; color: var(--folder-fg); }
+.copynote { position: absolute; top: 10px; right: 24px; padding: 4px 10px; font-size: 11px; color: var(--fg); background: var(--bg-raised); border: 1px solid var(--accent); border-radius: 4px; z-index: 5; pointer-events: none; }
 
 /* --- floating surfaces follow the content palette --- */
 .modal, .ctxmenu, .pastebox, .update-toast {

@@ -150,7 +150,11 @@ export function TermAck(arg1:string,arg2:number):Promise<void>;
 
 export function TermInput(arg1:string,arg2:string):Promise<void>;
 
+export function TermLastOutput(arg1:string):Promise<string>;
+
 export function TermResize(arg1:string,arg2:number,arg3:number):Promise<void>;
+
+export function TermScrollback(arg1:string):Promise<number>;
 
 export function TerminalPeek(arg1:string,arg2:number,arg3:number):Promise<app.PeekDTO>;
 
